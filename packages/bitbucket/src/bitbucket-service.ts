@@ -83,6 +83,35 @@ export class BitbucketService {
   }
 
   /**
+   * Get repositories for a project
+   * @param projectKey The project key
+   * @param repositorySlug The short name of the repository
+   * @param path The path to the file
+   * @returns Promise with repositories data
+   */
+  async getFileContent(projectKey: string, repositorySlug: string, path: string) {
+    return handleApiOperation(
+      () => ProjectService.getFileContent(projectKey, repositorySlug, path),
+      'Error fetching repositories'
+    );
+  }
+
+  /**
+   * Get repositories for a project
+   * @param projectKey The project key
+   * @param repositorySlug The short name of the repository
+   * @param path The path to the file
+   * @param limit pagination limit (default: 25)
+   * @returns Promise with repositories data
+   */
+  async getFilesFromPath(projectKey: string, repositorySlug: string, path: string, limit: number = 25) {
+    return handleApiOperation(
+      () => ProjectService.getFilesFromPath(projectKey, repositorySlug, path, limit),
+      'Error fetching repositories'
+    );
+  }
+
+  /**
    * Get a specific repository
    * @param projectKey The project key
    * @param repositorySlug The repository slug
@@ -115,6 +144,17 @@ export const bitbucketToolSchemas = {
     projectKey: z.string().describe("The project key"),
     start: z.number().optional().describe("Start number for pagination"),
     limit: z.number().optional().default(25).describe("Number of items to return")
+  },
+  getFileContent: {
+    projectKey: z.string().describe("The project key"),
+    repositorySlug: z.string().describe("The repository slug"),
+    path: z.string().describe("The path to the file")
+  },
+  getFilesFromPath: {
+    projectKey: z.string().describe("The project key"),
+    repositorySlug: z.string().describe("The repository slug"),
+    path: z.string().describe("The path to the file"),
+    limit: z.number().describe("Number of items to return")
   },
   getRepository: {
     projectKey: z.string().describe("The project key"),

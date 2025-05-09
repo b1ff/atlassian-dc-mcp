@@ -56,6 +56,26 @@ server.tool(
 );
 
 server.tool(
+  "bitbucket_getFileContent",
+  "Get file content for a Bitbucket project",
+  bitbucketToolSchemas.getFileContent,
+  async ({ projectKey, repositorySlug, path }) => {
+    const result = await bitbucketService.getFileContent(projectKey, repositorySlug, path);
+    return formatToolResponse(result);
+  }
+);
+
+server.tool(
+  "bitbucket_getFilesFromPath",
+  "Get files from provided path",
+  bitbucketToolSchemas.getFilesFromPath,
+  async ({ projectKey, repositorySlug, path, limit }) => {
+    const result = await bitbucketService.getFilesFromPath(projectKey, repositorySlug, path, limit);
+    return formatToolResponse(result);
+  }
+);
+
+server.tool(
   "bitbucket_getRepository",
   "Get a specific Bitbucket repository",
   bitbucketToolSchemas.getRepository,

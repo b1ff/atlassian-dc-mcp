@@ -107,7 +107,6 @@ Parameters:
 - `projectKey` (string, required): The project key
 - `repositorySlug` (string, required): The repository slug
 - `path` (string, required): Path to the file in the repository
-- `at` (string, optional): Commit or branch to get the file from (defaults to main/master branch)
 
 #### 5. bitbucket_getPullRequests
 
@@ -119,3 +118,13 @@ Parameters:
 - `state` (string, optional): Filter by PR state (OPEN, MERGED, DECLINED)
 - `limit` (number, optional): Maximum number of results to return
 - `start` (number, optional): Starting index for pagination
+
+#### 6. bitbucket_getFilesFromPath
+
+Get file names from a specific path in a repository in the Bitbucket Data Center instance.
+
+Parameters:
+- `projectKey` (string, required): The project key
+- `repositorySlug` (string, required): The repository slug
+- `path` (string, required): Path to the file in the repository
+- `limit` (number, optional): Maximum number of results to return
