@@ -102,4 +102,15 @@ server.tool(
   }
 );
 
+
+server.tool(
+  "bitbucket_getPullRequestDiff",
+  "Get text diff for a specific file in a Bitbucket pull request. Returns plain text diff format. Note: Before getting diff, use getPullRequestChanges to understand what files were changed in the PR",
+  bitbucketToolSchemas.getPullRequestDiff,
+  async ({ projectKey, repositorySlug, pullRequestId, path, contextLines, sinceId, srcPath, diffType, untilId, whitespace }) => {
+    const result = await bitbucketService.getPullRequestDiff(projectKey, repositorySlug, pullRequestId, path, contextLines, sinceId, srcPath, diffType, untilId, whitespace);
+    return formatToolResponse(result);
+  }
+);
+
 await connectServer(server);

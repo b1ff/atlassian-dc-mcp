@@ -1,11 +1,17 @@
 import { BitbucketService } from '../bitbucket-service.js';
 import { PullRequestsService } from '../bitbucket-client/index.js';
 
+// Mock the request function
+jest.mock('../bitbucket-client/core/request.js', () => ({
+  request: jest.fn()
+}));
+
 // Mock the PullRequestsService
 jest.mock('../bitbucket-client/index.js', () => ({
   PullRequestsService: {
     streamRawDiff2: jest.fn(),
-    createComment2: jest.fn()
+    createComment2: jest.fn(),
+    streamChanges1: jest.fn()
   },
   OpenAPI: {
     BASE: '',
@@ -105,7 +111,7 @@ describe('BitbucketService', () => {
       );
 
       expect(result.success).toBe(false);
-      expect(result.error).toContain('Error fetching pull request changes');
+      expect(result.error).toBe('API Error');
     });
   });
 
@@ -247,7 +253,120 @@ describe('BitbucketService', () => {
       );
 
       expect(result.success).toBe(false);
-      expect(result.error).toContain('Error posting pull request comment');
+      expect(result.error).toBe('API Error');
+    });
+  });
+
+  describe('getPullRequestDiff', () => {
+    const { request: mockRequest } = require('../bitbucket-client/core/request.js');
+
+    it('should successfully get raw diff with minimal parameters', async () => {
+      const mockRawDiff = 'diff --git a/file.txt b/file.txt\nindex 1234567..abcdefg 100644\n--- a/file.txt\n+++ b/file.txt\n@@ -1,3 +1,4 @@\n line1\n line2\n+new line\n line3';
+      mockRequest.mockResolvedValue(mockRawDiff);
+
+      const result = await bitbucketService.getPullRequestDiff(
+        mockProjectKey,
+        mockRepositorySlug,
+        mockPullRequestId,
+        'src/file.txt'
+      );
+
+      expect(result.success).toBe(true);
+      expect(result.data).toBe(mockRawDiff);
+      expect(mockRequest).toHaveBeenCalledWith(
+        expect.any(Object), // OpenAPI config
+        {
+          method: 'GET',
+          url: '/api/latest/projects/{projectKey}/repos/{repositorySlug}/pull-requests/{pullRequestId}/diff/{path}',
+          path: {
+            'path': 'src/file.txt',
+            'projectKey': mockProjectKey,
+            'pullRequestId': mockPullRequestId,
+            'repositorySlug': mockRepositorySlug,
+          },
+          query: {
+            'contextLines': undefined,
+            'sinceId': undefined,
+            'srcPath': undefined,
+            'diffType': undefined,
+            'untilId': undefined,
+            'whitespace': undefined,
+          },
+          headers: {
+            'Accept': 'text/plain'
+          },
+          errors: {
+            400: `If the request was malformed.`,
+            401: `The currently authenticated user has insufficient permissions to view the repository or pull request.`,
+            404: `The repository or pull request does not exist.`,
+          },
+        }
+      );
+    });
+
+    it('should successfully get raw diff with all parameters', async () => {
+      const mockRawDiff = 'diff --git a/old/file.txt b/new/file.txt\nindex 1234567..abcdefg 100644\n--- a/old/file.txt\n+++ b/new/file.txt\n@@ -1,5 +1,6 @@\n line1\n line2\n+new line\n line3\n line4\n line5';
+      mockRequest.mockResolvedValue(mockRawDiff);
+
+      const result = await bitbucketService.getPullRequestDiff(
+        mockProjectKey,
+        mockRepositorySlug,
+        mockPullRequestId,
+        'src/file.txt',
+        '5', // contextLines
+        'abc123', // sinceId
+        'old/file.txt', // srcPath
+        'EFFECTIVE', // diffType
+        'def456', // untilId
+        'ignore-all' // whitespace
+      );
+
+      expect(result.success).toBe(true);
+      expect(result.data).toBe(mockRawDiff);
+      expect(mockRequest).toHaveBeenCalledWith(
+        expect.any(Object), // OpenAPI config
+        {
+          method: 'GET',
+          url: '/api/latest/projects/{projectKey}/repos/{repositorySlug}/pull-requests/{pullRequestId}/diff/{path}',
+          path: {
+            'path': 'src/file.txt',
+            'projectKey': mockProjectKey,
+            'pullRequestId': mockPullRequestId,
+            'repositorySlug': mockRepositorySlug,
+          },
+          query: {
+            'contextLines': '5',
+            'sinceId': 'abc123',
+            'srcPath': 'old/file.txt',
+            'diffType': 'EFFECTIVE',
+            'untilId': 'def456',
+            'whitespace': 'ignore-all',
+          },
+          headers: {
+            'Accept': 'text/plain'
+          },
+          errors: {
+            400: `If the request was malformed.`,
+            401: `The currently authenticated user has insufficient permissions to view the repository or pull request.`,
+            404: `The repository or pull request does not exist.`,
+          },
+        }
+      );
+    });
+
+    it('should handle API errors gracefully', async () => {
+      const mockError = new Error('API Error');
+      mockRequest.mockRejectedValue(mockError);
+
+      const result = await bitbucketService.getPullRequestDiff(
+        mockProjectKey,
+        mockRepositorySlug,
+        mockPullRequestId,
+        'src/file.txt'
+      );
+
+      expect(result.success).toBe(false);
+      expect(result.error).toBe('API Error');
     });
   });
 

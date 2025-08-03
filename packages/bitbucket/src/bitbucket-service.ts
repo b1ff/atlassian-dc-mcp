@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { OpenAPI, ProjectService, PullRequestsService, RepositoryService } from './bitbucket-client/index.js';
+import { request as __request } from './bitbucket-client/core/request.js';
 import { handleApiOperation } from '@atlassian-dc-mcp/common';
 import { simplifyBitbucketPRComments } from './pr-comment-mapper.js';
 import { simplifyBitbucketPRChanges } from './pr-changes-mapper.js';
@@ -234,6 +235,64 @@ export class BitbucketService {
     );
   }
 
+
+  /**
+   * Get text diff for a specific file in a pull request
+   * @param projectKey The project key
+   * @param repositorySlug The repository slug
+   * @param pullRequestId The pull request ID
+   * @param path The path to the file which should be diffed
+   * @param contextLines Optional number of context lines to include around added/removed lines
+   * @param sinceId Optional since commit hash to stream a diff between two arbitrary hashes
+   * @param srcPath Optional previous path to the file, if the file has been copied, moved or renamed
+   * @param diffType Optional type of diff being requested
+   * @param untilId Optional until commit hash to stream a diff between two arbitrary hashes
+   * @param whitespace Optional whitespace flag which can be set to 'ignore-all'
+   * @returns Promise with text diff data
+   */
+  async getPullRequestDiff(
+    projectKey: string,
+    repositorySlug: string,
+    pullRequestId: string,
+    path: string,
+    contextLines?: string,
+    sinceId?: string,
+    srcPath?: string,
+    diffType?: string,
+    untilId?: string,
+    whitespace?: string
+  ) {
+    return handleApiOperation(
+      () => __request(OpenAPI, {
+        method: 'GET',
+        url: '/api/latest/projects/{projectKey}/repos/{repositorySlug}/pull-requests/{pullRequestId}/diff/{path}',
+        path: {
+          'path': path,
+          'projectKey': projectKey,
+          'pullRequestId': pullRequestId,
+          'repositorySlug': repositorySlug,
+        },
+        query: {
+          'contextLines': contextLines,
+          'sinceId': sinceId,
+          'srcPath': srcPath,
+          'diffType': diffType,
+          'untilId': untilId,
+          'whitespace': whitespace,
+        },
+        headers: {
+          'Accept': 'text/plain'
+        },
+        errors: {
+          400: `If the request was malformed.`,
+          401: `The currently authenticated user has insufficient permissions to view the repository or pull request.`,
+          404: `The repository or pull request does not exist.`,
+        },
+      }),
+      'Error fetching pull request diff'
+    );
+  }
+
   static validateConfig(): string[] {
     // Check for BITBUCKET_HOST or its alternative BITBUCKET_API_BASE_PATH
     const requiredEnvVars = ['BITBUCKET_API_TOKEN'] as const;
@@ -302,5 +361,17 @@ export const bitbucketToolSchemas = {
     filePath: z.string().optional().describe("File path for file-specific comments"),
     line: z.number().optional().describe("Line number for line-specific comments"),
     lineType: z.enum(['ADDED', 'REMOVED', 'CONTEXT']).optional().describe("Line type for line comments")
+  },
+  getPullRequestDiff: {
+    projectKey: z.string().describe("The project key"),
+    repositorySlug: z.string().describe("The repository slug"),
+    pullRequestId: z.string().describe("The pull request ID"),
+    path: z.string().describe("The path to the file which should be diffed. Note: Before getting diff, use getPullRequestChanges to understand what files were changed in the PR"),
+    contextLines: z.string().optional().describe("Number of context lines to include around added/removed lines in the diff"),
+    sinceId: z.string().optional().describe("The since commit hash to stream a diff between two arbitrary hashes"),
+    srcPath: z.string().optional().describe("The previous path to the file, if the file has been copied, moved or renamed"),
+    diffType: z.string().optional().describe("The type of diff being requested"),
+    untilId: z.string().optional().describe("The until commit hash to stream a diff between two arbitrary hashes"),
+    whitespace: z.string().optional().describe("Optional whitespace flag which can be set to 'ignore-all'")
   }
 };

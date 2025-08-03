@@ -3,7 +3,7 @@ export default {
   extensionsToTreatAsEsm: ['.ts'],
   moduleNameMapper: {
     '^(\\.{1,2}/.*)\\.js$': '$1',
-    '^@atlassian-dc-mcp/common$': '<rootDir>/../common/build/index.js',
+    '^@atlassian-dc-mcp/common$': '<rootDir>/../common/src/index.ts',
   },
   transform: {
     '^.+\\.ts$': ['ts-jest', {
