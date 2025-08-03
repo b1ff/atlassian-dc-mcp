@@ -3,6 +3,17 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [0.7.0](https://github.com/b1ff/atlassian-dc-mcp/compare/v0.6.0...v0.7.0) (2025-08-03)
+
+
+### Features
+
+* **jira:** add support for custom fields when creating issues ([f931131](https://github.com/b1ff/atlassian-dc-mcp/commit/f9311314ee16ab7602c8ce016ff4f50a35bacdc3))
+
+
+
+
+
 ## [0.6.1](https://github.com/b1ff/atlassian-dc-mcp/compare/v0.6.0...v0.6.1) (2025-05-26)
 
 **Note:** Version bump only for package @atlassian-dc-mcp/jira
