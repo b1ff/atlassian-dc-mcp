@@ -37,16 +37,22 @@ export class JiraService {
     summary: string;
     description: string;
     issueTypeId: string;
+    customFields?: Record<string, any>;
   }) {
     return handleApiOperation(async () => {
-      return IssueService.createIssue(true, {
-        fields: {
-          project: { key: params.projectId },
-          summary: params.summary,
-          description: params.description,
-          issuetype: { id: params.issueTypeId }
-        }
-      })
+      const standardFields = {
+        project: { key: params.projectId },
+        summary: params.summary,
+        description: params.description,
+        issuetype: { id: params.issueTypeId }
+      };
+
+      // Merge custom fields with standard fields
+      const fields = params.customFields
+        ? { ...standardFields, ...params.customFields }
+        : standardFields;
+
+      return IssueService.createIssue(true, { fields });
     }, 'Error creating issue');
   }
 
@@ -84,6 +90,7 @@ export const jiraToolSchemas = {
     projectId: z.string().describe("Project id"),
     summary: z.string().describe("Issue summary"),
     description: z.string().describe("Issue description in the format suitable for JIRA DATA CENTER edition (JIRA Wiki Markup)."),
-    issueTypeId: z.string().describe("Issue type id (e.g. id of Task, Bug, Story). Should be found first a correct number for specific JIRA installation.")
+    issueTypeId: z.string().describe("Issue type id (e.g. id of Task, Bug, Story). Should be found first a correct number for specific JIRA installation."),
+    customFields: z.record(z.any()).optional().describe("Optional custom fields as key-value pairs. Examples: {'customfield_10001': 'Custom Value', 'priority': {'id': '1'}, 'assignee': {'name': 'john.doe'}, 'labels': ['urgent', 'bug']}")
   }
 };
