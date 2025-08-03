@@ -13,49 +13,49 @@ describe('PR Comment Mapper', () => {
     isLastPage: true,
     values: [
       {
-        id: 5652270,
-        createdDate: 1754117078335,
+        id: 1001,
+        createdDate: 1600000000000,
         user: {
-          name: "user1",
-          emailAddress: "user1@example.com",
+          name: "testuser1",
+          emailAddress: "testuser1@company.local",
           active: true,
-          displayName: "Test User One",
-          id: 7571,
-          slug: "user1",
+          displayName: "User A",
+          id: 101,
+          slug: "testuser1",
           type: "NORMAL",
           links: {
-            self: [{ href: "https://git.example.org/users/user1" }]
+            self: [{ href: "https://bitbucket.company.local/users/testuser1" }]
           }
         },
         action: "COMMENTED",
         commentAction: "ADDED",
         comment: {
-          properties: { repositoryId: 3941 },
-          id: 473382,
+          properties: { repositoryId: 1001 },
+          id: 2001,
           version: 0,
-          text: "Can this value be an empty string?",
+          text: "This needs review",
           author: {
-            name: "user1",
-            emailAddress: "user1@example.com",
+            name: "testuser1",
+            emailAddress: "testuser1@company.local",
             active: true,
-            displayName: "Test User One",
-            id: 7571,
-            slug: "user1",
+            displayName: "User A",
+            id: 101,
+            slug: "testuser1",
             type: "NORMAL",
             links: {
-              self: [{ href: "https://git.example.org/users/user1" }]
+              self: [{ href: "https://bitbucket.company.local/users/testuser1" }]
             }
           },
-          createdDate: 1754117078317,
-          updatedDate: 1754117078317,
+          createdDate: 1600000000000,
+          updatedDate: 1600000000000,
           comments: [],
           anchor: {
-            fromHash: "5d0f3ef3a79fc6978640a87094a3271e513766a7",
-            toHash: "d08555e40a3aeebb4cd201f680d0dd36ca748894",
+            fromHash: "abc123def456789012345678901234567890abcd",
+            toHash: "def456abc789012345678901234567890123cdef",
             line: 6,
             lineType: "ADDED",
             fileType: "TO",
-            path: "tags.tf",
+            path: "config.yml",
             diffType: "EFFECTIVE",
             orphaned: false
           },
@@ -70,18 +70,18 @@ describe('PR Comment Mapper', () => {
         }
       },
       {
-        id: 5652061,
-        createdDate: 1754067942249,
+        id: 1002,
+        createdDate: 1600000001000,
         user: {
-          name: "user2",
-          emailAddress: "user2@example.com",
+          name: "testuser2",
+          emailAddress: "testuser2@company.local",
           active: true,
-          displayName: "Test User Two",
-          id: 11016,
-          slug: "user2",
+          displayName: "User B",
+          id: 102,
+          slug: "testuser2",
           type: "NORMAL",
           links: {
-            self: [{ href: "https://git.example.org/users/user2" }]
+            self: [{ href: "https://bitbucket.company.local/users/testuser2" }]
           }
         },
         action: "OPENED"
@@ -94,34 +94,74 @@ describe('PR Comment Mapper', () => {
     it('should simplify valid PR response correctly', () => {
       const result = simplifyBitbucketPRComments(validPRResponse) as SimplifiedPRResponse;
 
-      expect(result.activities).toHaveLength(2);
-      expect(result.summary.totalActivities).toBe(2);
-      expect(result.summary.commentCount).toBe(1);
+      const expectedResult = {
+        isLastPage: true,
+        activities: [
+          {
+            id: 1001,
+            createdDate: 1600000000000,
+            user: {
+              name: "testuser1",
+              displayName: "User A"
+            },
+            action: "COMMENTED",
+            commentAction: "ADDED",
+            comment: {
+              id: 2001,
+              text: "This needs review",
+              author: {
+                name: "testuser1",
+                displayName: "User A"
+              },
+              createdDate: 1600000000000,
+              anchor: {
+                line: 6,
+                path: "config.yml",
+                fileType: "TO"
+              },
+              threadResolved: false,
+              state: "OPEN"
+            }
+          },
+          {
+            id: 1002,
+            createdDate: 1600000001000,
+            user: {
+              name: "testuser2",
+              displayName: "User B"
+            },
+            action: "OPENED"
+          }
+        ],
+        summary: {
+          totalActivities: 2,
+          prAuthor: {
+            name: "testuser2",
+            displayName: "User B"
+          },
+          commentCount: 1,
+          unresolvedCount: 1
+        }
+      };
 
-      // Check first activity (comment)
-      const firstActivity = result.activities[0];
-      expect(firstActivity.id).toBe(5652270);
-      expect(firstActivity.action).toBe("COMMENTED");
-      expect(firstActivity.user.displayName).toBe("Test User One");
-      expect(firstActivity.comment?.text).toBe("Can this value be an empty string?");
-      expect(firstActivity.comment?.anchor?.path).toBe("tags.tf");
-
-      // Check second activity (opened)
-      const secondActivity = result.activities[1];
-      expect(secondActivity.id).toBe(5652061);
-      expect(secondActivity.action).toBe("OPENED");
-      expect(secondActivity.user.displayName).toBe("Test User Two");
-      expect(secondActivity.comment).toBeUndefined();
+      expect(result).toEqual(expectedResult);
     });
 
     it('should handle malformed input gracefully', () => {
       const malformedInput = { invalid: 'data' } as any;
       const result = simplifyBitbucketPRComments(malformedInput) as SimplifiedPRResponse;
-      // Malformed input without 'values' property gets processed as empty activities
-      expect(result.activities).toHaveLength(0);
-      expect(result.summary.totalActivities).toBe(0);
-      expect(result.summary.commentCount).toBe(0);
-      expect(result.isLastPage).toBe(true);
+
+      const expectedResult = {
+        isLastPage: true,
+        activities: [],
+        summary: {
+          totalActivities: 0,
+          commentCount: 0,
+          unresolvedCount: 0
+        }
+      };
+
+      expect(result).toEqual(expectedResult);
     });
 
     it('should handle empty values array', () => {
@@ -134,9 +174,18 @@ describe('PR Comment Mapper', () => {
       };
 
       const result = simplifyBitbucketPRComments(emptyResponse) as SimplifiedPRResponse;
-      expect(result.activities).toHaveLength(0);
-      expect(result.summary.totalActivities).toBe(0);
-      expect(result.summary.commentCount).toBe(0);
+
+      const expectedResult = {
+        isLastPage: true,
+        activities: [],
+        summary: {
+          totalActivities: 0,
+          commentCount: 0,
+          unresolvedCount: 0
+        }
+      };
+
+      expect(result).toEqual(expectedResult);
     });
 
     it('should reduce response size significantly', () => {
@@ -154,9 +203,9 @@ describe('PR Comment Mapper', () => {
       const summary = getCommentSummary(validPRResponse);
       expect(Array.isArray(summary)).toBe(true);
       expect(summary).toHaveLength(1);
-      expect(summary[0]).toContain("Test User One");
-      expect(summary[0]).toContain("tags.tf");
-      expect(summary[0]).toContain("Can this value be an empty string?");
+      expect(summary[0]).toContain("User A");
+      expect(summary[0]).toContain("config.yml");
+      expect(summary[0]).toContain("This needs review");
     });
 
     it('should handle malformed input gracefully', () => {

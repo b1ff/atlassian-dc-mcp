@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { OpenAPI, ProjectService, PullRequestsService, RepositoryService } from './bitbucket-client/index.js';
 import { handleApiOperation } from '@atlassian-dc-mcp/common';
 import { simplifyBitbucketPRComments } from './pr-comment-mapper.js';
+import { simplifyBitbucketPRChanges } from './pr-changes-mapper.js';
 
 export class BitbucketService {
   constructor(host: string, token: string, fullBaseUrl?: string) {
@@ -125,6 +126,114 @@ export class BitbucketService {
     return result;
   }
 
+  /**
+   * Get pull request changes
+   * @param projectKey The project key
+   * @param repositorySlug The repository slug
+   * @param pullRequestId The pull request ID
+   * @param sinceId Optional since commit hash to stream changes for a RANGE arbitrary change scope
+   * @param changeScope Optional scope: 'UNREVIEWED' for unreviewed changes, 'RANGE' for changes between commits, 'ALL' for all changes (default)
+   * @param untilId Optional until commit hash to stream changes for a RANGE arbitrary change scope
+   * @param withComments Optional flag to include comment counts (default: true)
+   * @param start Optional pagination start
+   * @param limit Optional pagination limit (default: 25)
+   * @returns Promise with PR changes data
+   */
+  async getPullRequestChanges(
+    projectKey: string,
+    repositorySlug: string,
+    pullRequestId: string,
+    sinceId?: string,
+    changeScope?: string,
+    untilId?: string,
+    withComments?: string,
+    start?: number,
+    limit: number = 25
+  ) {
+    const result = await handleApiOperation(
+      () => PullRequestsService.streamChanges1(
+        projectKey,
+        pullRequestId,
+        repositorySlug,
+        sinceId,
+        changeScope,
+        untilId,
+        withComments,
+        start,
+        limit
+      ),
+      'Error fetching pull request changes'
+    );
+
+    // Apply simplification if the API call was successful
+    if (result.success && result.data) {
+      const simplifiedData = simplifyBitbucketPRChanges(result.data);
+      return {
+        ...result,
+        data: simplifiedData
+      };
+    }
+
+    return result;
+  }
+
+  /**
+   * Post a comment to a pull request
+   * @param projectKey The project key
+   * @param repositorySlug The repository slug
+   * @param pullRequestId The pull request ID
+   * @param text The comment text
+   * @param parentId Optional parent comment ID for replies
+   * @param filePath Optional file path for file-specific comments
+   * @param line Optional line number for line-specific comments
+   * @param lineType Optional line type ('ADDED', 'REMOVED', 'CONTEXT') for line comments
+   * @returns Promise with created comment data
+   */
+  async postPullRequestComment(
+    projectKey: string,
+    repositorySlug: string,
+    pullRequestId: string,
+    text: string,
+    parentId?: number,
+    filePath?: string,
+    line?: number,
+    lineType?: 'ADDED' | 'REMOVED' | 'CONTEXT'
+  ) {
+    const comment: any = {
+      text
+    };
+
+    // Add parent reference for replies
+    if (parentId) {
+      comment.parent = { id: parentId };
+    }
+
+    // Add anchor for file/line comments
+    if (filePath) {
+      comment.anchor = {
+        path: filePath,
+        diffType: 'EFFECTIVE'
+      };
+
+      // Add line-specific anchor properties
+      if (line !== undefined && lineType) {
+        comment.anchor.line = line;
+        comment.anchor.lineType = lineType;
+        comment.anchor.fileType = 'TO'; // Default to destination file
+      }
+    }
+
+    return handleApiOperation(
+      () => PullRequestsService.createComment2(
+        projectKey,
+        pullRequestId,
+        repositorySlug,
+        comment
+      ),
+      'Error posting pull request comment'
+    );
+  }
+
   static validateConfig(): string[] {
     // Check for BITBUCKET_HOST or its alternative BITBUCKET_API_BASE_PATH
     const requiredEnvVars = ['BITBUCKET_API_TOKEN'] as const;
@@ -172,5 +281,26 @@ export const bitbucketToolSchemas = {
     pullRequestId: z.string().describe("The pull request ID"),
     start: z.number().optional().describe("Start number for pagination"),
     limit: z.number().optional().default(25).describe("Number of items to return")
+  },
+  getPullRequestChanges: {
+    projectKey: z.string().describe("The project key"),
+    repositorySlug: z.string().describe("The repository slug"),
+    pullRequestId: z.string().describe("The pull request ID"),
+    sinceId: z.string().optional().describe("The since commit hash to stream changes for a RANGE arbitrary change scope"),
+    changeScope: z.string().optional().describe("UNREVIEWED for unreviewed changes, RANGE for changes between commits, ALL for all changes (default)"),
+    untilId: z.string().optional().describe("The until commit hash to stream changes for a RANGE arbitrary change scope"),
+    withComments: z.string().optional().describe("true to apply comment counts in the changes (default), false to stream changes without comment counts"),
+    start: z.number().optional().describe("Start number for pagination"),
+    limit: z.number().optional().default(25).describe("Number of items to return")
+  },
+  postPullRequestComment: {
+    projectKey: z.string().describe("The project key"),
+    repositorySlug: z.string().describe("The repository slug"),
+    pullRequestId: z.string().describe("The pull request ID"),
+    text: z.string().describe("The comment text"),
+    parentId: z.number().optional().describe("Parent comment ID for replies"),
+    filePath: z.string().optional().describe("File path for file-specific comments"),
+    line: z.number().optional().describe("Line number for line-specific comments"),
+    lineType: z.enum(['ADDED', 'REMOVED', 'CONTEXT']).optional().describe("Line type for line comments")
   }
 };

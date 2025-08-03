@@ -80,6 +80,26 @@ server.tool(
     const result = await bitbucketService.getPullRequestCommentsAndActions(projectKey, repositorySlug, pullRequestId, start, limit);
     return formatToolResponse(result);
   }
-)
+);
+
+server.tool(
+  "bitbucket_getPullRequestChanges",
+  "Get the changes for a Bitbucket pull request",
+  bitbucketToolSchemas.getPullRequestChanges,
+  async ({ projectKey, repositorySlug, pullRequestId, sinceId, changeScope, untilId, withComments, start, limit }) => {
+    const result = await bitbucketService.getPullRequestChanges(projectKey, repositorySlug, pullRequestId, sinceId, changeScope, untilId, withComments, start, limit);
+    return formatToolResponse(result);
+  }
+);
+
+server.tool(
+  "bitbucket_postPullRequestComment",
+  "Post a comment to a Bitbucket pull request",
+  bitbucketToolSchemas.postPullRequestComment,
+  async ({ projectKey, repositorySlug, pullRequestId, text, parentId, filePath, line, lineType }) => {
+    const result = await bitbucketService.postPullRequestComment(projectKey, repositorySlug, pullRequestId, text, parentId, filePath, line, lineType);
+    return formatToolResponse(result);
+  }
+);
 
 await connectServer(server);
