@@ -22,8 +22,10 @@
   },
   "devDependencies": {
     "@modelcontextprotocol/inspector": "^0.4.1",
+    "@types/jest": "^30.0.0",
     "lerna": "^8.2.0",
     "nodemon": "^3.1.9",
+    "ts-jest": "^29.4.0",
     "ts-node": "^10.9.2"
   },
   "publishConfig": {

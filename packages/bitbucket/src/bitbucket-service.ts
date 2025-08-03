@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { OpenAPI, ProjectService, PullRequestsService, RepositoryService } from './bitbucket-client/index.js';
 import { handleApiOperation } from '@atlassian-dc-mcp/common';
+import { simplifyBitbucketPRComments } from './pr-comment-mapper.js';
 
 export class BitbucketService {
   constructor(host: string, token: string, fullBaseUrl?: string) {
@@ -99,7 +100,7 @@ export class BitbucketService {
   async getPullRequestCommentsAndActions(projectKey: string, repositorySlug: string, pullRequestId: string, start?: number,
     limit: number = 25
   ) {
-    return handleApiOperation(
+    const result = await handleApiOperation(
       () => PullRequestsService.getActivities(
         projectKey,
         pullRequestId,
@@ -110,7 +111,18 @@ export class BitbucketService {
         limit
       ),
       'Error fetching pull request comments'
-    )
+    );
+
+    // Apply simplification if the API call was successful
+    if (result.success && result.data) {
+      const simplifiedData = simplifyBitbucketPRComments(result.data);
+      return {
+        success: true,
+        data: simplifiedData
+      };
+    }
+
+    return result;
   }
 
   static validateConfig(): string[] {
