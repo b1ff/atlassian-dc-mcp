@@ -15,14 +15,14 @@
   },
   "dependencies": {
     "@atlassian-dc-mcp/common": "^0.8.0",
-    "@modelcontextprotocol/sdk": "^1.5.0",
+    "@modelcontextprotocol/sdk": "^1.17.5",
     "dotenv": "^16.4.7",
     "node-fetch": "^3.3.2",
     "zod": "^3.24.2"
   },
   "devDependencies": {
-    "@modelcontextprotocol/inspector": "^0.4.1",
-    "nodemon": "^3.1.9",
+    "@modelcontextprotocol/inspector": "^0.16.6",
+    "nodemon": "^3.1.10",
     "ts-node": "^10.9.2"
   },
   "publishConfig": {
