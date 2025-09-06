@@ -1,3 +1,5 @@
+[![MSeeP.ai Security Assessment Badge](https://mseep.net/pr/b1ff-atlassian-dc-mcp-badge.png)](https://mseep.ai/app/b1ff-atlassian-dc-mcp)
+
 [![Verified on MseeP](https://mseep.ai/badge.svg)](https://mseep.ai/app/2a87ecc6-e53a-4a21-b63e-ede9b6a2bc4a)
 
 # Atlassian Data Center MCP
