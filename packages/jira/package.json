@@ -1,6 +1,6 @@
 {
   "name": "@atlassian-dc-mcp/jira",
-  "version": "0.8.0",
+  "version": "0.8.1",
   "main": "build/index.js",
   "type": "module",
   "bin": "./bin/run.js",
@@ -15,7 +15,7 @@
     "test": "jest"
   },
   "dependencies": {
-    "@atlassian-dc-mcp/common": "^0.8.0",
+    "@atlassian-dc-mcp/common": "^0.8.1",
     "@modelcontextprotocol/sdk": "^1.17.5",
     "dotenv": "^16.4.7",
     "zod": "^3.24.2"
