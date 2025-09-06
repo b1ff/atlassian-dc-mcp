@@ -15,7 +15,7 @@ export interface ApiErrorResponse<T> {
  * @returns Standardized response with success status, data, and error details
  */
 export async function handleApiOperation<T>(
-  operation: () => Promise<T>, 
+  operation: () => Promise<T>,
   errorPrefix: string
 ): Promise<ApiErrorResponse<T>> {
   try {
@@ -25,17 +25,15 @@ export async function handleApiOperation<T>(
       data
     };
   } catch (e) {
-    // Extract detailed error information
     let errorMessage = e instanceof Error ? e.message : String(e);
     let errorDetails = undefined;
-    
-    // Handle ApiError specifically to extract more details
+
     if (e && typeof e === 'object' && 'status' in e && 'body' in e) {
-      const apiError = e as { status: number; body: any; statusText: string };
+      const apiError = e as {status: number; body: any; statusText: string};
       errorMessage = `${errorPrefix}: ${apiError.status} ${apiError.statusText}`;
       errorDetails = apiError.body;
     }
-    
+
     return {
       success: false,
       error: errorMessage,

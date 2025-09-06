@@ -47,13 +47,39 @@ export class JiraService {
         issuetype: { id: params.issueTypeId }
       };
 
-      // Merge custom fields with standard fields
       const fields = params.customFields
         ? { ...standardFields, ...params.customFields }
         : standardFields;
 
       return IssueService.createIssue(true, { fields });
     }, 'Error creating issue');
+  }
+
+  async updateIssue(params: {
+    issueKey: string;
+    summary?: string;
+    description?: string;
+    issueTypeId?: string;
+    customFields?: Record<string, any>;
+  }) {
+    return handleApiOperation(async () => {
+      const standardFields: Record<string, any> = {};
+      if (params.summary !== undefined) {
+        standardFields.summary = params.summary;
+      }
+      if (params.description !== undefined) {
+        standardFields.description = params.description;
+      }
+      if (params.issueTypeId !== undefined) {
+        standardFields.issuetype = { id: params.issueTypeId };
+      }
+
+      const fields = params.customFields
+        ? { ...standardFields, ...params.customFields }
+        : standardFields;
+
+      return IssueService.editIssue(params.issueKey, 'true', { fields });
+    }, 'Error updating issue');
   }
 
   static validateConfig(): string[] {
@@ -92,5 +118,12 @@ export const jiraToolSchemas = {
     description: z.string().describe("Issue description in the format suitable for JIRA DATA CENTER edition (JIRA Wiki Markup)."),
     issueTypeId: z.string().describe("Issue type id (e.g. id of Task, Bug, Story). Should be found first a correct number for specific JIRA installation."),
     customFields: z.record(z.any()).optional().describe("Optional custom fields as key-value pairs. Examples: {'customfield_10001': 'Custom Value', 'priority': {'id': '1'}, 'assignee': {'name': 'john.doe'}, 'labels': ['urgent', 'bug']}")
+  },
+  updateIssue: {
+    issueKey: z.string().describe("JIRA issue key (e.g., PROJ-123)"),
+    summary: z.string().optional().describe("New summary (optional)"),
+    description: z.string().optional().describe("New description in JIRA Wiki Markup (optional)"),
+    issueTypeId: z.string().optional().describe("New issue type id (optional)"),
+    customFields: z.record(z.any()).optional().describe("Optional custom fields to update as key-value pairs. Examples: {'customfield_10001': 'Custom Value', 'priority': {'id': '1'}, 'assignee': {'name': 'john.doe'}, 'labels': ['urgent', 'bug']}")
   }
 };
