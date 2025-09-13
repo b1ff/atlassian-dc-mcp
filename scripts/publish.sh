@@ -43,15 +43,28 @@ create_github_release() {
 # Function to move tags to current HEAD
 move_tags_to_head() {
   echo "Moving tags to current HEAD..."
-  # Get all tags pointing to the previous commit
-  PREV_COMMIT=$(git rev-parse HEAD^)
-  TAGS_TO_MOVE=$(git tag --points-at "$PREV_COMMIT" 2>/dev/null || true)
+  # Get all tags pointing to HEAD (before we amend)
+  TAGS_TO_MOVE=$(git tag --points-at HEAD 2>/dev/null || true)
 
   if [ ! -z "$TAGS_TO_MOVE" ]; then
+    echo "Tags found on current commit: $TAGS_TO_MOVE"
+    # Store tags to recreate them after amending
+    echo "$TAGS_TO_MOVE" > /tmp/tags_to_move_$$
+  fi
+}
+
+# Function to recreate tags after amending
+recreate_tags() {
+  if [ -f "/tmp/tags_to_move_$$" ]; then
+    TAGS_TO_MOVE=$(cat /tmp/tags_to_move_$$)
     for tag in $TAGS_TO_MOVE; do
-      echo "Moving tag $tag to HEAD"
-      git tag -f "$tag" HEAD
+      echo "Recreating tag $tag on amended HEAD"
+      # Delete the old tag locally
+      git tag -d "$tag"
+      # Create it again pointing to current HEAD
+      git tag "$tag" HEAD
     done
+    rm -f /tmp/tags_to_move_$$
   fi
 }
 
@@ -76,12 +89,16 @@ if git diff-tree --no-commit-id --name-only -r HEAD | grep -q "package-lock.json
   # Check for both staged and unstaged changes
   if ! git diff --quiet || ! git diff --staged --quiet; then
     echo "Changes detected, amending commit..."
+
+    # Save tags before amending
+    move_tags_to_head
+
     git add -A
     # Amend the last commit instead of creating a new one
     git commit --amend --no-edit
 
-    # Move tags from the old commit to the amended commit
-    move_tags_to_head
+    # Recreate tags on the amended commit
+    recreate_tags
 
     echo "Pushing amended commit..."
     git push origin HEAD:master
