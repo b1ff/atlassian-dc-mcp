@@ -15,7 +15,7 @@
     "debug": "node mcp-live-debug.js",
     "debug:verbose": "node mcp-live-debug.js --verbose",
     "debug:ts": "nodemon --exec ts-node --esm",
-    "publish:ci": "lerna version --conventional-commits --create-release github --yes --no-push && lerna publish from-package --yes",
+    "publish:ci": "lerna version --conventional-commits --yes --no-push && lerna publish from-package --yes",
     "lerna": "lerna"
   },
   "devDependencies": {

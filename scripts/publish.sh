@@ -1,6 +1,27 @@
 #!/bin/bash
 set -ex
 
+# Function to push tags
+push_tags() {
+  echo "Pushing tags..."
+  git push --tags origin
+  echo "Tags pushed."
+}
+
+# Function to create GitHub release
+create_github_release() {
+  echo "Creating GitHub release..."
+  LATEST_TAG=$(git describe --tags --abbrev=0)
+  if [ ! -z "$LATEST_TAG" ]; then
+    # Use CHANGELOG.md if it exists, otherwise use auto-generated notes
+    if [ -f "CHANGELOG.md" ]; then
+      gh release create "$LATEST_TAG" -F CHANGELOG.md --latest || echo "Release may already exist or creation failed"
+    else
+      gh release create "$LATEST_TAG" --generate-notes --latest || echo "Release may already exist or creation failed"
+    fi
+  fi
+}
+
 # Use npm with package-lock=false for the publish command
 npm run publish:ci
 
@@ -30,15 +51,17 @@ if git diff-tree --no-commit-id --name-only -r HEAD | grep -q "package-lock.json
     echo "Push completed."
   else
     echo "No changes to commit after reverting package-lock.json files"
-    # Still push the tags even if no changes were made to package-lock.json
-    echo "Pushing tags..."
-    git push --follow-tags origin master
+    # Still push the commit even if no changes were made
+    git push origin master
     echo "Push completed."
   fi
 else
   echo "No package-lock.json changes detected"
-  # Push version tags created by lerna
-  echo "Pushing tags..."
-  git push --follow-tags origin master
+  # Push the commit created by lerna
+  git push origin master
   echo "Push completed."
 fi
+
+# Always push tags and create release after handling commits
+push_tags
+create_github_release
