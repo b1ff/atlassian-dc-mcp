@@ -8,7 +8,7 @@ This project provides a Model Context Protocol (MCP) integration for Atlassian D
 
 ## Claude Desktop Configuration
 
-[Official Anthropic quick start guide](https://modelcontextprotocol.io/quickstart/user)
+[Official Anthropic quick start guide](https://modelcontextprotocol.io/docs/getting-started/intro)
 
 To use these MCP connectors with Claude Desktop, add the following to your Claude Desktop configuration.
 
