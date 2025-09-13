@@ -1,0 +1,36 @@
+name: Publish to MCP Registry
+
+on:
+  push:
+    tags: ["v*"]
+
+jobs:
+  publish-mcp:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: "lts/*"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Sync versions between package.json and server.json
+        run: node scripts/sync-versions.js
+
+      - name: Build packages
+        run: npm run build
+
+      - name: Run tests
+        run: npm run test --if-present
+
+      - name: Publish to MCP Registry
+        run: ./scripts/publish-mcp.sh
