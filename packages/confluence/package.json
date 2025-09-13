@@ -25,6 +25,7 @@
     "nodemon": "^3.1.10",
     "ts-node": "^10.9.2"
   },
+  "mcpName": "io.github.b1ff/atlassian-dc-mcp-confluence",
   "publishConfig": {
     "access": "public"
   },

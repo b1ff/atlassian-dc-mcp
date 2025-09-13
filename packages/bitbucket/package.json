@@ -28,6 +28,7 @@
     "ts-jest": "^29.4.1",
     "ts-node": "^10.9.2"
   },
+  "mcpName": "io.github.b1ff/atlassian-dc-mcp-bitbucket",
   "publishConfig": {
     "access": "public"
   },

@@ -54,3 +54,4 @@ temp/
 # Yarn Integrity file
 .yarn-integrity
 .aider*
+.mcpregistry_*
