@@ -113,4 +113,24 @@ server.tool(
   }
 );
 
+server.tool(
+  "bitbucket_createPullRequest",
+  "Create a new pull request in a Bitbucket repository",
+  bitbucketToolSchemas.createPullRequest,
+  async ({ projectKey, repositorySlug, title, description, fromRefId, toRefId, reviewers }) => {
+    const result = await bitbucketService.createPullRequest(projectKey, repositorySlug, title, description, fromRefId, toRefId, reviewers);
+    return formatToolResponse(result);
+  }
+);
+
+server.tool(
+  "bitbucket_updatePullRequest",
+  "Update the title, description, reviewers, destination branch or draft status of an existing pull request.",
+  bitbucketToolSchemas.updatePullRequest,
+  async ({ projectKey, repositorySlug, pullRequestId, version, title, description, reviewers }) => {
+    const result = await bitbucketService.updatePullRequest(projectKey, repositorySlug, pullRequestId, version, title, description, reviewers);
+    return formatToolResponse(result);
+  }
+);
+
 await connectServer(server);

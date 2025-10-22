@@ -11,7 +11,9 @@ jest.mock('../bitbucket-client/index.js', () => ({
   PullRequestsService: {
     streamRawDiff2: jest.fn(),
     createComment2: jest.fn(),
-    streamChanges1: jest.fn()
+    streamChanges1: jest.fn(),
+    create: jest.fn(),
+    update: jest.fn()
   },
   OpenAPI: {
     BASE: '',
@@ -367,6 +369,486 @@ describe('BitbucketService', () => {
 
       expect(result.success).toBe(false);
       expect(result.error).toBe('API Error');
+    });
+  });
+
+  describe('createPullRequest', () => {
+    it('should successfully create a PR with minimal parameters', async () => {
+      const mockPullRequest = {
+        id: 1,
+        version: 0,
+        title: 'Test PR',
+        description: 'Test description',
+        state: 'OPEN',
+        fromRef: {
+          id: 'refs/heads/feature-branch',
+          repository: {
+            slug: mockRepositorySlug,
+            project: { key: mockProjectKey }
+          }
+        },
+        toRef: {
+          id: 'refs/heads/main',
+          repository: {
+            slug: mockRepositorySlug,
+            project: { key: mockProjectKey }
+          }
+        }
+      };
+      (PullRequestsService.create as jest.Mock).mockResolvedValue(mockPullRequest);
+
+      const result = await bitbucketService.createPullRequest(
+        mockProjectKey,
+        mockRepositorySlug,
+        'Test PR',
+        'Test description',
+        'refs/heads/feature-branch',
+        'refs/heads/main'
+      );
+
+      expect(result.success).toBe(true);
+      expect(result.data).toBe(mockPullRequest);
+      expect(PullRequestsService.create).toHaveBeenCalledWith(
+        mockProjectKey,
+        mockRepositorySlug,
+        {
+          title: 'Test PR',
+          description: 'Test description',
+          fromRef: {
+            id: 'refs/heads/feature-branch',
+            repository: {
+              slug: mockRepositorySlug,
+              project: { key: mockProjectKey }
+            }
+          },
+          toRef: {
+            id: 'refs/heads/main',
+            repository: {
+              slug: mockRepositorySlug,
+              project: { key: mockProjectKey }
+            }
+          }
+        }
+      );
+    });
+
+    it('should successfully create a PR without description', async () => {
+      const mockPullRequest = {
+        id: 2,
+        version: 0,
+        title: 'Test PR without description',
+        state: 'OPEN',
+        fromRef: {
+          id: 'refs/heads/feature-branch',
+          repository: {
+            slug: mockRepositorySlug,
+            project: { key: mockProjectKey }
+          }
+        },
+        toRef: {
+          id: 'refs/heads/main',
+          repository: {
+            slug: mockRepositorySlug,
+            project: { key: mockProjectKey }
+          }
+        }
+      };
+      (PullRequestsService.create as jest.Mock).mockResolvedValue(mockPullRequest);
+
+      const result = await bitbucketService.createPullRequest(
+        mockProjectKey,
+        mockRepositorySlug,
+        'Test PR without description',
+        undefined,
+        'refs/heads/feature-branch',
+        'refs/heads/main'
+      );
+
+      expect(result.success).toBe(true);
+      expect(result.data).toBe(mockPullRequest);
+      expect(PullRequestsService.create).toHaveBeenCalledWith(
+        mockProjectKey,
+        mockRepositorySlug,
+        expect.objectContaining({
+          title: 'Test PR without description',
+          description: undefined
+        })
+      );
+    });
+
+    it('should successfully create a PR with reviewers', async () => {
+      const mockPullRequest = {
+        id: 3,
+        version: 0,
+        title: 'Test PR with reviewers',
+        description: 'PR with reviewers',
+        state: 'OPEN',
+        fromRef: {
+          id: 'refs/heads/feature-branch',
+          repository: {
+            slug: mockRepositorySlug,
+            project: { key: mockProjectKey }
+          }
+        },
+        toRef: {
+          id: 'refs/heads/main',
+          repository: {
+            slug: mockRepositorySlug,
+            project: { key: mockProjectKey }
+          }
+        },
+        reviewers: [
+          { user: { name: 'reviewer1' } },
+          { user: { name: 'reviewer2' } }
+        ]
+      };
+      (PullRequestsService.create as jest.Mock).mockResolvedValue(mockPullRequest);
+
+      const result = await bitbucketService.createPullRequest(
+        mockProjectKey,
+        mockRepositorySlug,
+        'Test PR with reviewers',
+        'PR with reviewers',
+        'refs/heads/feature-branch',
+        'refs/heads/main',
+        ['reviewer1', 'reviewer2']
+      );
+
+      expect(result.success).toBe(true);
+      expect(result.data).toBe(mockPullRequest);
+      expect(PullRequestsService.create).toHaveBeenCalledWith(
+        mockProjectKey,
+        mockRepositorySlug,
+        expect.objectContaining({
+          title: 'Test PR with reviewers',
+          reviewers: [
+            { user: { name: 'reviewer1' } },
+            { user: { name: 'reviewer2' } }
+          ]
+        })
+      );
+    });
+
+    it('should successfully create a PR with empty reviewers array', async () => {
+      const mockPullRequest = {
+        id: 4,
+        version: 0,
+        title: 'Test PR',
+        description: 'Test',
+        state: 'OPEN'
+      };
+      (PullRequestsService.create as jest.Mock).mockResolvedValue(mockPullRequest);
+
+      const result = await bitbucketService.createPullRequest(
+        mockProjectKey,
+        mockRepositorySlug,
+        'Test PR',
+        'Test',
+        'refs/heads/feature-branch',
+        'refs/heads/main',
+        []
+      );
+
+      expect(result.success).toBe(true);
+      expect(PullRequestsService.create).toHaveBeenCalledWith(
+        mockProjectKey,
+        mockRepositorySlug,
+        expect.not.objectContaining({
+          reviewers: expect.anything()
+        })
+      );
+    });
+
+    it('should handle API errors gracefully', async () => {
+      const mockError = new Error('Failed to create PR');
+      (PullRequestsService.create as jest.Mock).mockRejectedValue(mockError);
+
+      const result = await bitbucketService.createPullRequest(
+        mockProjectKey,
+        mockRepositorySlug,
+        'Test PR',
+        'Test description',
+        'refs/heads/feature-branch',
+        'refs/heads/main'
+      );
+
+      expect(result.success).toBe(false);
+      expect(result.error).toBe('Failed to create PR');
+    });
+  });
+
+  describe('updatePullRequest', () => {
+    it('should successfully update PR with only title', async () => {
+      const mockUpdatedPR = {
+        id: 1,
+        version: 1,
+        title: 'Updated Title',
+        description: 'Original description',
+        state: 'OPEN'
+      };
+      (PullRequestsService.update as jest.Mock).mockResolvedValue(mockUpdatedPR);
+
+      const result = await bitbucketService.updatePullRequest(
+        mockProjectKey,
+        mockRepositorySlug,
+        mockPullRequestId,
+        0,
+        'Updated Title'
+      );
+
+      expect(result.success).toBe(true);
+      expect(result.data).toBe(mockUpdatedPR);
+      expect(PullRequestsService.update).toHaveBeenCalledWith(
+        mockProjectKey,
+        mockPullRequestId,
+        mockRepositorySlug,
+        {
+          version: 0,
+          title: 'Updated Title'
+        }
+      );
+    });
+
+    it('should successfully update PR with only description', async () => {
+      const mockUpdatedPR = {
+        id: 1,
+        version: 1,
+        title: 'Original Title',
+        description: 'Updated description',
+        state: 'OPEN'
+      };
+      (PullRequestsService.update as jest.Mock).mockResolvedValue(mockUpdatedPR);
+
+      const result = await bitbucketService.updatePullRequest(
+        mockProjectKey,
+        mockRepositorySlug,
+        mockPullRequestId,
+        0,
+        undefined,
+        'Updated description'
+      );
+
+      expect(result.success).toBe(true);
+      expect(result.data).toBe(mockUpdatedPR);
+      expect(PullRequestsService.update).toHaveBeenCalledWith(
+        mockProjectKey,
+        mockPullRequestId,
+        mockRepositorySlug,
+        {
+          version: 0,
+          description: 'Updated description'
+        }
+      );
+    });
+
+    it('should successfully update PR with title and description', async () => {
+      const mockUpdatedPR = {
+        id: 1,
+        version: 1,
+        title: 'Updated Title',
+        description: 'Updated description',
+        state: 'OPEN'
+      };
+      (PullRequestsService.update as jest.Mock).mockResolvedValue(mockUpdatedPR);
+
+      const result = await bitbucketService.updatePullRequest(
+        mockProjectKey,
+        mockRepositorySlug,
+        mockPullRequestId,
+        0,
+        'Updated Title',
+        'Updated description'
+      );
+
+      expect(result.success).toBe(true);
+      expect(result.data).toBe(mockUpdatedPR);
+      expect(PullRequestsService.update).toHaveBeenCalledWith(
+        mockProjectKey,
+        mockPullRequestId,
+        mockRepositorySlug,
+        {
+          version: 0,
+          title: 'Updated Title',
+          description: 'Updated description'
+        }
+      );
+    });
+
+    it('should successfully update PR with reviewers', async () => {
+      const mockUpdatedPR = {
+        id: 1,
+        version: 1,
+        title: 'Test PR',
+        description: 'Test',
+        state: 'OPEN',
+        reviewers: [
+          { user: { name: 'reviewer1' } },
+          { user: { name: 'reviewer2' } },
+          { user: { name: 'reviewer3' } }
+        ]
+      };
+      (PullRequestsService.update as jest.Mock).mockResolvedValue(mockUpdatedPR);
+
+      const result = await bitbucketService.updatePullRequest(
+        mockProjectKey,
+        mockRepositorySlug,
+        mockPullRequestId,
+        0,
+        undefined,
+        undefined,
+        ['reviewer1', 'reviewer2', 'reviewer3']
+      );
+
+      expect(result.success).toBe(true);
+      expect(result.data).toBe(mockUpdatedPR);
+      expect(PullRequestsService.update).toHaveBeenCalledWith(
+        mockProjectKey,
+        mockPullRequestId,
+        mockRepositorySlug,
+        {
+          version: 0,
+          reviewers: [
+            { user: { name: 'reviewer1' } },
+            { user: { name: 'reviewer2' } },
+            { user: { name: 'reviewer3' } }
+          ]
+        }
+      );
+    });
+
+    it('should successfully update PR with all parameters', async () => {
+      const mockUpdatedPR = {
+        id: 1,
+        version: 2,
+        title: 'Updated Title',
+        description: 'Updated description',
+        state: 'OPEN',
+        reviewers: [
+          { user: { name: 'newreviewer1' } },
+          { user: { name: 'newreviewer2' } }
+        ]
+      };
+      (PullRequestsService.update as jest.Mock).mockResolvedValue(mockUpdatedPR);
+
+      const result = await bitbucketService.updatePullRequest(
+        mockProjectKey,
+        mockRepositorySlug,
+        mockPullRequestId,
+        1,
+        'Updated Title',
+        'Updated description',
+        ['newreviewer1', 'newreviewer2']
+      );
+
+      expect(result.success).toBe(true);
+      expect(result.data).toBe(mockUpdatedPR);
+      expect(PullRequestsService.update).toHaveBeenCalledWith(
+        mockProjectKey,
+        mockPullRequestId,
+        mockRepositorySlug,
+        {
+          version: 1,
+          title: 'Updated Title',
+          description: 'Updated description',
+          reviewers: [
+            { user: { name: 'newreviewer1' } },
+            { user: { name: 'newreviewer2' } }
+          ]
+        }
+      );
+    });
+
+    it('should successfully update PR with only version (no changes)', async () => {
+      const mockUpdatedPR = {
+        id: 1,
+        version: 1,
+        title: 'Original Title',
+        description: 'Original description',
+        state: 'OPEN'
+      };
+      (PullRequestsService.update as jest.Mock).mockResolvedValue(mockUpdatedPR);
+
+      const result = await bitbucketService.updatePullRequest(
+        mockProjectKey,
+        mockRepositorySlug,
+        mockPullRequestId,
+        0
+      );
+
+      expect(result.success).toBe(true);
+      expect(result.data).toBe(mockUpdatedPR);
+      expect(PullRequestsService.update).toHaveBeenCalledWith(
+        mockProjectKey,
+        mockPullRequestId,
+        mockRepositorySlug,
+        {
+          version: 0
+        }
+      );
+    });
+
+    it('should successfully update PR with empty reviewers array', async () => {
+      const mockUpdatedPR = {
+        id: 1,
+        version: 1,
+        title: 'Test PR',
+        description: 'Test',
+        state: 'OPEN',
+        reviewers: []
+      };
+      (PullRequestsService.update as jest.Mock).mockResolvedValue(mockUpdatedPR);
+
+      const result = await bitbucketService.updatePullRequest(
+        mockProjectKey,
+        mockRepositorySlug,
+        mockPullRequestId,
+        0,
+        undefined,
+        undefined,
+        []
+      );
+
+      expect(result.success).toBe(true);
+      expect(PullRequestsService.update).toHaveBeenCalledWith(
+        mockProjectKey,
+        mockPullRequestId,
+        mockRepositorySlug,
+        expect.not.objectContaining({
+          reviewers: expect.anything()
+        })
+      );
+    });
+
+    it('should handle API errors gracefully', async () => {
+      const mockError = new Error('Failed to update PR');
+      (PullRequestsService.update as jest.Mock).mockRejectedValue(mockError);
+
+      const result = await bitbucketService.updatePullRequest(
+        mockProjectKey,
+        mockRepositorySlug,
+        mockPullRequestId,
+        0,
+        'Updated Title'
+      );
+
+      expect(result.success).toBe(false);
+      expect(result.error).toBe('Failed to update PR');
+    });
+
+    it('should handle version conflict errors', async () => {
+      const mockError = new Error('Version conflict - PR has been modified');
+      (PullRequestsService.update as jest.Mock).mockRejectedValue(mockError);
+
+      const result = await bitbucketService.updatePullRequest(
+        mockProjectKey,
+        mockRepositorySlug,
+        mockPullRequestId,
+        5,
+        'Updated Title'
+      );
+
+      expect(result.success).toBe(false);
+      expect(result.error).toBe('Version conflict - PR has been modified');
     });
   });
 

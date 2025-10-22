@@ -293,6 +293,109 @@ export class BitbucketService {
     );
   }
 
+  /**
+   * Create a pull request
+   * @param projectKey The project key
+   * @param repositorySlug The repository slug
+   * @param title The pull request title
+   * @param description Optional pull request description
+   * @param fromRefId The source branch (e.g., 'refs/heads/feature-branch')
+   * @param toRefId The destination branch (e.g., 'refs/heads/main')
+   * @param reviewers Optional array of reviewer usernames
+   * @returns Promise with created pull request data
+   */
+  async createPullRequest(
+    projectKey: string,
+    repositorySlug: string,
+    title: string,
+    description: string | undefined,
+    fromRefId: string,
+    toRefId: string,
+    reviewers?: string[]
+  ) {
+    const pullRequestData: any = {
+      title,
+      description,
+      fromRef: {
+        id: fromRefId,
+        repository: {
+          slug: repositorySlug,
+          project: {
+            key: projectKey
+          }
+        }
+      },
+      toRef: {
+        id: toRefId,
+        repository: {
+          slug: repositorySlug,
+          project: {
+            key: projectKey
+          }
+        }
+      }
+    };
+
+    if (reviewers && reviewers.length > 0) {
+      pullRequestData.reviewers = reviewers.map(username => ({
+        user: {
+          name: username
+        }
+      }));
+    }
+
+    return handleApiOperation(
+      () => PullRequestsService.create(projectKey, repositorySlug, pullRequestData),
+      'Error creating pull request'
+    );
+  }
+
+  /**
+   * Update a pull request
+   * @param projectKey The project key
+   * @param repositorySlug The repository slug
+   * @param pullRequestId The pull request ID
+   * @param version The version of the pull request (required for optimistic locking)
+   * @param title Optional new title for the pull request
+   * @param description Optional new description for the pull request
+   * @param reviewers Optional array of reviewer usernames to set
+   * @returns Promise with updated pull request data
+   */
+  async updatePullRequest(
+    projectKey: string,
+    repositorySlug: string,
+    pullRequestId: string,
+    version: number,
+    title?: string,
+    description?: string,
+    reviewers?: string[]
+  ) {
+    const pullRequestData: any = {
+      version
+    };
+
+    if (title !== undefined) {
+      pullRequestData.title = title;
+    }
+
+    if (description !== undefined) {
+      pullRequestData.description = description;
+    }
+
+    if (reviewers && reviewers.length > 0) {
+      pullRequestData.reviewers = reviewers.map(username => ({
+        user: {
+          name: username
+        }
+      }));
+    }
+
+    return handleApiOperation(
+      () => PullRequestsService.update(projectKey, pullRequestId, repositorySlug, pullRequestData),
+      'Error updating pull request'
+    );
+  }
+
   static validateConfig(): string[] {
     // Check for BITBUCKET_HOST or its alternative BITBUCKET_API_BASE_PATH
     const requiredEnvVars = ['BITBUCKET_API_TOKEN'] as const;
@@ -373,5 +476,23 @@ export const bitbucketToolSchemas = {
     diffType: z.string().optional().describe("The type of diff being requested"),
     untilId: z.string().optional().describe("The until commit hash to stream a diff between two arbitrary hashes"),
     whitespace: z.string().optional().describe("Optional whitespace flag which can be set to 'ignore-all'")
+  },
+  createPullRequest: {
+    projectKey: z.string().describe("The project key"),
+    repositorySlug: z.string().describe("The repository slug"),
+    title: z.string().describe("The pull request title"),
+    description: z.string().optional().describe("The pull request description"),
+    fromRefId: z.string().describe("The source branch reference ID (e.g., 'refs/heads/feature-branch')"),
+    toRefId: z.string().describe("The destination branch reference ID (e.g., 'refs/heads/main')"),
+    reviewers: z.array(z.string()).optional().describe("Optional array of reviewer usernames")
+  },
+  updatePullRequest: {
+    projectKey: z.string().describe("The project key"),
+    repositorySlug: z.string().describe("The repository slug"),
+    pullRequestId: z.string().describe("The pull request ID"),
+    version: z.number().describe("The current version of the pull request (required for optimistic locking)"),
+    title: z.string().optional().describe("The new title for the pull request"),
+    description: z.string().optional().describe("The new description for the pull request"),
+    reviewers: z.array(z.string()).optional().describe("Optional array of reviewer usernames to set")
   }
 };
