@@ -99,6 +99,73 @@ export class BitbucketService {
     );
   }
 
+  /**
+   * Get pull requests for a repository
+   * @param projectKey The project key
+   * @param repositorySlug The repository slug
+   * @param withAttributes Optional flag to return additional pull request attributes (default: true)
+   * @param at Optional fully-qualified branch ID to find pull requests to or from (e.g., refs/heads/master)
+   * @param withProperties Optional flag to return additional pull request properties (default: true)
+   * @param draft Optional draft status filter
+   * @param filterText Optional text filter for title or description
+   * @param state Optional state filter (OPEN, DECLINED, MERGED, or ALL; default: OPEN)
+   * @param order Optional order (NEWEST or OLDEST; default: NEWEST)
+   * @param direction Optional direction relative to repository (INCOMING or OUTGOING; default: INCOMING)
+   * @param start Optional pagination start
+   * @param limit Optional pagination limit (default: 25)
+   * @returns Promise with pull requests data
+   */
+  async getPullRequests(
+    projectKey: string,
+    repositorySlug: string,
+    withAttributes?: string,
+    at?: string,
+    withProperties?: string,
+    draft?: string,
+    filterText?: string,
+    state?: string,
+    order?: string,
+    direction?: string,
+    start?: number,
+    limit: number = 25
+  ) {
+    return handleApiOperation(
+      () => PullRequestsService.getPage(
+        projectKey,
+        repositorySlug,
+        withAttributes,
+        at,
+        withProperties,
+        draft,
+        filterText,
+        state,
+        order,
+        direction,
+        start,
+        limit
+      ),
+      'Error fetching pull requests'
+    );
+  }
+
+  /**
+   * Get a specific pull request by ID
+   * @param projectKey The project key
+   * @param repositorySlug The repository slug
+   * @param pullRequestId The ID of the pull request within the repository
+   * @returns Promise with pull request data
+   */
+  async getPullRequest(
+    projectKey: string,
+    repositorySlug: string,
+    pullRequestId: string
+  ) {
+    return handleApiOperation(
+      () => PullRequestsService.get3(projectKey, pullRequestId, repositorySlug),
+      'Error fetching pull request'
+    );
+  }
+
   async getPullRequestCommentsAndActions(projectKey: string, repositorySlug: string, pullRequestId: string, start?: number,
     limit: number = 25
   ) {
@@ -396,6 +463,39 @@ export class BitbucketService {
     );
   }
 
+  /**
+   * Get required reviewers for PR creation
+   * Returns a set of users who are required reviewers for pull requests created from the given source repository
+   * and ref to the given target ref in this repository.
+   * @param projectKey The project key
+   * @param repositorySlug The repository slug
+   * @param sourceRefId The ID of the source ref (e.g., 'refs/heads/feature-branch')
+   * @param targetRefId The ID of the target ref (e.g., 'refs/heads/main')
+   * @param sourceRepoId Optional ID of the repository in which the source ref exists
+   * @param targetRepoId Optional ID of the repository in which the target ref exists
+   * @returns Promise with required reviewers data
+   */
+  async getRequiredReviewers(
+    projectKey: string,
+    repositorySlug: string,
+    sourceRefId: string,
+    targetRefId: string,
+    sourceRepoId?: string,
+    targetRepoId?: string
+  ) {
+    return handleApiOperation(
+      () => PullRequestsService.getReviewers(
+        projectKey,
+        repositorySlug,
+        targetRepoId,
+        sourceRepoId,
+        sourceRefId,
+        targetRefId
+      ),
+      'Error fetching required reviewers'
+    );
+  }
+
   static validateConfig(): string[] {
     // Check for BITBUCKET_HOST or its alternative BITBUCKET_API_BASE_PATH
     const requiredEnvVars = ['BITBUCKET_API_TOKEN'] as const;
@@ -416,6 +516,25 @@ export const bitbucketToolSchemas = {
     permission: z.string().optional().describe("Filter projects by permission"),
     start: z.number().optional().describe("Start number for pagination"),
     limit: z.number().optional().default(25).describe("Number of items to return")
+  },
+  getPullRequests: {
+    projectKey: z.string().describe("The project key"),
+    repositorySlug: z.string().describe("The repository slug"),
+    withAttributes: z.string().optional().describe("(optional) defaults to true, whether to return additional pull request attributes"),
+    at: z.string().optional().describe("(optional) a fully-qualified branch ID to find pull requests to or from, such as refs/heads/master"),
+    withProperties: z.string().optional().describe("(optional) defaults to true, whether to return additional pull request properties"),
+    draft: z.string().optional().describe("(optional) If specified, only pull requests matching the supplied draft status will be returned"),
+    filterText: z.string().optional().describe("(optional) If specified, only pull requests where the title or description contains the supplied string will be returned"),
+    state: z.string().optional().describe("(optional, defaults to OPEN). Supply ALL to return pull request in any state. If a state is supplied only pull requests in the specified state will be returned. Either OPEN, DECLINED or MERGED"),
+    order: z.string().optional().describe("(optional, defaults to NEWEST) the order to return pull requests in, either OLDEST (as in: \"oldest first\") or NEWEST"),
+    direction: z.string().optional().describe("(optional, defaults to INCOMING) the direction relative to the specified repository. Either INCOMING or OUTGOING"),
+    start: z.number().optional().describe("Start number for the page (inclusive). If not passed, first page is assumed"),
+    limit: z.number().optional().default(25).describe("Number of items to return. If not passed, a page size of 25 is used")
+  },
+  getPullRequest: {
+    projectKey: z.string().describe("The project key"),
+    repositorySlug: z.string().describe("The repository slug"),
+    pullRequestId: z.string().describe("The ID of the pull request within the repository")
   },
   getProject: {
     projectKey: z.string().describe("The project key")
@@ -494,5 +613,13 @@ export const bitbucketToolSchemas = {
     title: z.string().optional().describe("The new title for the pull request"),
     description: z.string().optional().describe("The new description for the pull request"),
     reviewers: z.array(z.string()).optional().describe("Optional array of reviewer usernames to set")
+  },
+  getRequiredReviewers: {
+    projectKey: z.string().describe("The project key"),
+    repositorySlug: z.string().describe("The repository slug"),
+    sourceRefId: z.string().describe("The ID of the source ref (e.g., 'refs/heads/feature-branch')"),
+    targetRefId: z.string().describe("The ID of the target ref (e.g., 'refs/heads/main')"),
+    sourceRepoId: z.string().optional().describe("Optional ID of the repository in which the source ref exists"),
+    targetRepoId: z.string().optional().describe("Optional ID of the repository in which the target ref exists")
   }
 };

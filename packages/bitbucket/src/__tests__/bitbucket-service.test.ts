@@ -13,7 +13,10 @@ jest.mock('../bitbucket-client/index.js', () => ({
     createComment2: jest.fn(),
     streamChanges1: jest.fn(),
     create: jest.fn(),
-    update: jest.fn()
+    update: jest.fn(),
+    getPage: jest.fn(),
+    getReviewers: jest.fn(),
+    get3: jest.fn()
   },
   OpenAPI: {
     BASE: '',
@@ -114,6 +117,576 @@ describe('BitbucketService', () => {
 
       expect(result.success).toBe(false);
       expect(result.error).toBe('API Error');
+    });
+  });
+
+  describe('getPullRequests', () => {
+    it('should successfully get pull requests with default parameters', async () => {
+      const mockPullRequestsData = {
+        values: [
+          {
+            id: 1,
+            title: 'Test PR 1',
+            state: 'OPEN',
+            author: { user: { name: 'user1' } }
+          },
+          {
+            id: 2,
+            title: 'Test PR 2',
+            state: 'OPEN',
+            author: { user: { name: 'user2' } }
+          }
+        ],
+        size: 2,
+        isLastPage: true,
+        start: 0,
+        limit: 25
+      };
+      (PullRequestsService.getPage as jest.Mock).mockResolvedValue(mockPullRequestsData);
+
+      const result = await bitbucketService.getPullRequests(
+        mockProjectKey,
+        mockRepositorySlug
+      );
+
+      expect(result.success).toBe(true);
+      expect(result.data).toBe(mockPullRequestsData);
+      expect(PullRequestsService.getPage).toHaveBeenCalledWith(
+        mockProjectKey,
+        mockRepositorySlug,
+        undefined, // withAttributes
+        undefined, // at
+        undefined, // withProperties
+        undefined, // draft
+        undefined, // filterText
+        undefined, // state
+        undefined, // order
+        undefined, // direction
+        undefined, // start
+        25 // limit
+      );
+    });
+
+    it('should successfully get pull requests with state filter', async () => {
+      const mockPullRequestsData = {
+        values: [
+          {
+            id: 1,
+            title: 'Merged PR',
+            state: 'MERGED',
+            author: { user: { name: 'user1' } }
+          }
+        ],
+        size: 1,
+        isLastPage: true,
+        start: 0,
+        limit: 25
+      };
+      (PullRequestsService.getPage as jest.Mock).mockResolvedValue(mockPullRequestsData);
+
+      const result = await bitbucketService.getPullRequests(
+        mockProjectKey,
+        mockRepositorySlug,
+        undefined, // withAttributes
+        undefined, // at
+        undefined, // withProperties
+        undefined, // draft
+        undefined, // filterText
+        'MERGED' // state
+      );
+
+      expect(result.success).toBe(true);
+      expect(result.data).toBe(mockPullRequestsData);
+      expect(PullRequestsService.getPage).toHaveBeenCalledWith(
+        mockProjectKey,
+        mockRepositorySlug,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        'MERGED',
+        undefined,
+        undefined,
+        undefined,
+        25
+      );
+    });
+
+    it('should successfully get pull requests with text filter', async () => {
+      const mockPullRequestsData = {
+        values: [
+          {
+            id: 1,
+            title: 'Fix bug in authentication',
+            state: 'OPEN',
+            author: { user: { name: 'user1' } }
+          }
+        ],
+        size: 1,
+        isLastPage: true,
+        start: 0,
+        limit: 25
+      };
+      (PullRequestsService.getPage as jest.Mock).mockResolvedValue(mockPullRequestsData);
+
+      const result = await bitbucketService.getPullRequests(
+        mockProjectKey,
+        mockRepositorySlug,
+        undefined, // withAttributes
+        undefined, // at
+        undefined, // withProperties
+        undefined, // draft
+        'authentication' // filterText
+      );
+
+      expect(result.success).toBe(true);
+      expect(result.data).toBe(mockPullRequestsData);
+      expect(PullRequestsService.getPage).toHaveBeenCalledWith(
+        mockProjectKey,
+        mockRepositorySlug,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        'authentication',
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        25
+      );
+    });
+
+    it('should successfully get pull requests with branch filter', async () => {
+      const mockPullRequestsData = {
+        values: [
+          {
+            id: 1,
+            title: 'PR to master',
+            state: 'OPEN',
+            toRef: { id: 'refs/heads/master' }
+          }
+        ],
+        size: 1,
+        isLastPage: true,
+        start: 0,
+        limit: 25
+      };
+      (PullRequestsService.getPage as jest.Mock).mockResolvedValue(mockPullRequestsData);
+
+      const result = await bitbucketService.getPullRequests(
+        mockProjectKey,
+        mockRepositorySlug,
+        undefined, // withAttributes
+        'refs/heads/master' // at
+      );
+
+      expect(result.success).toBe(true);
+      expect(result.data).toBe(mockPullRequestsData);
+      expect(PullRequestsService.getPage).toHaveBeenCalledWith(
+        mockProjectKey,
+        mockRepositorySlug,
+        undefined,
+        'refs/heads/master',
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        25
+      );
+    });
+
+    it('should successfully get pull requests with direction filter', async () => {
+      const mockPullRequestsData = {
+        values: [
+          {
+            id: 1,
+            title: 'Outgoing PR',
+            state: 'OPEN'
+          }
+        ],
+        size: 1,
+        isLastPage: true,
+        start: 0,
+        limit: 25
+      };
+      (PullRequestsService.getPage as jest.Mock).mockResolvedValue(mockPullRequestsData);
+
+      const result = await bitbucketService.getPullRequests(
+        mockProjectKey,
+        mockRepositorySlug,
+        undefined, // withAttributes
+        undefined, // at
+        undefined, // withProperties
+        undefined, // draft
+        undefined, // filterText
+        undefined, // state
+        undefined, // order
+        'OUTGOING' // direction
+      );
+
+      expect(result.success).toBe(true);
+      expect(result.data).toBe(mockPullRequestsData);
+      expect(PullRequestsService.getPage).toHaveBeenCalledWith(
+        mockProjectKey,
+        mockRepositorySlug,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        'OUTGOING',
+        undefined,
+        25
+      );
+    });
+
+    it('should successfully get pull requests with order filter', async () => {
+      const mockPullRequestsData = {
+        values: [
+          {
+            id: 1,
+            title: 'Oldest PR',
+            state: 'OPEN',
+            createdDate: 1234567890
+          },
+          {
+            id: 2,
+            title: 'Newer PR',
+            state: 'OPEN',
+            createdDate: 1234567900
+          }
+        ],
+        size: 2,
+        isLastPage: true,
+        start: 0,
+        limit: 25
+      };
+      (PullRequestsService.getPage as jest.Mock).mockResolvedValue(mockPullRequestsData);
+
+      const result = await bitbucketService.getPullRequests(
+        mockProjectKey,
+        mockRepositorySlug,
+        undefined, // withAttributes
+        undefined, // at
+        undefined, // withProperties
+        undefined, // draft
+        undefined, // filterText
+        undefined, // state
+        'OLDEST' // order
+      );
+
+      expect(result.success).toBe(true);
+      expect(result.data).toBe(mockPullRequestsData);
+      expect(PullRequestsService.getPage).toHaveBeenCalledWith(
+        mockProjectKey,
+        mockRepositorySlug,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        'OLDEST',
+        undefined,
+        undefined,
+        25
+      );
+    });
+
+    it('should successfully get pull requests with draft filter', async () => {
+      const mockPullRequestsData = {
+        values: [
+          {
+            id: 1,
+            title: 'Draft PR',
+            state: 'OPEN',
+            draft: true
+          }
+        ],
+        size: 1,
+        isLastPage: true,
+        start: 0,
+        limit: 25
+      };
+      (PullRequestsService.getPage as jest.Mock).mockResolvedValue(mockPullRequestsData);
+
+      const result = await bitbucketService.getPullRequests(
+        mockProjectKey,
+        mockRepositorySlug,
+        undefined, // withAttributes
+        undefined, // at
+        undefined, // withProperties
+        'true' // draft
+      );
+
+      expect(result.success).toBe(true);
+      expect(result.data).toBe(mockPullRequestsData);
+      expect(PullRequestsService.getPage).toHaveBeenCalledWith(
+        mockProjectKey,
+        mockRepositorySlug,
+        undefined,
+        undefined,
+        undefined,
+        'true',
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        25
+      );
+    });
+
+    it('should successfully get pull requests with pagination', async () => {
+      const mockPullRequestsData = {
+        values: [
+          {
+            id: 51,
+            title: 'PR 51',
+            state: 'OPEN'
+          }
+        ],
+        size: 1,
+        isLastPage: false,
+        start: 50,
+        limit: 10,
+        nextPageStart: 60
+      };
+      (PullRequestsService.getPage as jest.Mock).mockResolvedValue(mockPullRequestsData);
+
+      const result = await bitbucketService.getPullRequests(
+        mockProjectKey,
+        mockRepositorySlug,
+        undefined, // withAttributes
+        undefined, // at
+        undefined, // withProperties
+        undefined, // draft
+        undefined, // filterText
+        undefined, // state
+        undefined, // order
+        undefined, // direction
+        50, // start
+        10 // limit
+      );
+
+      expect(result.success).toBe(true);
+      expect(result.data).toBe(mockPullRequestsData);
+      expect(PullRequestsService.getPage).toHaveBeenCalledWith(
+        mockProjectKey,
+        mockRepositorySlug,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        50,
+        10
+      );
+    });
+
+    it('should successfully get pull requests with all parameters', async () => {
+      const mockPullRequestsData = {
+        values: [
+          {
+            id: 1,
+            title: 'Complete PR test',
+            state: 'OPEN',
+            draft: false
+          }
+        ],
+        size: 1,
+        isLastPage: true,
+        start: 0,
+        limit: 50
+      };
+      (PullRequestsService.getPage as jest.Mock).mockResolvedValue(mockPullRequestsData);
+
+      const result = await bitbucketService.getPullRequests(
+        mockProjectKey,
+        mockRepositorySlug,
+        'true', // withAttributes
+        'refs/heads/develop', // at
+        'true', // withProperties
+        'false', // draft
+        'test', // filterText
+        'ALL', // state
+        'NEWEST', // order
+        'INCOMING', // direction
+        0, // start
+        50 // limit
+      );
+
+      expect(result.success).toBe(true);
+      expect(result.data).toBe(mockPullRequestsData);
+      expect(PullRequestsService.getPage).toHaveBeenCalledWith(
+        mockProjectKey,
+        mockRepositorySlug,
+        'true',
+        'refs/heads/develop',
+        'true',
+        'false',
+        'test',
+        'ALL',
+        'NEWEST',
+        'INCOMING',
+        0,
+        50
+      );
+    });
+
+    it('should handle empty results', async () => {
+      const mockPullRequestsData = {
+        values: [],
+        size: 0,
+        isLastPage: true,
+        start: 0,
+        limit: 25
+      };
+      (PullRequestsService.getPage as jest.Mock).mockResolvedValue(mockPullRequestsData);
+
+      const result = await bitbucketService.getPullRequests(
+        mockProjectKey,
+        mockRepositorySlug
+      );
+
+      expect(result.success).toBe(true);
+      expect(result.data).toBe(mockPullRequestsData);
+      if (result.data) {
+        expect(result.data.values).toHaveLength(0);
+      }
+    });
+
+    it('should handle API errors gracefully', async () => {
+      const mockError = new Error('Failed to fetch pull requests');
+      (PullRequestsService.getPage as jest.Mock).mockRejectedValue(mockError);
+
+      const result = await bitbucketService.getPullRequests(
+        mockProjectKey,
+        mockRepositorySlug
+      );
+
+      expect(result.success).toBe(false);
+      expect(result.error).toBe('Failed to fetch pull requests');
+    });
+
+    it('should handle permission errors', async () => {
+      const mockError = new Error('Insufficient permissions');
+      (PullRequestsService.getPage as jest.Mock).mockRejectedValue(mockError);
+
+      const result = await bitbucketService.getPullRequests(
+        mockProjectKey,
+        mockRepositorySlug,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        'OPEN'
+      );
+
+      expect(result.success).toBe(false);
+      expect(result.error).toBe('Insufficient permissions');
+    });
+  });
+
+  describe('getPullRequest', () => {
+    it('should successfully get a specific pull request by ID', async () => {
+      const mockPullRequestData = {
+        id: 123,
+        version: 1,
+        title: 'Feature: Add new functionality',
+        description: 'This PR adds new functionality',
+        state: 'OPEN',
+        open: true,
+        closed: false,
+        createdDate: 1234567890,
+        updatedDate: 1234567900,
+        fromRef: {
+          id: 'refs/heads/feature-branch',
+          displayId: 'feature-branch',
+          latestCommit: 'abc123',
+          repository: {
+            slug: 'test-repo',
+            project: { key: 'TEST' }
+          }
+        },
+        toRef: {
+          id: 'refs/heads/main',
+          displayId: 'main',
+          latestCommit: 'def456',
+          repository: {
+            slug: 'test-repo',
+            project: { key: 'TEST' }
+          }
+        },
+        author: {
+          user: {
+            name: 'testuser',
+            emailAddress: 'test@example.com',
+            displayName: 'Test User'
+          }
+        },
+        reviewers: [
+          {
+            user: { name: 'reviewer1', displayName: 'Reviewer One' },
+            approved: true
+          }
+        ],
+        participants: []
+      };
+      (PullRequestsService.get3 as jest.Mock).mockResolvedValue(mockPullRequestData);
+
+      const result = await bitbucketService.getPullRequest(
+        mockProjectKey,
+        mockRepositorySlug,
+        '123'
+      );
+
+      expect(result.success).toBe(true);
+      expect(result.data).toBe(mockPullRequestData);
+      expect(PullRequestsService.get3).toHaveBeenCalledWith(
+        mockProjectKey,
+        '123',
+        mockRepositorySlug
+      );
+    });
+
+    it('should handle errors when pull request does not exist', async () => {
+      const mockError = new Error('Not found');
+      (PullRequestsService.get3 as jest.Mock).mockRejectedValue(mockError);
+
+      const result = await bitbucketService.getPullRequest(
+        mockProjectKey,
+        mockRepositorySlug,
+        '999'
+      );
+
+      expect(result.success).toBe(false);
+      expect(result.error).toBe('Not found');
+    });
+
+    it('should handle permission errors', async () => {
+      const mockError = new Error('Insufficient permissions');
+      (PullRequestsService.get3 as jest.Mock).mockRejectedValue(mockError);
+
+      const result = await bitbucketService.getPullRequest(
+        mockProjectKey,
+        mockRepositorySlug,
+        '123'
+      );
+
+      expect(result.success).toBe(false);
+      expect(result.error).toBe('Insufficient permissions');
     });
   });
 
@@ -849,6 +1422,86 @@ describe('BitbucketService', () => {
 
       expect(result.success).toBe(false);
       expect(result.error).toBe('Version conflict - PR has been modified');
+    });
+  });
+
+  describe('getRequiredReviewers', () => {
+    it('should successfully get required reviewers', async () => {
+      const mockReviewersData = [
+        {
+          id: 1,
+          reviewers: [
+            { name: 'reviewer1', emailAddress: 'reviewer1@example.com' },
+            { name: 'reviewer2', emailAddress: 'reviewer2@example.com' }
+          ]
+        }
+      ];
+      (PullRequestsService.getReviewers as jest.Mock).mockResolvedValue(mockReviewersData);
+
+      const result = await bitbucketService.getRequiredReviewers(
+        mockProjectKey,
+        mockRepositorySlug,
+        'refs/heads/feature',
+        'refs/heads/main'
+      );
+
+      expect(result.success).toBe(true);
+      expect(result.data).toBe(mockReviewersData);
+      expect(PullRequestsService.getReviewers).toHaveBeenCalledWith(
+        mockProjectKey,
+        mockRepositorySlug,
+        undefined, // targetRepoId
+        undefined, // sourceRepoId
+        'refs/heads/feature',
+        'refs/heads/main'
+      );
+    });
+
+    it('should successfully get required reviewers with all parameters', async () => {
+      const mockReviewersData = [
+        {
+          id: 1,
+          reviewers: [
+            { name: 'reviewer1', emailAddress: 'reviewer1@example.com' }
+          ]
+        }
+      ];
+      (PullRequestsService.getReviewers as jest.Mock).mockResolvedValue(mockReviewersData);
+
+      const result = await bitbucketService.getRequiredReviewers(
+        mockProjectKey,
+        mockRepositorySlug,
+        'refs/heads/feature',
+        'refs/heads/main',
+        '123', // sourceRepoId
+        '456'  // targetRepoId
+      );
+
+      expect(result.success).toBe(true);
+      expect(result.data).toBe(mockReviewersData);
+      expect(PullRequestsService.getReviewers).toHaveBeenCalledWith(
+        mockProjectKey,
+        mockRepositorySlug,
+        '456', // targetRepoId
+        '123', // sourceRepoId
+        'refs/heads/feature',
+        'refs/heads/main'
+      );
+    });
+
+    it('should handle errors when getting required reviewers', async () => {
+      const mockError = new Error('API Error');
+      (PullRequestsService.getReviewers as jest.Mock).mockRejectedValue(mockError);
+
+      const result = await bitbucketService.getRequiredReviewers(
+        mockProjectKey,
+        mockRepositorySlug,
+        'refs/heads/feature',
+        'refs/heads/main'
+      );
+
+      expect(result.success).toBe(false);
+      expect(result.error).toBe('API Error');
     });
   });
 
