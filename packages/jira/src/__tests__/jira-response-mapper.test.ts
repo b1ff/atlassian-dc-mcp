@@ -4,11 +4,92 @@ import {
   simplifySearchResults,
   simplifyCommentsResponse
 } from '../jira-response-mapper.js';
+import type { IssueBean } from '../jira-client/models/IssueBean.js';
+import type { SearchResultsBean } from '../jira-client/models/SearchResultsBean.js';
+import type { CommentJsonBean } from '../jira-client/models/CommentJsonBean.js';
+
+// Test interfaces that match actual JIRA API responses
+// Note: Generated types have overly strict typing (fields as Record<string, Record<string, any>>)
+// but real JIRA responses have mixed types (strings, objects, arrays, etc.)
+interface TestIssueFields {
+  summary?: string;
+  description?: string;
+  status?: {
+    name?: string;
+    id?: string;
+    self?: string;
+    statusCategory?: {
+      key?: string;
+      name?: string;
+      id?: number;
+      self?: string;
+    };
+  };
+  priority?: {
+    name?: string;
+    id?: string;
+    self?: string;
+    iconUrl?: string;
+  };
+  issuetype?: {
+    name?: string;
+    id?: string;
+    subtask?: boolean;
+    self?: string;
+    iconUrl?: string;
+  };
+  assignee?: TestUser;
+  reporter?: TestUser;
+  created?: string;
+  updated?: string;
+  labels?: string[];
+  components?: Array<{
+    name?: string;
+    id?: string;
+    self?: string;
+  }>;
+  customfield_10001?: string;
+  [key: string]: any;
+}
+
+interface TestUser {
+  name?: string;
+  displayName?: string;
+  emailAddress?: string;
+  active?: boolean;
+  self?: string;
+  avatarUrls?: Record<string, string>;
+  timeZone?: string;
+  key?: string;
+}
+
+interface TestIssue {
+  id?: string;
+  key?: string;
+  self?: string;
+  fields?: TestIssueFields;
+  schema?: Record<string, any>;
+  names?: Record<string, string>;
+  operations?: any;
+  editmeta?: any;
+  renderedFields?: Record<string, any>;
+  properties?: any;
+  versionedRepresentations?: any;
+}
+
+interface TestComment {
+  id?: string;
+  body?: string;
+  self?: string;
+  author?: TestUser;
+  created?: string;
+  updated?: string;
+  renderedBody?: string;
+  properties?: any;
+}
 
 describe('JIRA Response Mapper', () => {
-  // Mock data representing typical JIRA API responses with verbose fields
-  // Using 'as any' to allow realistic test data that may not match exact generated types
-  const mockIssue = {
+  const mockIssue: TestIssue = {
     id: '10001',
     key: 'PROJ-123',
     self: 'https://jira.company.local/rest/api/2/issue/10001',
@@ -101,7 +182,7 @@ describe('JIRA Response Mapper', () => {
     versionedRepresentations: {}
   };
 
-  const mockComment = {
+  const mockComment: TestComment = {
     id: '10050',
     body: 'This is a test comment',
     self: 'https://jira.company.local/rest/api/2/issue/10001/comment/10050',
@@ -127,7 +208,7 @@ describe('JIRA Response Mapper', () => {
 
   describe('simplifyIssue', () => {
     it('should simplify issue by removing verbose metadata fields', () => {
-      const result = simplifyIssue(mockIssue as any);
+      const result = simplifyIssue(mockIssue as IssueBean);
 
       expect(result).toBeDefined();
       expect(result!.id).toBe('10001');
@@ -153,7 +234,7 @@ describe('JIRA Response Mapper', () => {
     });
 
     it('should remove verbose metadata fields from issue', () => {
-      const result = simplifyIssue(mockIssue as any);
+      const result = simplifyIssue(mockIssue as IssueBean);
 
       // Verify verbose fields are removed
       expect((result as any).self).toBeUndefined();
@@ -173,7 +254,7 @@ describe('JIRA Response Mapper', () => {
 
     it('should reduce issue size significantly', () => {
       const originalSize = JSON.stringify(mockIssue).length;
-      const simplified = simplifyIssue(mockIssue as any);
+      const simplified = simplifyIssue(mockIssue as IssueBean);
       const simplifiedSize = JSON.stringify(simplified).length;
 
       const reduction = (originalSize - simplifiedSize) / originalSize;
@@ -183,7 +264,7 @@ describe('JIRA Response Mapper', () => {
 
   describe('simplifyComment', () => {
     it('should simplify comment by removing unnecessary fields', () => {
-      const result = simplifyComment(mockComment as any);
+      const result = simplifyComment(mockComment as CommentJsonBean);
 
       expect(result).toBeDefined();
       expect(result!.id).toBe('10050');
@@ -207,7 +288,7 @@ describe('JIRA Response Mapper', () => {
 
     it('should reduce comment size significantly', () => {
       const originalSize = JSON.stringify(mockComment).length;
-      const simplified = simplifyComment(mockComment as any);
+      const simplified = simplifyComment(mockComment as CommentJsonBean);
       const simplifiedSize = JSON.stringify(simplified).length;
 
       const reduction = (originalSize - simplifiedSize) / originalSize;
@@ -221,7 +302,7 @@ describe('JIRA Response Mapper', () => {
         total: 1,
         startAt: 0,
         maxResults: 10,
-        issues: [mockIssue],
+        issues: [mockIssue as IssueBean],
         expand: 'names,schema',
         schema: {
           summary: { type: 'string', system: 'summary' }
@@ -229,7 +310,7 @@ describe('JIRA Response Mapper', () => {
         names: {
           summary: 'Summary'
         }
-      } as any;
+      } as SearchResultsBean;
 
       const result = simplifySearchResults(mockSearchResults);
 
@@ -256,7 +337,7 @@ describe('JIRA Response Mapper', () => {
         total: 2,
         startAt: 0,
         maxResults: 10,
-        issues: [mockIssue, { ...mockIssue, id: '10002', key: 'PROJ-124' }],
+        issues: [mockIssue as IssueBean, { ...mockIssue, id: '10002', key: 'PROJ-124' } as IssueBean],
         expand: 'names,schema',
         schema: {
           summary: { type: 'string', system: 'summary' },
@@ -266,7 +347,7 @@ describe('JIRA Response Mapper', () => {
           summary: 'Summary',
           description: 'Description'
         }
-      } as any;
+      } as SearchResultsBean;
 
       const originalSize = JSON.stringify(mockSearchResults).length;
       const simplified = simplifySearchResults(mockSearchResults);
@@ -308,8 +389,8 @@ describe('JIRA Response Mapper', () => {
         total: 1,
         startAt: 0,
         maxResults: 10,
-        issues: [mockIssue]
-      } as any;
+        issues: [mockIssue as IssueBean]
+      } as SearchResultsBean;
 
       // Simulate old behavior with pretty-printing
       const prettyPrintedSize = JSON.stringify(mockSearchResults, null, 2).length;
