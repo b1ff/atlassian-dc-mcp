@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { handleApiOperation } from '@atlassian-dc-mcp/common';
 import { IssueService, OpenAPI, SearchService } from './jira-client/index.js';
+import { simplifySearchResults, simplifyIssue, simplifyCommentsResponse } from './jira-response-mapper.js';
 
 export class JiraService {
   constructor(host: string, token: string, fullBaseUrl?: string) {
@@ -10,7 +11,7 @@ export class JiraService {
   }
 
   async searchIssues(jql: string, startAt?: number, expand?: string[], maxResults: number = 10) {
-    return handleApiOperation(() => {
+    const result = await handleApiOperation(() => {
       return SearchService.searchUsingSearchRequest({
         jql,
         maxResults,
@@ -18,18 +19,55 @@ export class JiraService {
         startAt
       });
     }, 'Error searching issues');
+
+    // Simplify the response to reduce token usage
+    if (result.success && result.data) {
+      return {
+        ...result,
+        data: simplifySearchResults(result.data)
+      };
+    }
+
+    return result;
   }
 
   async getIssue(issueKey: string, expand?: string) {
-    return handleApiOperation(() => IssueService.getIssue(issueKey, expand), 'Error getting issue');
+    const result = await handleApiOperation(() => IssueService.getIssue(issueKey, expand), 'Error getting issue');
+
+    // Simplify the response to reduce token usage
+    if (result.success && result.data) {
+      return {
+        ...result,
+        data: simplifyIssue(result.data)
+      };
+    }
+
+    return result;
   }
 
   async getIssueComments(issueKey: string, expand?: string) {
-    return handleApiOperation(() => IssueService.getComments(issueKey, expand), 'Error getting issue comments');
+    const result = await handleApiOperation(() => IssueService.getComments(issueKey, expand), 'Error getting issue comments');
+
+    // Simplify the response to reduce token usage
+    if (result.success && result.data) {
+      return {
+        ...result,
+        data: simplifyCommentsResponse(result.data)
+      };
+    }
+
+    return result;
   }
 
   async postIssueComment(issueKey: string, comment: string) {
-    return handleApiOperation(() => IssueService.addComment(issueKey, undefined, { body: comment }), 'Error posting issue comment');
+    const result = await handleApiOperation(() => IssueService.addComment(issueKey, undefined, { body: comment }), 'Error posting issue comment');
+
+    // Simplify the response to reduce token usage (comment responses can include full issue data)
+    if (result.success && result.data) {
+      return result;
+    }
+
+    return result;
   }
 
   async createIssue(params: {
@@ -39,7 +77,7 @@ export class JiraService {
     issueTypeId: string;
     customFields?: Record<string, any>;
   }) {
-    return handleApiOperation(async () => {
+    const result = await handleApiOperation(async () => {
       const standardFields = {
         project: { key: params.projectId },
         summary: params.summary,
@@ -53,6 +91,16 @@ export class JiraService {
 
       return IssueService.createIssue(true, { fields });
     }, 'Error creating issue');
+
+    // Simplify the response to reduce token usage
+    if (result.success && result.data) {
+      return {
+        ...result,
+        data: simplifyIssue(result.data)
+      };
+    }
+
+    return result;
   }
 
   async updateIssue(params: {
@@ -62,7 +110,7 @@ export class JiraService {
     issueTypeId?: string;
     customFields?: Record<string, any>;
   }) {
-    return handleApiOperation(async () => {
+    const result = await handleApiOperation(async () => {
       const standardFields: Record<string, any> = {};
       if (params.summary !== undefined) {
         standardFields.summary = params.summary;
@@ -80,6 +128,16 @@ export class JiraService {
 
       return IssueService.editIssue(params.issueKey, 'true', { fields });
     }, 'Error updating issue');
+
+    // Simplify the response to reduce token usage
+    if (result.success && result.data) {
+      return {
+        ...result,
+        data: simplifyIssue(result.data)
+      };
+    }
+
+    return result;
   }
 
   static validateConfig(): string[] {

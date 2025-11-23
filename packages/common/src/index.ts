@@ -5,10 +5,11 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 export * from './api-error-handler.js'
 
 // Helper function to format tool responses
+// Uses compact JSON (no pretty-printing) to reduce token usage
 export const formatToolResponse = (result: unknown) => ({
   content: [{
     type: 'text' as const,
-    text: JSON.stringify(result, null, 2)
+    text: JSON.stringify(result)
   }]
 });
 
