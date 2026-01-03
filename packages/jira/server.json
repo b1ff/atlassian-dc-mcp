@@ -1,8 +1,7 @@
 {
-  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-07-09/server.schema.json",
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-09-16/server.schema.json",
   "name": "io.github.b1ff/atlassian-dc-mcp-jira",
   "description": "MCP server for Atlassian Jira Data Center - search, view, and create issues",
-  "status": "active",
   "repository": {
     "url": "https://github.com/b1ff/atlassian-dc-mcp",
     "source": "github"
@@ -10,33 +9,33 @@
   "version": "0.9.0",
   "packages": [
     {
-      "registry_type": "npm",
-      "registry_base_url": "https://registry.npmjs.org",
+      "registryType": "npm",
+      "registryBaseUrl": "https://registry.npmjs.org",
       "identifier": "@atlassian-dc-mcp/jira",
       "version": "0.9.0",
       "transport": {
         "type": "stdio"
       },
-      "environment_variables": [
+      "environmentVariables": [
         {
           "description": "Jira host domain (e.g. your-instance.atlassian.net)",
-          "is_required": false,
+          "isRequired": false,
           "format": "string",
-          "is_secret": false,
+          "isSecret": false,
           "name": "JIRA_HOST"
         },
         {
           "description": "Jira API base path (alternative to JIRA_HOST)",
-          "is_required": false,
+          "isRequired": false,
           "format": "string",
-          "is_secret": false,
+          "isSecret": false,
           "name": "JIRA_API_BASE_PATH"
         },
         {
           "description": "Jira Personal Access Token or API token",
-          "is_required": true,
+          "isRequired": true,
           "format": "string",
-          "is_secret": true,
+          "isSecret": true,
           "name": "JIRA_API_TOKEN"
         }
       ]
