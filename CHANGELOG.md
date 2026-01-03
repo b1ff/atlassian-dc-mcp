@@ -3,6 +3,17 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.9.11](https://github.com/b1ff/atlassian-dc-mcp/compare/v0.9.10...v0.9.11) (2026-01-03)
+
+
+### Bug Fixes
+
+* remove JSON formatting on tools response, to reduce tokens ([1367aa0](https://github.com/b1ff/atlassian-dc-mcp/commit/1367aa0056172d5ba4170e9fe249ced2ead7b57f))
+
+
+
+
+
 ## [0.9.10](https://github.com/b1ff/atlassian-dc-mcp/compare/v0.9.9...v0.9.10) (2026-01-03)
 
 **Note:** Version bump only for package atlassian-dc-mcp
