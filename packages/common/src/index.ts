@@ -8,7 +8,7 @@ export * from './api-error-handler.js'
 export const formatToolResponse = (result: unknown) => ({
   content: [{
     type: 'text' as const,
-    text: JSON.stringify(result, null, 2)
+    text: JSON.stringify(result)
   }]
 });
 
