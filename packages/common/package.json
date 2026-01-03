@@ -1,6 +1,6 @@
 {
   "name": "@atlassian-dc-mcp/common",
-  "version": "0.9.9",
+  "version": "0.9.10",
   "main": "build/index.js",
   "type": "module",
   "private": false,
