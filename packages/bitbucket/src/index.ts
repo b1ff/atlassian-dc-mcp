@@ -73,6 +73,26 @@ server.tool(
 );
 
 server.tool(
+  "bitbucket_getPullRequests",
+  "Get pull requests for a Bitbucket repository",
+  bitbucketToolSchemas.getPullRequests,
+  async ({ projectKey, repositorySlug, withAttributes, at, withProperties, draft, filterText, state, order, direction, start, limit }) => {
+    const result = await bitbucketService.getPullRequests(projectKey, repositorySlug, withAttributes, at, withProperties, draft, filterText, state, order, direction, start, limit);
+    return formatToolResponse(result);
+  }
+);
+
+server.tool(
+  "bitbucket_getPullRequest",
+  "Get a specific pull request by ID. Returns full details including title, description, reviewers, participants, author, source/target branches, and current state.",
+  bitbucketToolSchemas.getPullRequest,
+  async ({ projectKey, repositorySlug, pullRequestId }) => {
+    const result = await bitbucketService.getPullRequest(projectKey, repositorySlug, pullRequestId);
+    return formatToolResponse(result);
+  }
+);
+
+server.tool(
   "bitbucket_getPR_CommentsAndAction",
   "Get comments for a Bitbucket pull request and other actions, like approvals",
   bitbucketToolSchemas.getPullRequestComments,
@@ -109,6 +129,36 @@ server.tool(
   bitbucketToolSchemas.getPullRequestDiff,
   async ({ projectKey, repositorySlug, pullRequestId, path, contextLines, sinceId, srcPath, diffType, untilId, whitespace }) => {
     const result = await bitbucketService.getPullRequestDiff(projectKey, repositorySlug, pullRequestId, path, contextLines, sinceId, srcPath, diffType, untilId, whitespace);
+    return formatToolResponse(result);
+  }
+);
+
+server.tool(
+  "bitbucket_createPullRequest",
+  "Create a new pull request in a Bitbucket repository. IMPORTANT: Before creating a PR, use bitbucket_getRequiredReviewers to fetch required reviewers for the source and target branches to ensure the PR is not created without mandatory reviewers.",
+  bitbucketToolSchemas.createPullRequest,
+  async ({ projectKey, repositorySlug, title, description, fromRefId, toRefId, reviewers }) => {
+    const result = await bitbucketService.createPullRequest(projectKey, repositorySlug, title, description, fromRefId, toRefId, reviewers);
+    return formatToolResponse(result);
+  }
+);
+
+server.tool(
+  "bitbucket_updatePullRequest",
+  "Update the title, description, reviewers, destination branch or draft status of an existing pull request. IMPORTANT: The reviewers parameter replaces ALL existing reviewers. If you want to preserve existing reviewers, first fetch the current PR details (using bitbucket_getPullRequests filtered by ID) and include those reviewers along with any new ones you want to add.",
+  bitbucketToolSchemas.updatePullRequest,
+  async ({ projectKey, repositorySlug, pullRequestId, version, title, description, reviewers }) => {
+    const result = await bitbucketService.updatePullRequest(projectKey, repositorySlug, pullRequestId, version, title, description, reviewers);
+    return formatToolResponse(result);
+  }
+);
+
+server.tool(
+  "bitbucket_getRequiredReviewers",
+  "Get required reviewers for pull request creation. Returns a set of users who are required reviewers for pull requests created from the given source repository and ref to the given target ref in this repository.",
+  bitbucketToolSchemas.getRequiredReviewers,
+  async ({ projectKey, repositorySlug, sourceRefId, targetRefId, sourceRepoId, targetRepoId }) => {
+    const result = await bitbucketService.getRequiredReviewers(projectKey, repositorySlug, sourceRefId, targetRefId, sourceRepoId, targetRepoId);
     return formatToolResponse(result);
   }
 );
