@@ -82,6 +82,29 @@ export class JiraService {
     }, 'Error updating issue');
   }
 
+  async getTransitions(issueKey: string) {
+    return handleApiOperation(
+      () => IssueService.getTransitions(issueKey),
+      'Error getting transitions'
+    );
+  }
+
+  async transitionIssue(params: {
+    issueKey: string;
+    transitionId: string;
+    fields?: Record<string, any>;
+  }) {
+    return handleApiOperation(async () => {
+      const requestBody: { transition: { id: string }; fields?: Record<string, any> } = {
+        transition: { id: params.transitionId }
+      };
+      if (params.fields) {
+        requestBody.fields = params.fields;
+      }
+      return IssueService.doTransition(params.issueKey, requestBody);
+    }, 'Error transitioning issue');
+  }
+
   static validateConfig(): string[] {
     const requiredEnvVars = ['JIRA_API_TOKEN'] as const;
     const missingVars: string[] = requiredEnvVars.filter(varName => !process.env[varName]);
@@ -125,5 +148,13 @@ export const jiraToolSchemas = {
     description: z.string().optional().describe("New description in JIRA Wiki Markup (optional)"),
     issueTypeId: z.string().optional().describe("New issue type id (optional)"),
     customFields: z.record(z.any()).optional().describe("Optional custom fields to update as key-value pairs. Examples: {'customfield_10001': 'Custom Value', 'priority': {'id': '1'}, 'assignee': {'name': 'john.doe'}, 'labels': ['urgent', 'bug']}")
+  },
+  getTransitions: {
+    issueKey: z.string().describe("JIRA issue key (e.g., PROJ-123)")
+  },
+  transitionIssue: {
+    issueKey: z.string().describe("JIRA issue key (e.g., PROJ-123)"),
+    transitionId: z.string().describe("The ID of the transition to perform. Use jira_getTransitions to find available transitions and their IDs."),
+    fields: z.record(z.any()).optional().describe("Optional fields required by the transition screen. Use jira_getTransitions to see which fields are available for each transition.")
   }
 };

@@ -79,4 +79,24 @@ server.tool(
   }
 )
 
+server.tool(
+  "jira_getTransitions",
+  `Get available status transitions for a JIRA issue in the ${jiraInstanceType}. Returns a list of transitions with their IDs, names, and target statuses.`,
+  jiraToolSchemas.getTransitions,
+  async ({ issueKey }) => {
+    const result = await jiraService.getTransitions(issueKey);
+    return formatToolResponse(result);
+  }
+);
+
+server.tool(
+  "jira_transitionIssue",
+  `Transition a JIRA issue to a new status in the ${jiraInstanceType}. Use jira_getTransitions first to get available transition IDs.`,
+  jiraToolSchemas.transitionIssue,
+  async (params) => {
+    const result = await jiraService.transitionIssue(params);
+    return formatToolResponse(result);
+  }
+);
+
 await connectServer(server);
