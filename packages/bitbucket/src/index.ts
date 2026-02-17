@@ -163,4 +163,14 @@ server.tool(
   }
 );
 
+server.tool(
+  "bitbucket_getInboxPullRequests",
+  "Get pull requests from the authenticated user's inbox that need their review. Returns PRs across all repositories where the user is a reviewer.",
+  bitbucketToolSchemas.getInboxPullRequests,
+  async ({ start, limit }) => {
+    const result = await bitbucketService.getInboxPullRequests(start, limit);
+    return formatToolResponse(result);
+  }
+);
+
 await connectServer(server);

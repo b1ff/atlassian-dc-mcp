@@ -1505,6 +1505,104 @@ describe('BitbucketService', () => {
     });
   });
 
+  describe('getInboxPullRequests', () => {
+    const { request: mockRequest } = require('../bitbucket-client/core/request.js');
+
+    it('should successfully get inbox pull requests with default parameters', async () => {
+      const mockInboxData = {
+        values: [
+          {
+            id: 1,
+            title: 'Fix bug',
+            state: 'OPEN',
+            createdDate: 1700000000000,
+            updatedDate: 1700001000000,
+            author: { user: { name: 'user1', displayName: 'User One' } },
+            fromRef: { id: 'refs/heads/feature', displayId: 'feature', repository: { slug: 'repo1', project: { key: 'PROJ' } } },
+            toRef: { id: 'refs/heads/main', displayId: 'main', repository: { slug: 'repo1', project: { key: 'PROJ' } } },
+            reviewers: [{ user: { name: 'reviewer1' }, approved: false, status: 'UNAPPROVED' }],
+          },
+        ],
+        size: 1,
+        isLastPage: true,
+        start: 0,
+        limit: 25,
+      };
+      mockRequest.mockResolvedValue(mockInboxData);
+
+      const result = await bitbucketService.getInboxPullRequests();
+
+      expect(result.success).toBe(true);
+      expect(result.data).toBeDefined();
+      expect(mockRequest).toHaveBeenCalledWith(
+        expect.any(Object),
+        expect.objectContaining({
+          method: 'GET',
+          url: '/api/latest/inbox/pull-requests',
+          query: { start: undefined, limit: 25 },
+        })
+      );
+    });
+
+    it('should successfully get inbox pull requests with pagination parameters', async () => {
+      const mockInboxData = {
+        values: [
+          {
+            id: 2,
+            title: 'Add feature',
+            state: 'OPEN',
+            createdDate: 1700000000000,
+            updatedDate: 1700001000000,
+            fromRef: { id: 'refs/heads/feat', displayId: 'feat', repository: { slug: 'repo1', project: { key: 'PROJ' } } },
+            toRef: { id: 'refs/heads/main', displayId: 'main', repository: { slug: 'repo1', project: { key: 'PROJ' } } },
+          },
+        ],
+        size: 1,
+        isLastPage: false,
+        start: 25,
+        limit: 10,
+        nextPageStart: 35,
+      };
+      mockRequest.mockResolvedValue(mockInboxData);
+
+      const result = await bitbucketService.getInboxPullRequests(25, 10);
+
+      expect(result.success).toBe(true);
+      expect(mockRequest).toHaveBeenCalledWith(
+        expect.any(Object),
+        expect.objectContaining({
+          query: { start: 25, limit: 10 },
+        })
+      );
+    });
+
+    it('should handle empty inbox', async () => {
+      const mockInboxData = {
+        values: [],
+        size: 0,
+        isLastPage: true,
+        start: 0,
+        limit: 25,
+      };
+      mockRequest.mockResolvedValue(mockInboxData);
+
+      const result = await bitbucketService.getInboxPullRequests();
+
+      expect(result.success).toBe(true);
+      expect(result.data).toBeDefined();
+    });
+
+    it('should handle API errors gracefully', async () => {
+      const mockError = new Error('Unauthorized');
+      mockRequest.mockRejectedValue(mockError);
+
+      const result = await bitbucketService.getInboxPullRequests();
+
+      expect(result.success).toBe(false);
+      expect(result.error).toBe('Unauthorized');
+    });
+  });
+
   describe('validateConfig', () => {
     const originalEnv = process.env;
 
