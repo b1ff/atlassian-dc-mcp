@@ -4,6 +4,7 @@ import { request as __request } from './bitbucket-client/core/request.js';
 import { handleApiOperation } from '@atlassian-dc-mcp/common';
 import { simplifyBitbucketPRComments } from './pr-comment-mapper.js';
 import { simplifyBitbucketPRChanges } from './pr-changes-mapper.js';
+import { simplifyInboxPullRequests } from './inbox-pr-mapper.js';
 
 export class BitbucketService {
   constructor(host: string, token: string, fullBaseUrl?: string) {
@@ -496,6 +497,38 @@ export class BitbucketService {
     );
   }
 
+  /**
+   * Get pull requests from the authenticated user's inbox (PRs awaiting review)
+   * @param start Optional pagination start
+   * @param limit Optional pagination limit (default: 25)
+   * @returns Promise with inbox pull requests data
+   */
+  async getInboxPullRequests(start?: number, limit: number = 25) {
+    const result = await handleApiOperation(
+      () => __request(OpenAPI, {
+        method: 'GET',
+        url: '/api/latest/inbox/pull-requests',
+        query: {
+          'start': start,
+          'limit': limit,
+        },
+        errors: {
+          401: 'The currently authenticated user is not permitted to access the inbox.',
+        },
+      }),
+      'Error fetching inbox pull requests'
+    );
+
+    if (result.success && result.data) {
+      return {
+        success: true,
+        data: simplifyInboxPullRequests(result.data),
+      };
+    }
+
+    return result;
+  }
+
   static validateConfig(): string[] {
     // Check for BITBUCKET_HOST or its alternative BITBUCKET_API_BASE_PATH
     const requiredEnvVars = ['BITBUCKET_API_TOKEN'] as const;
@@ -621,5 +654,9 @@ export const bitbucketToolSchemas = {
     targetRefId: z.string().describe("The ID of the target ref (e.g., 'refs/heads/main')"),
     sourceRepoId: z.string().optional().describe("Optional ID of the repository in which the source ref exists"),
     targetRepoId: z.string().optional().describe("Optional ID of the repository in which the target ref exists")
+  },
+  getInboxPullRequests: {
+    start: z.number().optional().describe("Start number for the page (inclusive). If not passed, first page is assumed"),
+    limit: z.number().optional().default(25).describe("Number of items to return. If not passed, a page size of 25 is used")
   }
 };
