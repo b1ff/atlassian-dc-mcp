@@ -114,7 +114,7 @@ server.tool(
 
 server.tool(
   "bitbucket_postPullRequestComment",
-  "Post a comment to a Bitbucket pull request. Use pending: true to create a draft comment that is only visible to you until you call bitbucket_submitPullRequestReview.",
+  "Post a comment to a Bitbucket pull request. Use pending: true to create a draft comment that is only visible to you until you call bitbucket_submitPullRequestReview. NOTE: pending only works when filePath is provided (file-level or inline comments). True top-level PR comments (no filePath) are always posted live and cannot be drafted.",
   bitbucketToolSchemas.postPullRequestComment,
   async ({ projectKey, repositorySlug, pullRequestId, text, parentId, filePath, line, lineType, pending }) => {
     const result = await bitbucketService.postPullRequestComment(projectKey, repositorySlug, pullRequestId, text, parentId, filePath, line, lineType, pending);

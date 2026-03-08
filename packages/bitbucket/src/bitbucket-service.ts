@@ -255,7 +255,9 @@ export class BitbucketService {
    * @param filePath Optional file path for file-specific comments
    * @param line Optional line number for line-specific comments
    * @param lineType Optional line type ('ADDED', 'REMOVED', 'CONTEXT') for line comments
-   * @param pending Optional flag to create a pending (draft) comment, not visible to others until a review is submitted
+   * @param pending Optional flag to create a pending (draft) comment, not visible to others until a review is submitted.
+   *   Only works when filePath is provided (file-level or inline comments).
+   *   Top-level PR comments (no filePath) are always posted live regardless of this flag.
    * @returns Promise with created comment data
    */
   async postPullRequestComment(
@@ -627,7 +629,7 @@ export const bitbucketToolSchemas = {
     filePath: z.string().optional().describe("File path for file-specific comments"),
     line: z.number().optional().describe("Line number for line-specific comments"),
     lineType: z.enum(['ADDED', 'REMOVED', 'CONTEXT']).optional().describe("Line type for line comments"),
-    pending: z.boolean().optional().describe("If true, creates a pending (draft) comment not visible to others until the review is submitted via bitbucket_submitPullRequestReview")
+    pending: z.boolean().optional().describe("If true, creates a pending (draft) comment not visible to others until the review is submitted via bitbucket_submitPullRequestReview. Only works when filePath is provided — top-level PR comments (no filePath) are always posted live.")
   },
   submitPullRequestReview: {
     projectKey: z.string().describe("The project key"),
