@@ -255,6 +255,7 @@ export class BitbucketService {
    * @param filePath Optional file path for file-specific comments
    * @param line Optional line number for line-specific comments
    * @param lineType Optional line type ('ADDED', 'REMOVED', 'CONTEXT') for line comments
+   * @param pending Optional flag to create a pending (draft) comment, not visible to others until a review is submitted
    * @returns Promise with created comment data
    */
   async postPullRequestComment(
@@ -265,11 +266,17 @@ export class BitbucketService {
     parentId?: number,
     filePath?: string,
     line?: number,
-    lineType?: 'ADDED' | 'REMOVED' | 'CONTEXT'
+    lineType?: 'ADDED' | 'REMOVED' | 'CONTEXT',
+    pending?: boolean
   ) {
     const comment: any = {
       text
     };
+
+    // Mark comment as pending (draft) — not visible to others until review is submitted
+    if (pending) {
+      comment.pending = true;
+    }
 
     // Add parent reference for replies
     if (parentId) {
@@ -299,6 +306,42 @@ export class BitbucketService {
         comment
       ),
       'Error posting pull request comment'
+    );
+  }
+
+  /**
+   * Submit a pull request review, publishing all pending (draft) comments and updating the reviewer's status.
+   * This is the equivalent of clicking "Submit Review" in the Bitbucket UI.
+   * @param projectKey The project key
+   * @param repositorySlug The repository slug
+   * @param pullRequestId The pull request ID
+   * @param userSlug The username/slug of the reviewer submitting the review
+   * @param status The review verdict: 'APPROVED', 'NEEDS_WORK', or 'UNAPPROVED'
+   * @param lastReviewedCommit Optional last reviewed commit hash (for tracking review progress)
+   * @returns Promise with updated participant data
+   */
+  async submitPullRequestReview(
+    projectKey: string,
+    repositorySlug: string,
+    pullRequestId: string,
+    userSlug: string,
+    status: 'APPROVED' | 'NEEDS_WORK' | 'UNAPPROVED',
+    lastReviewedCommit?: string
+  ) {
+    const requestBody: any = {
+      status,
+      ...(lastReviewedCommit ? { lastReviewedCommit } : {})
+    };
+
+    return handleApiOperation(
+      () => PullRequestsService.updateStatus(
+        projectKey,
+        userSlug,
+        pullRequestId,
+        repositorySlug,
+        requestBody
+      ),
+      'Error submitting pull request review'
     );
   }
 
@@ -582,7 +625,16 @@ export const bitbucketToolSchemas = {
     parentId: z.number().optional().describe("Parent comment ID for replies"),
     filePath: z.string().optional().describe("File path for file-specific comments"),
     line: z.number().optional().describe("Line number for line-specific comments"),
-    lineType: z.enum(['ADDED', 'REMOVED', 'CONTEXT']).optional().describe("Line type for line comments")
+    lineType: z.enum(['ADDED', 'REMOVED', 'CONTEXT']).optional().describe("Line type for line comments"),
+    pending: z.boolean().optional().describe("If true, creates a pending (draft) comment not visible to others until the review is submitted via bitbucket_submitPullRequestReview")
+  },
+  submitPullRequestReview: {
+    projectKey: z.string().describe("The project key"),
+    repositorySlug: z.string().describe("The repository slug"),
+    pullRequestId: z.string().describe("The pull request ID"),
+    userSlug: z.string().describe("The username/slug of the reviewer submitting the review"),
+    status: z.enum(['APPROVED', 'NEEDS_WORK', 'UNAPPROVED']).describe("The review verdict: APPROVED, NEEDS_WORK, or UNAPPROVED"),
+    lastReviewedCommit: z.string().optional().describe("Optional hash of the last commit reviewed, used to track review progress")
   },
   getPullRequestDiff: {
     projectKey: z.string().describe("The project key"),

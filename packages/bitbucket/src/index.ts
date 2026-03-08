@@ -114,10 +114,20 @@ server.tool(
 
 server.tool(
   "bitbucket_postPullRequestComment",
-  "Post a comment to a Bitbucket pull request",
+  "Post a comment to a Bitbucket pull request. Use pending: true to create a draft comment that is only visible to you until you call bitbucket_submitPullRequestReview.",
   bitbucketToolSchemas.postPullRequestComment,
-  async ({ projectKey, repositorySlug, pullRequestId, text, parentId, filePath, line, lineType }) => {
-    const result = await bitbucketService.postPullRequestComment(projectKey, repositorySlug, pullRequestId, text, parentId, filePath, line, lineType);
+  async ({ projectKey, repositorySlug, pullRequestId, text, parentId, filePath, line, lineType, pending }) => {
+    const result = await bitbucketService.postPullRequestComment(projectKey, repositorySlug, pullRequestId, text, parentId, filePath, line, lineType, pending);
+    return formatToolResponse(result);
+  }
+);
+
+server.tool(
+  "bitbucket_submitPullRequestReview",
+  "Submit a pull request review, publishing all pending (draft) comments and setting the reviewer's verdict. This is equivalent to clicking 'Submit Review' in the Bitbucket UI. Use after posting comments with pending: true.",
+  bitbucketToolSchemas.submitPullRequestReview,
+  async ({ projectKey, repositorySlug, pullRequestId, userSlug, status, lastReviewedCommit }) => {
+    const result = await bitbucketService.submitPullRequestReview(projectKey, repositorySlug, pullRequestId, userSlug, status, lastReviewedCommit);
     return formatToolResponse(result);
   }
 );
