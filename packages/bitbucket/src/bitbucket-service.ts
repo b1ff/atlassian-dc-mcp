@@ -274,8 +274,9 @@ export class BitbucketService {
     };
 
     // Mark comment as pending (draft) — not visible to others until review is submitted
+    // Note: Bitbucket DC uses state:'PENDING' not pending:true
     if (pending) {
-      comment.pending = true;
+      comment.state = 'PENDING';
     }
 
     // Add parent reference for replies
