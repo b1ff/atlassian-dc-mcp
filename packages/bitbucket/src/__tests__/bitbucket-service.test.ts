@@ -1,5 +1,6 @@
 import { BitbucketService } from '../bitbucket-service.js';
 import { PullRequestsService } from '../bitbucket-client/index.js';
+import { request as mockRequest } from '../bitbucket-client/core/request.js';
 
 // Mock the request function
 jest.mock('../bitbucket-client/core/request.js', () => ({
@@ -14,6 +15,7 @@ jest.mock('../bitbucket-client/index.js', () => ({
     streamChanges1: jest.fn(),
     create: jest.fn(),
     update: jest.fn(),
+    updateStatus: jest.fn(),
     getPage: jest.fn(),
     getReviewers: jest.fn(),
     get3: jest.fn()
@@ -1647,6 +1649,224 @@ describe('BitbucketService', () => {
 
       const missingVars = BitbucketService.validateConfig();
       expect(missingVars).toEqual([]);
+    });
+  });
+
+  describe('postPullRequestComment - pending flag', () => {
+    it('should include state: PENDING in the request body when pending is true', async () => {
+      const mockComment = { id: 99, text: 'Draft comment', author: { displayName: 'Test User' } };
+      (PullRequestsService.createComment2 as jest.Mock).mockResolvedValue(mockComment);
+
+      const result = await bitbucketService.postPullRequestComment(
+        mockProjectKey,
+        mockRepositorySlug,
+        mockPullRequestId,
+        'Draft comment',
+        undefined, // parentId
+        undefined, // filePath
+        undefined, // line
+        undefined, // lineType
+        true       // pending
+      );
+
+      expect(result.success).toBe(true);
+      expect(PullRequestsService.createComment2).toHaveBeenCalledWith(
+        mockProjectKey,
+        mockPullRequestId,
+        mockRepositorySlug,
+        { text: 'Draft comment', state: 'PENDING' }
+      );
+    });
+
+    it('should NOT include pending in the request body when pending is false or omitted', async () => {
+      const mockComment = { id: 100, text: 'Normal comment', author: { displayName: 'Test User' } };
+      (PullRequestsService.createComment2 as jest.Mock).mockResolvedValue(mockComment);
+
+      await bitbucketService.postPullRequestComment(
+        mockProjectKey,
+        mockRepositorySlug,
+        mockPullRequestId,
+        'Normal comment'
+      );
+
+      expect(PullRequestsService.createComment2).toHaveBeenCalledWith(
+        mockProjectKey,
+        mockPullRequestId,
+        mockRepositorySlug,
+        { text: 'Normal comment' } // no pending field
+      );
+    });
+
+    it('should support state: PENDING combined with a file anchor', async () => {
+      const mockComment = { id: 101, text: 'Pending file comment', author: { displayName: 'Test User' } };
+      (PullRequestsService.createComment2 as jest.Mock).mockResolvedValue(mockComment);
+
+      await bitbucketService.postPullRequestComment(
+        mockProjectKey,
+        mockRepositorySlug,
+        mockPullRequestId,
+        'Pending file comment',
+        undefined,      // parentId
+        'src/index.ts', // filePath
+        10,             // line
+        'ADDED',        // lineType
+        true            // pending
+      );
+
+      expect(PullRequestsService.createComment2).toHaveBeenCalledWith(
+        mockProjectKey,
+        mockPullRequestId,
+        mockRepositorySlug,
+        {
+          text: 'Pending file comment',
+          state: 'PENDING',
+          anchor: {
+            path: 'src/index.ts',
+            diffType: 'EFFECTIVE',
+            line: 10,
+            lineType: 'ADDED',
+            fileType: 'TO'
+          }
+        }
+      );
+    });
+  });
+
+  describe('submitPullRequestReview', () => {
+    const mockUserSlug = 'test-user';
+
+    it('should submit a NEEDS_WORK review and call updateStatus with correct args', async () => {
+      const mockParticipant = {
+        user: { name: mockUserSlug },
+        role: 'REVIEWER',
+        status: 'NEEDS_WORK'
+      };
+      (PullRequestsService.updateStatus as jest.Mock).mockResolvedValue(mockParticipant);
+
+      const result = await bitbucketService.submitPullRequestReview(
+        mockProjectKey,
+        mockRepositorySlug,
+        mockPullRequestId,
+        mockUserSlug,
+        'NEEDS_WORK'
+      );
+
+      expect(result.success).toBe(true);
+      expect(result.data).toBe(mockParticipant);
+      expect(PullRequestsService.updateStatus).toHaveBeenCalledWith(
+        mockProjectKey,
+        mockUserSlug,
+        mockPullRequestId,
+        mockRepositorySlug,
+        { status: 'NEEDS_WORK' }
+      );
+    });
+
+    it('should submit an APPROVED review', async () => {
+      const mockParticipant = { user: { name: mockUserSlug }, status: 'APPROVED' };
+      (PullRequestsService.updateStatus as jest.Mock).mockResolvedValue(mockParticipant);
+
+      const result = await bitbucketService.submitPullRequestReview(
+        mockProjectKey,
+        mockRepositorySlug,
+        mockPullRequestId,
+        mockUserSlug,
+        'APPROVED'
+      );
+
+      expect(result.success).toBe(true);
+      expect(PullRequestsService.updateStatus).toHaveBeenCalledWith(
+        mockProjectKey,
+        mockUserSlug,
+        mockPullRequestId,
+        mockRepositorySlug,
+        { status: 'APPROVED' }
+      );
+    });
+
+    it('should include lastReviewedCommit when provided', async () => {
+      const mockParticipant = { user: { name: mockUserSlug }, status: 'NEEDS_WORK' };
+      (PullRequestsService.updateStatus as jest.Mock).mockResolvedValue(mockParticipant);
+
+      await bitbucketService.submitPullRequestReview(
+        mockProjectKey,
+        mockRepositorySlug,
+        mockPullRequestId,
+        mockUserSlug,
+        'NEEDS_WORK',
+        'abc123def456'
+      );
+
+      expect(PullRequestsService.updateStatus).toHaveBeenCalledWith(
+        mockProjectKey,
+        mockUserSlug,
+        mockPullRequestId,
+        mockRepositorySlug,
+        { status: 'NEEDS_WORK', lastReviewedCommit: 'abc123def456' }
+      );
+    });
+
+    it('should handle API errors gracefully', async () => {
+      const mockError = new Error('Forbidden');
+      (PullRequestsService.updateStatus as jest.Mock).mockRejectedValue(mockError);
+
+      const result = await bitbucketService.submitPullRequestReview(
+        mockProjectKey,
+        mockRepositorySlug,
+        mockPullRequestId,
+        mockUserSlug,
+        'APPROVED'
+      );
+
+      expect(result.success).toBe(false);
+      expect(result.error).toBe('Forbidden');
+    });
+  });
+
+  describe('getUser', () => {
+    it('should fetch a user by exact slug', async () => {
+      const mockUser = { slug: 'jsmith', displayName: 'John Smith', emailAddress: 'jsmith@example.com' };
+      (mockRequest as jest.Mock).mockResolvedValue(mockUser);
+
+      const result = await bitbucketService.getUser('jsmith', undefined);
+
+      expect(result.success).toBe(true);
+      expect(result.data).toEqual(mockUser);
+      expect(mockRequest).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({
+          method: 'GET',
+          url: '/api/latest/users/{userSlug}',
+          path: { userSlug: 'jsmith' }
+        })
+      );
+    });
+
+    it('should search for users by filter string', async () => {
+      const mockUsers = { values: [{ slug: 'jsmith', displayName: 'John Smith' }], size: 1, isLastPage: true };
+      (mockRequest as jest.Mock).mockResolvedValue(mockUsers);
+
+      const result = await bitbucketService.getUser(undefined, 'John');
+
+      expect(result.success).toBe(true);
+      expect(result.data).toEqual(mockUsers);
+      expect(mockRequest).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({
+          method: 'GET',
+          url: '/api/latest/users',
+          query: { filter: 'John' }
+        })
+      );
+    });
+
+    it('should handle API errors gracefully', async () => {
+      (mockRequest as jest.Mock).mockRejectedValue(new Error('Not Found'));
+
+      const result = await bitbucketService.getUser('nonexistent', undefined);
+
+      expect(result.success).toBe(false);
+      expect(result.error).toBe('Not Found');
     });
   });
 });
