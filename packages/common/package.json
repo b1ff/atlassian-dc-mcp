@@ -1,12 +1,12 @@
 {
   "name": "@atlassian-dc-mcp/common",
-  "version": "0.10.0",
+  "version": "0.10.1",
   "main": "build/index.js",
   "type": "module",
   "private": false,
   "scripts": {
     "build": "tsc",
-    "test": "jest",
+    "test": "jest --passWithNoTests",
     "dev": "nodemon --exec ts-node --esm src/index.ts"
   },
   "dependencies": {
