@@ -3,6 +3,17 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [0.11.0](https://github.com/b1ff/atlassian-dc-mcp/compare/v0.10.2...v0.11.0) (2026-03-09)
+
+
+### Features
+
+* **bitbucket:** add pending comment support and submitPullRequestReview tool ([0bd74c2](https://github.com/b1ff/atlassian-dc-mcp/commit/0bd74c2243524a5e8a9f7f7c464a01e18e9db884))
+
+
+
+
+
 ## [0.10.2](https://github.com/b1ff/atlassian-dc-mcp/compare/v0.10.1...v0.10.2) (2026-03-09)
 
 **Note:** Version bump only for package @atlassian-dc-mcp/bitbucket
