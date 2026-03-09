@@ -1,5 +1,6 @@
 import { BitbucketService } from '../bitbucket-service.js';
 import { PullRequestsService } from '../bitbucket-client/index.js';
+import { request as mockRequest } from '../bitbucket-client/core/request.js';
 
 // Mock the request function
 jest.mock('../bitbucket-client/core/request.js', () => ({
@@ -1554,7 +1555,7 @@ describe('BitbucketService', () => {
   });
 
   describe('postPullRequestComment - pending flag', () => {
-    it('should include pending: true in the request body when pending is true', async () => {
+    it('should include state: PENDING in the request body when pending is true', async () => {
       const mockComment = { id: 99, text: 'Draft comment', author: { displayName: 'Test User' } };
       (PullRequestsService.createComment2 as jest.Mock).mockResolvedValue(mockComment);
 
@@ -1575,7 +1576,7 @@ describe('BitbucketService', () => {
         mockProjectKey,
         mockPullRequestId,
         mockRepositorySlug,
-        { text: 'Draft comment', pending: true }
+        { text: 'Draft comment', state: 'PENDING' }
       );
     });
 
@@ -1598,7 +1599,7 @@ describe('BitbucketService', () => {
       );
     });
 
-    it('should support pending: true combined with a file anchor', async () => {
+    it('should support state: PENDING combined with a file anchor', async () => {
       const mockComment = { id: 101, text: 'Pending file comment', author: { displayName: 'Test User' } };
       (PullRequestsService.createComment2 as jest.Mock).mockResolvedValue(mockComment);
 
@@ -1620,7 +1621,7 @@ describe('BitbucketService', () => {
         mockRepositorySlug,
         {
           text: 'Pending file comment',
-          pending: true,
+          state: 'PENDING',
           anchor: {
             path: 'src/index.ts',
             diffType: 'EFFECTIVE',
@@ -1721,6 +1722,53 @@ describe('BitbucketService', () => {
 
       expect(result.success).toBe(false);
       expect(result.error).toBe('Forbidden');
+    });
+  });
+
+  describe('getUser', () => {
+    it('should fetch a user by exact slug', async () => {
+      const mockUser = { slug: 'jsmith', displayName: 'John Smith', emailAddress: 'jsmith@example.com' };
+      (mockRequest as jest.Mock).mockResolvedValue(mockUser);
+
+      const result = await bitbucketService.getUser('jsmith', undefined);
+
+      expect(result.success).toBe(true);
+      expect(result.data).toEqual(mockUser);
+      expect(mockRequest).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({
+          method: 'GET',
+          url: '/api/latest/users/{userSlug}',
+          path: { userSlug: 'jsmith' }
+        })
+      );
+    });
+
+    it('should search for users by filter string', async () => {
+      const mockUsers = { values: [{ slug: 'jsmith', displayName: 'John Smith' }], size: 1, isLastPage: true };
+      (mockRequest as jest.Mock).mockResolvedValue(mockUsers);
+
+      const result = await bitbucketService.getUser(undefined, 'John');
+
+      expect(result.success).toBe(true);
+      expect(result.data).toEqual(mockUsers);
+      expect(mockRequest).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({
+          method: 'GET',
+          url: '/api/latest/users',
+          query: { filter: 'John' }
+        })
+      );
+    });
+
+    it('should handle API errors gracefully', async () => {
+      (mockRequest as jest.Mock).mockRejectedValue(new Error('Not Found'));
+
+      const result = await bitbucketService.getUser('nonexistent', undefined);
+
+      expect(result.success).toBe(false);
+      expect(result.error).toBe('Not Found');
     });
   });
 });
