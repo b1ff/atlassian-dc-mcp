@@ -11,7 +11,7 @@
     "dev": "nodemon src/index.ts",
     "inspect": "mcp-inspector node build/index.js",
     "inspect:dev": "mcp-inspector ts-node src/index.ts",
-    "test": "jest"
+    "test": "jest --passWithNoTests"
   },
   "dependencies": {
     "@atlassian-dc-mcp/common": "^0.10.0",

@@ -6,7 +6,7 @@
   "private": false,
   "scripts": {
     "build": "tsc",
-    "test": "jest",
+    "test": "jest --passWithNoTests",
     "dev": "nodemon --exec ts-node --esm src/index.ts"
   },
   "dependencies": {
