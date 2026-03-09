@@ -313,12 +313,39 @@ export class BitbucketService {
   }
 
   /**
+   * Get a user by slug, or search for users by name/email filter
+   * @param userSlug Optional exact slug to look up a specific user
+   * @param filter Optional search string to find users by name or email
+   * @returns Promise with user data
+   */
+  async getUser(userSlug?: string, filter?: string) {
+    if (userSlug) {
+      return handleApiOperation(
+        () => __request(OpenAPI, {
+          method: 'GET',
+          url: '/api/latest/users/{userSlug}',
+          path: { userSlug },
+        }),
+        'Error fetching user'
+      );
+    }
+    return handleApiOperation(
+      () => __request(OpenAPI, {
+        method: 'GET',
+        url: '/api/latest/users',
+        query: { filter },
+      }),
+      'Error fetching users'
+    );
+  }
+
+  /**
    * Submit a pull request review, publishing all pending (draft) comments and updating the reviewer's status.
    * This is the equivalent of clicking "Submit Review" in the Bitbucket UI.
    * @param projectKey The project key
    * @param repositorySlug The repository slug
    * @param pullRequestId The pull request ID
-   * @param userSlug The username/slug of the reviewer submitting the review
+   * @param userSlug The username/slug of the reviewer submitting the review (the PAT token owner).
    * @param status The review verdict: 'APPROVED', 'NEEDS_WORK', or 'UNAPPROVED'
    * @param lastReviewedCommit Optional last reviewed commit hash (for tracking review progress)
    * @returns Promise with updated participant data
@@ -631,11 +658,15 @@ export const bitbucketToolSchemas = {
     lineType: z.enum(['ADDED', 'REMOVED', 'CONTEXT']).optional().describe("Line type for line comments"),
     pending: z.boolean().optional().describe("If true, creates a pending (draft) comment not visible to others until the review is submitted via bitbucket_submitPullRequestReview. Only works when filePath is provided — top-level PR comments (no filePath) are always posted live.")
   },
+  getUser: {
+    userSlug: z.string().optional().describe("Exact slug of the user to look up (e.g. 'tdepole'). Use this to confirm a known slug or fetch a user's details."),
+    filter: z.string().optional().describe("Search string to find users by name or email. Use this to discover a user's slug when it is not known.")
+  },
   submitPullRequestReview: {
     projectKey: z.string().describe("The project key"),
     repositorySlug: z.string().describe("The repository slug"),
     pullRequestId: z.string().describe("The pull request ID"),
-    userSlug: z.string().describe("The username/slug of the reviewer submitting the review"),
+    userSlug: z.string().describe("The username/slug of the PAT token owner — the same user whose credentials are in BITBUCKET_API_TOKEN. Resolution order: (1) author.slug from any comment posted this session, (2) reviewers/participants array from getPullRequest, (3) bitbucket_getUser with a name/email filter."),
     status: z.enum(['APPROVED', 'NEEDS_WORK', 'UNAPPROVED']).describe("The review verdict: APPROVED, NEEDS_WORK, or UNAPPROVED"),
     lastReviewedCommit: z.string().optional().describe("Optional hash of the last commit reviewed, used to track review progress")
   },
