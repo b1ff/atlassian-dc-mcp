@@ -91,7 +91,8 @@ export class ConfluenceService {
   async searchSpaces(searchText: string, limit?: number, start?: number, expand?: string) {
     // Create a CQL query that searches for spaces
     // The correct syntax for space search is: type=space AND title ~ "searchText"
-    const cql = `type=space AND title ~ "${searchText}"`;
+    const escapedSearchText = searchText.replace(/"/g, '\\"');
+    const cql = `type=space AND title ~ "${escapedSearchText}"`;
 
     return handleApiOperation(() => SearchService.search1(
       undefined,
