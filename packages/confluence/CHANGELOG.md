@@ -3,6 +3,18 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.11.2](https://github.com/b1ff/atlassian-dc-mcp/compare/v0.11.1...v0.11.2) (2026-03-12)
+
+
+### Bug Fixes
+
+* **confluence:** escape quotes in space search query ([5583bd1](https://github.com/b1ff/atlassian-dc-mcp/commit/5583bd1a5ae4b1e0b5328d14d7ed0a4a5a36154f))
+* **confluence:** robustly escape CQL search text and add test suite ([8104211](https://github.com/b1ff/atlassian-dc-mcp/commit/8104211a695b8411aa9e5f4ba8a977ada58d2157))
+
+
+
+
+
 ## [0.11.1](https://github.com/b1ff/atlassian-dc-mcp/compare/v0.11.0...v0.11.1) (2026-03-12)
 
 **Note:** Version bump only for package @atlassian-dc-mcp/confluence
