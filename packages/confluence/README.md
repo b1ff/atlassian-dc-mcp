@@ -60,6 +60,20 @@ Or for development with auto-reload:
 npm run dev
 ```
 
+## Testing
+
+Run the test suite from the package directory:
+
+```
+npm run test
+```
+
+Or from the repository root:
+
+```
+npm run test --workspace=@atlassian-dc-mcp/confluence
+```
+
 ### Available Tools
 
 #### 1. confluence_getContent

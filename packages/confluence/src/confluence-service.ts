@@ -2,6 +2,15 @@ import { z } from 'zod';
 import { ContentResourceService, OpenAPI, SearchService } from './confluence-client/index.js';
 import { handleApiOperation } from '@atlassian-dc-mcp/common';
 
+/**
+ * Escapes user input for safe use inside a CQL quoted string.
+ * Escapes backslash first, then double quote, so that neither can break out of the phrase.
+ * Only call once per value; double-escaping would over-escape and break the query.
+ */
+export function escapeSearchTextForCql(searchText: string): string {
+  return searchText.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+}
+
 export interface ConfluenceContent {
   id?: string;
   type: string;
@@ -91,7 +100,8 @@ export class ConfluenceService {
   async searchSpaces(searchText: string, limit?: number, start?: number, expand?: string) {
     // Create a CQL query that searches for spaces
     // The correct syntax for space search is: type=space AND title ~ "searchText"
-    const cql = `type=space AND title ~ "${searchText}"`;
+    const escapedSearchText = escapeSearchTextForCql(searchText);
+    const cql = `type=space AND title ~ "${escapedSearchText}"`;
 
     return handleApiOperation(() => SearchService.search1(
       undefined,
@@ -147,7 +157,7 @@ export const confluenceToolSchemas = {
     versionComment: z.string().optional().describe("Comment for this version")
   },
   searchSpaces: {
-    searchText: z.string().describe("Text to search for in Confluence Data Center space names or descriptions"),
+    searchText: z.string().describe("Text to search for in Confluence Data Center space names or descriptions. Quotes and backslashes are escaped for CQL; pass the literal search phrase only (do not pre-escape)."),
     limit: z.number().optional().describe("Maximum number of results to return"),
     start: z.number().optional().describe("Start index for pagination"),
     expand: z.string().optional().describe("Comma-separated list of properties to expand")
