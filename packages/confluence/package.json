@@ -1,6 +1,6 @@
 {
   "name": "@atlassian-dc-mcp/confluence",
-  "version": "0.11.0",
+  "version": "0.11.1",
   "main": "build/index.js",
   "type": "module",
   "bin": "./bin/run.js",
@@ -14,7 +14,7 @@
     "test": "jest --passWithNoTests"
   },
   "dependencies": {
-    "@atlassian-dc-mcp/common": "^0.11.0",
+    "@atlassian-dc-mcp/common": "^0.11.1",
     "@modelcontextprotocol/sdk": "^1.27.1",
     "dotenv": "^16.4.7",
     "node-fetch": "^3.3.2",
