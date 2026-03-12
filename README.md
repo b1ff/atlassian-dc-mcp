@@ -93,6 +93,50 @@ You can also use the alternative API base path configuration:
 }
 ```
 
+## Claude Code CLI Configuration
+
+To use these MCP connectors with [Claude Code](https://docs.anthropic.com/en/docs/claude-code), add MCP servers using the `claude mcp add` command.
+
+You can add servers at the project scope (stored in `.mcp.json`) or user scope (`-s user`). Adjust the scope and included services to your needs.
+
+```bash
+# Jira
+claude mcp add atlassian-jira-dc \
+  -e JIRA_HOST=your-jira-host \
+  -e JIRA_API_TOKEN=your-token \
+  -- npx -y @atlassian-dc-mcp/jira
+
+# Confluence
+claude mcp add atlassian-confluence-dc \
+  -e CONFLUENCE_HOST=your-confluence-host \
+  -e CONFLUENCE_API_TOKEN=your-token \
+  -- npx -y @atlassian-dc-mcp/confluence
+
+# Bitbucket
+claude mcp add atlassian-bitbucket-dc \
+  -e BITBUCKET_HOST=your-bitbucket-host \
+  -e BITBUCKET_API_TOKEN=your-token \
+  -- npx -y @atlassian-dc-mcp/bitbucket
+```
+
+You can also use `*_API_BASE_PATH` instead of `*_HOST` (same as the Claude Desktop examples above):
+
+```bash
+claude mcp add atlassian-jira-dc \
+  -e JIRA_API_BASE_PATH=https://your-jira-host/rest \
+  -e JIRA_API_TOKEN=your-token \
+  -- npx -y @atlassian-dc-mcp/jira
+```
+
+To add servers at user scope (available across all projects):
+
+```bash
+claude mcp add -s user atlassian-jira-dc \
+  -e JIRA_HOST=your-jira-host \
+  -e JIRA_API_TOKEN=your-token \
+  -- npx -y @atlassian-dc-mcp/jira
+```
+
 ### Generating API Tokens
 
 For Data Center installations, you'll need to generate Personal Access Tokens (PAT) for each service:
