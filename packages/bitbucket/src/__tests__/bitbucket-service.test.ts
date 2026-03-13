@@ -1505,6 +1505,131 @@ describe('BitbucketService', () => {
     });
   });
 
+  describe('getDashboardPullRequests', () => {
+    const { request: mockRequest } = require('../bitbucket-client/core/request.js');
+
+    it('should default to AUTHOR role and limit of 10', async () => {
+      const mockData = {
+        values: [
+          { id: 1, title: 'PR 1', state: 'OPEN' },
+          { id: 2, title: 'PR 2', state: 'OPEN' }
+        ],
+        size: 2,
+        isLastPage: true
+      };
+      mockRequest.mockResolvedValue(mockData);
+
+      const result = await bitbucketService.getDashboardPullRequests();
+
+      expect(result.success).toBe(true);
+      expect(result.data).toBe(mockData);
+      expect(mockRequest).toHaveBeenCalledWith(
+        expect.any(Object),
+        {
+          method: 'GET',
+          url: '/api/1.0/dashboard/pull-requests',
+          query: {
+            'role': 'AUTHOR',
+            'state': undefined,
+            'closedSince': undefined,
+            'order': undefined,
+            'start': undefined,
+            'limit': 10,
+          },
+          errors: {
+            401: 'The currently authenticated user is not permitted to access the dashboard.',
+          },
+        }
+      );
+    });
+
+    it('should get dashboard PRs filtered by role and state', async () => {
+      const mockData = {
+        values: [{ id: 1, title: 'My PR', state: 'OPEN' }],
+        size: 1,
+        isLastPage: true
+      };
+      mockRequest.mockResolvedValue(mockData);
+
+      const result = await bitbucketService.getDashboardPullRequests(
+        'REVIEWER',
+        'OPEN',
+        undefined,
+        'NEWEST',
+        0,
+        5
+      );
+
+      expect(result.success).toBe(true);
+      expect(result.data).toBe(mockData);
+      expect(mockRequest).toHaveBeenCalledWith(
+        expect.any(Object),
+        {
+          method: 'GET',
+          url: '/api/1.0/dashboard/pull-requests',
+          query: {
+            'role': 'REVIEWER',
+            'state': 'OPEN',
+            'closedSince': undefined,
+            'order': 'NEWEST',
+            'start': 0,
+            'limit': 5,
+          },
+          errors: {
+            401: 'The currently authenticated user is not permitted to access the dashboard.',
+          },
+        }
+      );
+    });
+
+    it('should get dashboard PRs with closedSince filter', async () => {
+      const mockData = {
+        values: [{ id: 3, title: 'Merged PR', state: 'MERGED' }],
+        size: 1,
+        isLastPage: true
+      };
+      mockRequest.mockResolvedValue(mockData);
+
+      const closedSince = 1700000000000;
+      const result = await bitbucketService.getDashboardPullRequests(
+        'PARTICIPANT',
+        'MERGED',
+        closedSince
+      );
+
+      expect(result.success).toBe(true);
+      expect(result.data).toBe(mockData);
+      expect(mockRequest).toHaveBeenCalledWith(
+        expect.any(Object),
+        {
+          method: 'GET',
+          url: '/api/1.0/dashboard/pull-requests',
+          query: {
+            'role': 'PARTICIPANT',
+            'state': 'MERGED',
+            'closedSince': closedSince,
+            'order': undefined,
+            'start': undefined,
+            'limit': 10,
+          },
+          errors: {
+            401: 'The currently authenticated user is not permitted to access the dashboard.',
+          },
+        }
+      );
+    });
+
+    it('should handle API errors', async () => {
+      const mockError = new Error('Unauthorized');
+      mockRequest.mockRejectedValue(mockError);
+
+      const result = await bitbucketService.getDashboardPullRequests();
+
+      expect(result.success).toBe(false);
+      expect(result.error).toBe('Unauthorized');
+    });
+  });
+
   describe('validateConfig', () => {
     const originalEnv = process.env;
 

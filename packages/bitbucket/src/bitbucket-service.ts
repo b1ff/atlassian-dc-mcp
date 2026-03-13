@@ -496,6 +496,44 @@ export class BitbucketService {
     );
   }
 
+  /**
+   * Get pull requests from the dashboard API (across all repositories)
+   * @param role Role filter: AUTHOR (default), REVIEWER, or PARTICIPANT
+   * @param state State filter: OPEN (default), DECLINED, or MERGED
+   * @param closedSince Optional timestamp (in milliseconds) to filter PRs closed after this date
+   * @param order Order: NEWEST (default), OLDEST, or PARTICIPANT
+   * @param start Optional pagination start
+   * @param limit Pagination limit (default: 10)
+   * @returns Promise with dashboard pull requests data
+   */
+  async getDashboardPullRequests(
+    role: string = 'AUTHOR',
+    state?: string,
+    closedSince?: number,
+    order?: string,
+    start?: number,
+    limit: number = 10
+  ) {
+    return handleApiOperation(
+      () => __request(OpenAPI, {
+        method: 'GET',
+        url: '/api/1.0/dashboard/pull-requests',
+        query: {
+          'role': role,
+          'state': state,
+          'closedSince': closedSince,
+          'order': order,
+          'start': start,
+          'limit': limit,
+        },
+        errors: {
+          401: 'The currently authenticated user is not permitted to access the dashboard.',
+        },
+      }),
+      'Error fetching dashboard pull requests'
+    );
+  }
+
   static validateConfig(): string[] {
     // Check for BITBUCKET_HOST or its alternative BITBUCKET_API_BASE_PATH
     const requiredEnvVars = ['BITBUCKET_API_TOKEN'] as const;
@@ -621,5 +659,13 @@ export const bitbucketToolSchemas = {
     targetRefId: z.string().describe("The ID of the target ref (e.g., 'refs/heads/main')"),
     sourceRepoId: z.string().optional().describe("Optional ID of the repository in which the source ref exists"),
     targetRepoId: z.string().optional().describe("Optional ID of the repository in which the target ref exists")
+  },
+  getDashboardPullRequests: {
+    role: z.enum(['AUTHOR', 'REVIEWER', 'PARTICIPANT']).optional().default('AUTHOR').describe("Filter by the user's role in the PR: AUTHOR (default), REVIEWER, or PARTICIPANT"),
+    state: z.enum(['OPEN', 'DECLINED', 'MERGED']).optional().default('OPEN').describe("Filter by PR state: OPEN (default), DECLINED, or MERGED"),
+    closedSince: z.number().optional().describe("Timestamp in milliseconds. If state is not OPEN, return only PRs closed after this date"),
+    order: z.enum(['NEWEST', 'OLDEST', 'PARTICIPANT']).optional().default('NEWEST').describe("Order of results: NEWEST (default), OLDEST, or PARTICIPANT"),
+    start: z.number().optional().describe("Start number for pagination"),
+    limit: z.number().optional().default(10).describe("Number of items to return (default: 10)")
   }
 };

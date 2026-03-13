@@ -124,3 +124,15 @@ Parameters:
 - `state` (string, optional): Filter by PR state (OPEN, MERGED, DECLINED)
 - `limit` (number, optional): Maximum number of results to return
 - `start` (number, optional): Starting index for pagination
+
+#### 6. bitbucket_getDashboardPullRequests
+
+Get pull requests from the Bitbucket dashboard across all repositories. Useful for finding all PRs where you are the author, reviewer, or participant without specifying a project or repository.
+
+Parameters:
+- `role` (string, optional): Filter by user's role — AUTHOR (default), REVIEWER, or PARTICIPANT
+- `state` (string, optional): Filter by PR state — OPEN (default), DECLINED, or MERGED
+- `closedSince` (number, optional): Timestamp in milliseconds. If state is not OPEN, return only PRs closed after this date
+- `order` (string, optional): Order of results — NEWEST (default), OLDEST, or PARTICIPANT
+- `limit` (number, optional): Maximum number of results to return (default: 10)
+- `start` (number, optional): Starting index for pagination

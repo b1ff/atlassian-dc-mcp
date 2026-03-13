@@ -163,4 +163,14 @@ server.tool(
   }
 );
 
+server.tool(
+  "bitbucket_getDashboardPullRequests",
+  "Get pull requests from the Bitbucket dashboard across all repositories. Useful for finding all PRs where you are the author, reviewer, or participant without specifying a project or repository.",
+  bitbucketToolSchemas.getDashboardPullRequests,
+  async ({ role, state, closedSince, order, start, limit }) => {
+    const result = await bitbucketService.getDashboardPullRequests(role, state, closedSince, order, start, limit);
+    return formatToolResponse(result);
+  }
+);
+
 await connectServer(server);
