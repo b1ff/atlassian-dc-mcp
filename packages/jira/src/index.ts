@@ -107,4 +107,14 @@ server.tool(
   }
 );
 
+server.tool(
+  "jira_uploadAttachment",
+  `Upload a local file as an attachment to a JIRA issue in the ${jiraInstanceType}`,
+  jiraToolSchemas.uploadAttachment,
+  async ({ issueKey, filePath, filename }) => {
+    const result = await jiraService.uploadAttachment(issueKey, filePath, filename);
+    return formatToolResponse(result);
+  }
+);
+
 await connectServer(server);

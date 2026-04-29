@@ -1,3 +1,6 @@
+import { File } from 'node:buffer';
+import { readFile } from 'node:fs/promises';
+import { basename } from 'node:path';
 import { z } from 'zod';
 import { handleApiOperation, resolveOpenApiBase } from '@atlassian-dc-mcp/common';
 import { IssueService, MyselfService, OpenAPI, SearchService } from './jira-client/index.js';
@@ -39,6 +42,7 @@ export class JiraService {
     });
     OpenAPI.TOKEN = resolveToken(token, 'Missing required environment variable: JIRA_API_TOKEN');
     OpenAPI.VERSION = '2';
+    OpenAPI.HEADERS = { 'X-Atlassian-Token': 'no-check' };
     this.getPageSize = getPageSize;
   }
 
@@ -145,6 +149,17 @@ export class JiraService {
     }, 'Error transitioning issue');
   }
 
+  async uploadAttachment(issueKey: string, filePath: string, filename?: string) {
+    const buffer = await readFile(filePath);
+    const name = filename || basename(filePath);
+    const file = new File([buffer], name);
+    // IssueService types formData as Blob, but the API expects { file } — getFormData handles File via isBlob()
+    return handleApiOperation(
+      () => IssueService.addAttachment(issueKey, { file } as any),
+      'Error uploading attachment',
+    );
+  }
+
   async validateSetup(): Promise<void> {
     await MyselfService.getUser();
   }
@@ -198,5 +213,10 @@ export const jiraToolSchemas = {
     issueKey: z.string().describe("JIRA issue key (e.g., PROJ-123)"),
     transitionId: z.string().describe("The ID of the transition to perform. Use jira_getTransitions to find available transitions and their IDs."),
     fields: z.record(z.any()).optional().describe("Optional fields required by the transition screen. Use jira_getTransitions to see which fields are available for each transition.")
+  },
+  uploadAttachment: {
+    issueKey: z.string().describe("JIRA issue key (e.g., PROJ-123)"),
+    filePath: z.string().describe("Absolute local filesystem path of the file to upload"),
+    filename: z.string().optional().describe("Override for the attachment filename (defaults to the basename of filePath)")
   }
 };
