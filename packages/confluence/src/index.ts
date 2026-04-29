@@ -145,7 +145,7 @@ server.tool(
   "confluence_uploadAttachment",
   "Upload a local file as an attachment to a Confluence content (page)",
   confluenceToolSchemas.uploadAttachment,
-  async ({ contentId, filePath, filename, comment, minorEdit, hidden, allowDuplicated }) => {
+  async ({ contentId, filePath, filename, comment, minorEdit, hidden, allowDuplicated, versionIfExists }) => {
     const result = await confluenceService.uploadAttachment(
       contentId,
       filePath,
@@ -154,6 +154,7 @@ server.tool(
       minorEdit,
       hidden,
       allowDuplicated,
+      versionIfExists,
     );
     return formatToolResponse(result);
   }

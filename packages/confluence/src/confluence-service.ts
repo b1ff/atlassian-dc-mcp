@@ -147,17 +147,29 @@ export class ConfluenceService {
     minorEdit?: boolean,
     hidden?: boolean,
     allowDuplicated?: boolean,
+    versionIfExists?: boolean,
   ) {
     const buffer = await readFile(filePath);
     const name = filename || basename(filePath);
     const file = new File([buffer], name);
-    // MockAttachmentRequest types file as string, but getFormData in request.ts handles Blob/File via isBlob()
-    const formData = { file, comment, minorEdit, hidden } as any;
     // X-Atlassian-Token: nocheck is required for multipart attachment POSTs (XSRF bypass).
     // Set it only for the duration of this call; restore afterwards.
     const prevHeaders = OpenAPI.HEADERS;
     OpenAPI.HEADERS = { 'X-Atlassian-Token': 'nocheck' };
     try {
+      if (versionIfExists) {
+        const existing = await AttachmentsService.getAttachments(contentId, undefined, name);
+        const existingId = (existing as any)?.results?.[0]?.id;
+        if (existingId) {
+          // MockAttachmentRequest types file as string, but getFormData handles Blob/File via isBlob()
+          return await handleApiOperation(
+            () => AttachmentsService.updateData(existingId, contentId, { file } as any),
+            'Error uploading attachment version',
+          );
+        }
+      }
+      // MockAttachmentRequest types file as string, but getFormData in request.ts handles Blob/File via isBlob()
+      const formData = { file, comment, minorEdit, hidden } as any;
       return await handleApiOperation(
         () => AttachmentsService.createAttachments(
           contentId,
@@ -256,6 +268,7 @@ export const confluenceToolSchemas = {
     comment: z.string().optional().describe("Optional comment describing the attachment"),
     minorEdit: z.boolean().optional().describe("If true, no notification email is sent to watchers"),
     hidden: z.boolean().optional().describe("If true, no notification email or activity stream entry is generated"),
-    allowDuplicated: z.boolean().optional().describe("Allow upload even if an attachment with the same filename already exists")
+    allowDuplicated: z.boolean().optional().describe("Allow upload even if an attachment with the same filename already exists"),
+    versionIfExists: z.boolean().optional().describe("If true and an attachment with the same filename already exists, upload as a new version instead of failing")
   }
 };
