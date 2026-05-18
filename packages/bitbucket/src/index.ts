@@ -129,10 +129,20 @@ server.tool(
 
 server.tool(
   "bitbucket_postPullRequestComment",
-  "Post a comment to a Bitbucket pull request. Use pending: true to create a draft comment that is only visible to you until you call bitbucket_submitPullRequestReview. NOTE: pending only works when filePath is provided (file-level or inline comments). True top-level PR comments (no filePath) are always posted live and cannot be drafted.",
+  "Post a comment to a Bitbucket pull request. Use pending: true to create a draft comment that is only visible to you until you call bitbucket_submitPullRequestReview. NOTE: pending only works when filePath is provided (file-level or inline comments). True top-level PR comments (no filePath) are always posted live and cannot be drafted. Use severity: 'BLOCKER' to post the comment as a task — tasks must be resolved before the PR can be merged.",
   bitbucketToolSchemas.postPullRequestComment,
-  async ({ projectKey, repositorySlug, pullRequestId, text, parentId, filePath, line, lineType, pending, output }) => {
-    const result = await bitbucketService.postPullRequestComment(projectKey, repositorySlug, pullRequestId, text, parentId, filePath, line, lineType, pending, output);
+  async ({ projectKey, repositorySlug, pullRequestId, text, parentId, filePath, line, lineType, pending, severity, output }) => {
+    const result = await bitbucketService.postPullRequestComment(projectKey, repositorySlug, pullRequestId, text, parentId, filePath, line, lineType, pending, severity, output);
+    return formatToolResponse(result);
+  }
+);
+
+server.tool(
+  "bitbucket_updatePullRequestComment",
+  "Update an existing pull request comment. Use to edit text, change severity, or change state. On a BLOCKER (task) comment, state: 'RESOLVED' ticks the task. NOTE: this is the task-tick, not the thread-level 'Resolve' button on regular comment threads — that is a separate concept (CommentThread.resolved) and is not exposed by this endpoint. Requires the current 'version' from optimistic locking; fetch it via bitbucket_getPR_CommentsAndAction or use the version returned when the comment was created.",
+  bitbucketToolSchemas.updatePullRequestComment,
+  async ({ projectKey, repositorySlug, pullRequestId, commentId, version, text, state, severity, output }) => {
+    const result = await bitbucketService.updatePullRequestComment(projectKey, repositorySlug, pullRequestId, commentId, version, text, state, severity, output);
     return formatToolResponse(result);
   }
 );

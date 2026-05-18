@@ -16,6 +16,7 @@ jest.mock('../bitbucket-client/index.js', () => ({
   PullRequestsService: {
     streamRawDiff2: jest.fn(),
     createComment2: jest.fn(),
+    updateComment2: jest.fn(),
     streamChanges1: jest.fn(),
     create: jest.fn(),
     update: jest.fn(),
@@ -1879,6 +1880,177 @@ describe('BitbucketService', () => {
 
       const missingVars = BitbucketService.validateConfig();
       expect(missingVars).toEqual([]);
+    });
+  });
+
+  describe('updatePullRequestComment', () => {
+    it('should resolve a task by sending state RESOLVED with the version', async () => {
+      const mockComment = { id: 500, version: 2, state: 'RESOLVED', text: 'Task body' };
+      (PullRequestsService.updateComment2 as jest.Mock).mockResolvedValue(mockComment);
+
+      const result = await bitbucketService.updatePullRequestComment(
+        mockProjectKey,
+        mockRepositorySlug,
+        mockPullRequestId,
+        '500',      // commentId
+        1,          // version
+        undefined,  // text
+        'RESOLVED'  // state
+      );
+
+      expect(result.success).toBe(true);
+      expect(PullRequestsService.updateComment2).toHaveBeenCalledWith(
+        mockProjectKey,
+        '500',
+        mockPullRequestId,
+        mockRepositorySlug,
+        { version: 1, state: 'RESOLVED' }
+      );
+    });
+
+    it('should edit the comment text without changing state or severity', async () => {
+      const mockComment = { id: 501, version: 3, text: 'Edited text' };
+      (PullRequestsService.updateComment2 as jest.Mock).mockResolvedValue(mockComment);
+
+      await bitbucketService.updatePullRequestComment(
+        mockProjectKey,
+        mockRepositorySlug,
+        mockPullRequestId,
+        '501',
+        2,
+        'Edited text'
+      );
+
+      expect(PullRequestsService.updateComment2).toHaveBeenCalledWith(
+        mockProjectKey,
+        '501',
+        mockPullRequestId,
+        mockRepositorySlug,
+        { version: 2, text: 'Edited text' }
+      );
+    });
+
+    it('should support combining text, state, and severity in a single update', async () => {
+      const mockComment = { id: 502, version: 4, text: 'New body', state: 'RESOLVED', severity: 'BLOCKER' };
+      (PullRequestsService.updateComment2 as jest.Mock).mockResolvedValue(mockComment);
+
+      await bitbucketService.updatePullRequestComment(
+        mockProjectKey,
+        mockRepositorySlug,
+        mockPullRequestId,
+        '502',
+        3,
+        'New body',
+        'RESOLVED',
+        'BLOCKER'
+      );
+
+      expect(PullRequestsService.updateComment2).toHaveBeenCalledWith(
+        mockProjectKey,
+        '502',
+        mockPullRequestId,
+        mockRepositorySlug,
+        { version: 3, text: 'New body', state: 'RESOLVED', severity: 'BLOCKER' }
+      );
+    });
+
+    it('should propagate API errors', async () => {
+      (PullRequestsService.updateComment2 as jest.Mock).mockRejectedValue(new Error('Conflict'));
+
+      const result = await bitbucketService.updatePullRequestComment(
+        mockProjectKey,
+        mockRepositorySlug,
+        mockPullRequestId,
+        '503',
+        1,
+        undefined,
+        'RESOLVED'
+      );
+
+      expect(result.success).toBe(false);
+      expect(result.error).toBe('Conflict');
+    });
+  });
+
+  describe('postPullRequestComment - severity flag', () => {
+    it('should include severity: BLOCKER in the request body when severity is BLOCKER', async () => {
+      const mockComment = { id: 200, text: 'Task comment', author: { displayName: 'Test User' } };
+      (PullRequestsService.createComment2 as jest.Mock).mockResolvedValue(mockComment);
+
+      const result = await bitbucketService.postPullRequestComment(
+        mockProjectKey,
+        mockRepositorySlug,
+        mockPullRequestId,
+        'Task comment',
+        undefined,  // parentId
+        undefined,  // filePath
+        undefined,  // line
+        undefined,  // lineType
+        undefined,  // pending
+        'BLOCKER'   // severity
+      );
+
+      expect(result.success).toBe(true);
+      expect(PullRequestsService.createComment2).toHaveBeenCalledWith(
+        mockProjectKey,
+        mockPullRequestId,
+        mockRepositorySlug,
+        { text: 'Task comment', severity: 'BLOCKER' }
+      );
+    });
+
+    it('should NOT include severity in the request body when severity is omitted', async () => {
+      const mockComment = { id: 201, text: 'Normal comment', author: { displayName: 'Test User' } };
+      (PullRequestsService.createComment2 as jest.Mock).mockResolvedValue(mockComment);
+
+      await bitbucketService.postPullRequestComment(
+        mockProjectKey,
+        mockRepositorySlug,
+        mockPullRequestId,
+        'Normal comment'
+      );
+
+      expect(PullRequestsService.createComment2).toHaveBeenCalledWith(
+        mockProjectKey,
+        mockPullRequestId,
+        mockRepositorySlug,
+        { text: 'Normal comment' } // no severity field
+      );
+    });
+
+    it('should support severity BLOCKER combined with a file/line anchor', async () => {
+      const mockComment = { id: 202, text: 'Inline task', author: { displayName: 'Test User' } };
+      (PullRequestsService.createComment2 as jest.Mock).mockResolvedValue(mockComment);
+
+      await bitbucketService.postPullRequestComment(
+        mockProjectKey,
+        mockRepositorySlug,
+        mockPullRequestId,
+        'Inline task',
+        undefined,      // parentId
+        'src/index.ts', // filePath
+        10,             // line
+        'ADDED',        // lineType
+        undefined,      // pending
+        'BLOCKER'       // severity
+      );
+
+      expect(PullRequestsService.createComment2).toHaveBeenCalledWith(
+        mockProjectKey,
+        mockPullRequestId,
+        mockRepositorySlug,
+        {
+          text: 'Inline task',
+          severity: 'BLOCKER',
+          anchor: {
+            path: 'src/index.ts',
+            diffType: 'EFFECTIVE',
+            line: 10,
+            lineType: 'ADDED',
+            fileType: 'TO'
+          }
+        }
+      );
     });
   });
 
