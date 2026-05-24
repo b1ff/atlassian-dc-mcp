@@ -3,6 +3,17 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.19.1](https://github.com/b1ff/atlassian-dc-mcp/compare/v0.19.0...v0.19.1) (2026-05-24)
+
+
+### Bug Fixes
+
+* **bitbucket:** clarify that reviewers param requires 'name', not 'slug' ([59c45dc](https://github.com/b1ff/atlassian-dc-mcp/commit/59c45dc917d9abf05939335b4ea62671a462bcda))
+
+
+
+
+
 # [0.19.0](https://github.com/b1ff/atlassian-dc-mcp/compare/v0.18.0...v0.19.0) (2026-04-27)
 
 
