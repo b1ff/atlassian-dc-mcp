@@ -162,8 +162,8 @@ server.tool(
   "bitbucket_createPullRequest",
   "Create a new pull request in a Bitbucket repository. IMPORTANT: Before creating a PR, use bitbucket_getRequiredReviewers to fetch required reviewers for the source and target branches to ensure the PR is not created without mandatory reviewers.",
   bitbucketToolSchemas.createPullRequest,
-  async ({ projectKey, repositorySlug, title, description, fromRefId, toRefId, reviewers, output }) => {
-    const result = await bitbucketService.createPullRequest(projectKey, repositorySlug, title, description, fromRefId, toRefId, reviewers, output);
+  async ({ projectKey, repositorySlug, title, description, fromRefId, toRefId, reviewers, draft, output }) => {
+    const result = await bitbucketService.createPullRequest(projectKey, repositorySlug, title, description, fromRefId, toRefId, reviewers, draft, output);
     return formatToolResponse(result);
   }
 );
@@ -172,8 +172,8 @@ server.tool(
   "bitbucket_updatePullRequest",
   "Update the title, description, reviewers, destination branch or draft status of an existing pull request. IMPORTANT: You MUST first call bitbucket_getPullRequest to get the current 'version' number — this is required for optimistic locking and the call will fail without it. The reviewers parameter replaces ALL existing reviewers. If you want to preserve existing reviewers, include those from the current PR details along with any new ones you want to add.",
   bitbucketToolSchemas.updatePullRequest,
-  async ({ projectKey, repositorySlug, pullRequestId, version, title, description, reviewers, output }) => {
-    const result = await bitbucketService.updatePullRequest(projectKey, repositorySlug, pullRequestId, version, title, description, reviewers, output);
+  async ({ projectKey, repositorySlug, pullRequestId, version, title, description, reviewers, draft, output }) => {
+    const result = await bitbucketService.updatePullRequest(projectKey, repositorySlug, pullRequestId, version, title, description, reviewers, draft, output);
     return formatToolResponse(result);
   }
 );
