@@ -113,6 +113,12 @@ export function shapePullRequestCommentAck(comment: any): Record<string, any> {
             path: comment.anchor.path,
             ...(comment.anchor.line !== undefined ? { line: comment.anchor.line } : {}),
             ...(typeof comment.anchor.lineType === 'string' ? { lineType: comment.anchor.lineType } : {}),
+            ...(comment.anchor.multilineAnchor
+              ? {
+                  startLine: comment.anchor.multilineStartLine,
+                  startLineType: comment.anchor.multilineStartLineType,
+                }
+              : {}),
           },
         }
       : {}),
