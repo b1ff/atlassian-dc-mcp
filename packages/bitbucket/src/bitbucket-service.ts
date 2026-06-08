@@ -506,6 +506,8 @@ export class BitbucketService {
    * @param fromRefId The source branch (e.g., 'refs/heads/feature-branch')
    * @param toRefId The destination branch (e.g., 'refs/heads/main')
    * @param reviewers Optional array of reviewer usernames
+   * @param draft Optional flag to create the pull request as a draft
+   * @param output Return a compact acknowledgement or the full API response. Defaults to 'ack'.
    * @returns Promise with created pull request data
    */
   async createPullRequest(
@@ -516,6 +518,7 @@ export class BitbucketService {
     fromRefId: string,
     toRefId: string,
     reviewers?: string[],
+    draft?: boolean,
     output: BitbucketMutationOutputMode = 'ack'
   ) {
     projectKey = projectKey.toUpperCase();
@@ -551,6 +554,10 @@ export class BitbucketService {
       }));
     }
 
+    if (draft !== undefined) {
+      pullRequestData.draft = draft;
+    }
+
     const result = await handleApiOperation(
       () => PullRequestsService.create(projectKey, repositorySlug, pullRequestData),
       'Error creating pull request'
@@ -575,6 +582,8 @@ export class BitbucketService {
    * @param title Optional new title for the pull request
    * @param description Optional new description for the pull request
    * @param reviewers Optional array of reviewer usernames to set
+   * @param draft Optional flag to mark the pull request as a draft or ready for review
+   * @param output Return a compact acknowledgement or the full API response. Defaults to 'ack'.
    * @returns Promise with updated pull request data
    */
   async updatePullRequest(
@@ -585,6 +594,7 @@ export class BitbucketService {
     title?: string,
     description?: string,
     reviewers?: string[],
+    draft?: boolean,
     output: BitbucketMutationOutputMode = 'ack'
   ) {
     projectKey = projectKey.toUpperCase();
@@ -607,6 +617,10 @@ export class BitbucketService {
           name: username
         }
       }));
+    }
+
+    if (draft !== undefined) {
+      pullRequestData.draft = draft;
     }
 
     const result = await handleApiOperation(
@@ -852,6 +866,7 @@ export const bitbucketToolSchemas = {
     description: z.string().optional().describe("The pull request description"),
     fromRefId: z.string().describe("The source branch reference ID (e.g., 'refs/heads/feature-branch')"),
     toRefId: z.string().describe("The destination branch reference ID (e.g., 'refs/heads/main')"),
+    draft: z.boolean().optional().describe("If true, the pull request is created as a draft (work-in-progress) and cannot be merged until marked ready."),
     reviewers: z.array(z.string()).optional().describe("Optional array of reviewer usernames (use the 'name' field from Bitbucket user objects, not 'slug')"),
     output: z.enum(['ack', 'full']).optional().describe("Return a compact acknowledgement or the full API response. Defaults to ack.")
   },
@@ -862,6 +877,7 @@ export const bitbucketToolSchemas = {
     version: z.number().describe("The current version of the pull request (required for optimistic locking). Obtain this by calling bitbucket_getPullRequest first."),
     title: z.string().optional().describe("The new title for the pull request"),
     description: z.string().optional().describe("The new description for the pull request"),
+    draft: z.boolean().optional().describe("If provided, sets the draft (work-in-progress) status of the pull request. Pass true to mark as draft, false to mark as ready for review."),
     reviewers: z.array(z.string()).optional().describe("Optional array of reviewer usernames to set (use the 'name' field from Bitbucket user objects, not 'slug')"),
     output: z.enum(['ack', 'full']).optional().describe("Return a compact acknowledgement or the full API response. Defaults to ack.")
   },
