@@ -3,6 +3,14 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [0.20.0](https://github.com/b1ff/atlassian-dc-mcp/compare/v0.19.1...v0.20.0) (2026-06-08)
+
+**Note:** Version bump only for package @atlassian-dc-mcp/common
+
+
+
+
+
 ## [0.19.1](https://github.com/b1ff/atlassian-dc-mcp/compare/v0.19.0...v0.19.1) (2026-05-24)
 
 **Note:** Version bump only for package @atlassian-dc-mcp/common

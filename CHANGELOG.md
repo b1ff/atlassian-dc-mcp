@@ -3,6 +3,17 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [0.20.0](https://github.com/b1ff/atlassian-dc-mcp/compare/v0.19.1...v0.20.0) (2026-06-08)
+
+
+### Features
+
+* **bitbucket:** support creating and updating pull requests as drafts ([190c19a](https://github.com/b1ff/atlassian-dc-mcp/commit/190c19a075285d18d8391bdb7fdd32feec605d32))
+
+
+
+
+
 ## [0.19.1](https://github.com/b1ff/atlassian-dc-mcp/compare/v0.19.0...v0.19.1) (2026-05-24)
 
 
