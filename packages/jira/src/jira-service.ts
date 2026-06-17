@@ -1,11 +1,15 @@
 import { z } from 'zod';
 import { handleApiOperation, resolveOpenApiBase } from '@atlassian-dc-mcp/common';
 import { IssueService, MyselfService, OpenAPI, SearchService } from './jira-client/index.js';
+import { request as __request } from './jira-client/core/request.js';
 import type { StringList } from './jira-client/models/StringList.js';
 import { getDefaultPageSize, getMissingConfig, JIRA_PRODUCT } from './config.js';
 
 const DEFAULT_SEARCH_FIELDS = ['summary', 'description', 'status', 'assignee', 'reporter', 'priority', 'issuetype', 'labels', 'updated'];
 const DEFAULT_ISSUE_FIELDS = [...DEFAULT_SEARCH_FIELDS, 'parent', 'subtasks'];
+
+type DevelopmentDataType = 'pullrequest' | 'repository' | 'branch';
+type DevelopmentApplicationType = 'stash' | 'bitbucket' | 'github' | 'githube';
 
 function toIssueFieldSelection(fields: string[]): Array<StringList> {
   // The generated client types this query param as StringList[], but the API expects repeated string field names.
@@ -129,6 +133,30 @@ export class JiraService {
     );
   }
 
+  async getIssueDevelopmentInfo(
+    issueKey: string,
+    dataType: DevelopmentDataType = 'pullrequest',
+    applicationType: DevelopmentApplicationType = 'stash',
+  ) {
+    return handleApiOperation(async () => {
+      const issueId = await this.resolveIssueId(issueKey);
+      return __request(OpenAPI, {
+        method: 'GET',
+        url: '/dev-status/1.0/issue/detail',
+        query: { issueId, applicationType, dataType },
+      });
+    }, 'Error getting issue development info');
+  }
+
+  private async resolveIssueId(issueKey: string): Promise<string> {
+    // The dev-status API is keyed by the numeric issue id, not the issue key.
+    const issue = await IssueService.getIssue(issueKey, undefined, toIssueFieldSelection(['id']));
+    if (!issue?.id) {
+      throw new Error(`Could not resolve numeric id for issue ${issueKey}`);
+    }
+    return issue.id;
+  }
+
   async transitionIssue(params: {
     issueKey: string;
     transitionId: string;
@@ -193,6 +221,11 @@ export const jiraToolSchemas = {
   },
   getTransitions: {
     issueKey: z.string().describe("JIRA issue key (e.g., PROJ-123)")
+  },
+  getIssueDevelopmentInfo: {
+    issueKey: z.string().describe("JIRA issue key (e.g., PROJ-123)"),
+    dataType: z.enum(['pullrequest', 'repository', 'branch']).optional().describe("Development data to fetch: 'pullrequest' (default), 'repository' (commits), or 'branch'"),
+    applicationType: z.enum(['stash', 'bitbucket', 'github', 'githube']).optional().describe("Linked SCM type: 'stash' (Bitbucket Server/Data Center, default), 'bitbucket' (Cloud), 'github', or 'githube' (GitHub Enterprise)")
   },
   transitionIssue: {
     issueKey: z.string().describe("JIRA issue key (e.g., PROJ-123)"),
