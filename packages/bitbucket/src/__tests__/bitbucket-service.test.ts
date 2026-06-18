@@ -2104,6 +2104,8 @@ describe('BitbucketService', () => {
         'Task comment',
         undefined,  // parentId
         undefined,  // filePath
+        undefined,  // startLine
+        undefined,  // startLineType
         undefined,  // line
         undefined,  // lineType
         undefined,  // pending
@@ -2149,6 +2151,8 @@ describe('BitbucketService', () => {
         'Inline task',
         undefined,      // parentId
         'src/index.ts', // filePath
+        undefined,      // startLine
+        undefined,      // startLineType
         10,             // line
         'ADDED',        // lineType
         undefined,      // pending

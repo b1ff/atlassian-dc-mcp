@@ -301,10 +301,10 @@ export class BitbucketService {
    * @param text The comment text
    * @param parentId Optional parent comment ID for replies
    * @param filePath Optional file path for file-specific comments
-   * @param line Optional end line number for line/multiline comments
-   * @param lineType Optional line type ('ADDED', 'REMOVED', 'CONTEXT') for the end line
    * @param startLine Optional start line for multiline comments; when provided together with line, creates a range comment
    * @param startLineType Optional line type for the start line; defaults to lineType if omitted
+   * @param line Optional end line number for line/multiline comments
+   * @param lineType Optional line type ('ADDED', 'REMOVED', 'CONTEXT') for the end line
    * @param pending Optional flag to create a pending (draft) comment, not visible to others until a review is submitted.
    *   Only works when filePath is provided (file-level or inline comments).
    *   Top-level PR comments (no filePath) are always posted live regardless of this flag.
