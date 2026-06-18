@@ -390,7 +390,7 @@ describe('BitbucketService token optimization paths', () => {
       };
       (PullRequestsService.createComment2 as jest.Mock).mockResolvedValue(mockComment);
 
-      const result = await service.postPullRequestComment('TEST', 'repo', '123', 'Raw comment', undefined, undefined, undefined, undefined, undefined, 'full');
+      const result = await service.postPullRequestComment('TEST', 'repo', '123', 'Raw comment', undefined, undefined, undefined, undefined, undefined, undefined, undefined, 'full');
 
       expect(result.success).toBe(true);
       expect(result.data).toBe(mockComment);

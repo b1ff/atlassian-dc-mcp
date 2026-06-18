@@ -821,6 +821,8 @@ describe('BitbucketService', () => {
         'Line comment',
         undefined, // parentId
         'src/test.js', // filePath
+        undefined, // startLine
+        undefined, // startLineType
         42, // line
         'ADDED' // lineType
       );
@@ -842,6 +844,124 @@ describe('BitbucketService', () => {
             line: 42,
             lineType: 'ADDED',
             fileType: 'TO'
+          }
+        }
+      );
+    });
+
+    it('should successfully post a multiline comment', async () => {
+      const mockComment = {
+        id: 12349,
+        text: 'Multiline comment',
+        author: { displayName: 'Test User' },
+        anchor: {
+          path: 'src/test.js',
+          diffType: 'EFFECTIVE',
+          line: 15,
+          lineType: 'ADDED',
+          fileType: 'TO',
+          multilineAnchor: true,
+          multilineStartLine: 10,
+          multilineStartLineType: 'ADDED',
+          multilineDestinationRange: { minimum: 10, maximum: 15 }
+        }
+      };
+      (PullRequestsService.createComment2 as jest.Mock).mockResolvedValue(mockComment);
+
+      const result = await bitbucketService.postPullRequestComment(
+        mockProjectKey,
+        mockRepositorySlug,
+        mockPullRequestId,
+        'Multiline comment',
+        undefined,      // parentId
+        'src/test.js',  // filePath
+        10,             // startLine
+        undefined,      // startLineType (should default to lineType)
+        15,             // line (end line)
+        'ADDED'         // lineType
+      );
+
+      expect(result.success).toBe(true);
+      expect(result.data).toEqual({
+        id: 12349,
+        pending: false,
+        anchor: {
+          path: 'src/test.js',
+          line: 15,
+          lineType: 'ADDED',
+          startLine: 10,
+          startLineType: 'ADDED',
+        }
+      });
+      expect(PullRequestsService.createComment2).toHaveBeenCalledWith(
+        mockProjectKey,
+        mockPullRequestId,
+        mockRepositorySlug,
+        {
+          text: 'Multiline comment',
+          anchor: {
+            path: 'src/test.js',
+            diffType: 'EFFECTIVE',
+            line: 15,
+            lineType: 'ADDED',
+            fileType: 'TO',
+            multilineAnchor: true,
+            multilineStartLine: 10,
+            multilineStartLineType: 'ADDED',
+            multilineDestinationRange: { minimum: 10, maximum: 15 }
+          }
+        }
+      );
+    });
+
+    it('should post a multiline comment with explicit startLineType', async () => {
+      const mockComment = {
+        id: 12350,
+        text: 'Mixed multiline comment',
+        author: { displayName: 'Test User' },
+        anchor: {
+          path: 'src/test.js',
+          diffType: 'EFFECTIVE',
+          line: 8,
+          lineType: 'ADDED',
+          fileType: 'TO',
+          multilineAnchor: true,
+          multilineStartLine: 5,
+          multilineStartLineType: 'CONTEXT',
+          multilineDestinationRange: { minimum: 5, maximum: 8 }
+        }
+      };
+      (PullRequestsService.createComment2 as jest.Mock).mockResolvedValue(mockComment);
+
+      await bitbucketService.postPullRequestComment(
+        mockProjectKey,
+        mockRepositorySlug,
+        mockPullRequestId,
+        'Mixed multiline comment',
+        undefined,      // parentId
+        'src/test.js',  // filePath
+        5,              // startLine
+        'CONTEXT',      // startLineType
+        8,              // line (end line)
+        'ADDED'         // lineType
+      );
+
+      expect(PullRequestsService.createComment2).toHaveBeenCalledWith(
+        mockProjectKey,
+        mockPullRequestId,
+        mockRepositorySlug,
+        {
+          text: 'Mixed multiline comment',
+          anchor: {
+            path: 'src/test.js',
+            diffType: 'EFFECTIVE',
+            line: 8,
+            lineType: 'ADDED',
+            fileType: 'TO',
+            multilineAnchor: true,
+            multilineStartLine: 5,
+            multilineStartLineType: 'CONTEXT',
+            multilineDestinationRange: { minimum: 5, maximum: 8 }
           }
         }
       );
@@ -1894,6 +2014,8 @@ describe('BitbucketService', () => {
         'Draft comment',
         undefined, // parentId
         undefined, // filePath
+        undefined, // startLine
+        undefined, // startLineType
         undefined, // line
         undefined, // lineType
         true       // pending
@@ -1938,6 +2060,8 @@ describe('BitbucketService', () => {
         'Pending file comment',
         undefined,      // parentId
         'src/index.ts', // filePath
+        undefined,      // startLine
+        undefined,      // startLineType
         10,             // line
         'ADDED',        // lineType
         true            // pending
