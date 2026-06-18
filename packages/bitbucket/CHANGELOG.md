@@ -3,6 +3,17 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [0.25.0](https://github.com/b1ff/atlassian-dc-mcp/compare/v0.24.0...v0.25.0) (2026-06-18)
+
+
+### Features
+
+* **bitbucket:** support posting comments as tasks and updating comments ([e278f47](https://github.com/b1ff/atlassian-dc-mcp/commit/e278f47ea0f76245612dc0144bd9538e79f749f3))
+
+
+
+
+
 # [0.24.0](https://github.com/b1ff/atlassian-dc-mcp/compare/v0.23.0...v0.24.0) (2026-06-18)
 
 **Note:** Version bump only for package @atlassian-dc-mcp/bitbucket
