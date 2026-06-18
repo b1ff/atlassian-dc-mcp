@@ -98,6 +98,16 @@ server.tool(
 );
 
 server.tool(
+  "jira_getIssueDevelopmentInfo",
+  `Get linked development information (pull requests, commits, or branches) shown in the Development panel of a JIRA issue in the ${jiraInstanceType}. Defaults to pull requests from Bitbucket.`,
+  jiraToolSchemas.getIssueDevelopmentInfo,
+  async ({ issueKey, dataType, applicationType }) => {
+    const result = await jiraService.getIssueDevelopmentInfo(issueKey, dataType, applicationType);
+    return formatToolResponse(result);
+  }
+);
+
+server.tool(
   "jira_transitionIssue",
   `Transition a JIRA issue to a new status in the ${jiraInstanceType}. Use jira_getTransitions first to get available transition IDs.`,
   jiraToolSchemas.transitionIssue,

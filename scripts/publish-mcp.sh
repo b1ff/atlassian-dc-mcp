@@ -1,22 +1,18 @@
 #!/bin/bash
 
-set -e
+set -euo pipefail
 
 echo "Publishing packages to MCP Registry..."
 
 # Download MCP Publisher if not exists
 if [ ! -f "./mcp-publisher" ]; then
   echo "Downloading MCP Publisher..."
-  # Get the latest release download URL
-  DOWNLOAD_URL=$(curl -s https://api.github.com/repos/modelcontextprotocol/registry/releases/latest | grep -E '"browser_download_url".*mcp-publisher.*linux_amd64.tar.gz"' | grep -v '.sig' | grep -v '.sbom' | cut -d'"' -f4)
-
-  if [ -z "$DOWNLOAD_URL" ]; then
-    echo "Error: Could not find MCP Publisher download URL"
-    exit 1
-  fi
+  OS=$(uname -s | tr '[:upper:]' '[:lower:]')
+  ARCH=$(uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/')
+  DOWNLOAD_URL="https://github.com/modelcontextprotocol/registry/releases/latest/download/mcp-publisher_${OS}_${ARCH}.tar.gz"
 
   echo "Downloading from: $DOWNLOAD_URL"
-  curl -L "$DOWNLOAD_URL" | tar xz
+  curl -fsSL "$DOWNLOAD_URL" | tar xz mcp-publisher
 fi
 
 # Login to MCP Registry using GitHub OIDC

@@ -4,6 +4,11 @@ import path from 'node:path';
 import { initializeRuntimeConfig } from '@atlassian-dc-mcp/common';
 import { JiraService } from '../jira-service.js';
 import { IssueService, OpenAPI, SearchService } from '../jira-client/index.js';
+import { request as __request } from '../jira-client/core/request.js';
+
+jest.mock('../jira-client/core/request.js', () => ({
+  request: jest.fn(),
+}));
 
 jest.mock('../jira-client/index.js', () => ({
   IssueService: {
@@ -182,6 +187,58 @@ describe('JiraService', () => {
       await jiraService.getIssueComments(mockIssueKey, 'renderedBody', 10, 20);
 
       expect(IssueService.getComments).toHaveBeenCalledWith(mockIssueKey, 'renderedBody', '10', undefined, '20');
+    });
+  });
+
+  describe('getIssueDevelopmentInfo', () => {
+    it('resolves the numeric issue id then requests pull requests by default', async () => {
+      const mockDevInfo = { detail: [{ pullRequests: [] }] };
+      (IssueService.getIssue as jest.Mock).mockResolvedValue({ id: '1314681', key: mockIssueKey });
+      (__request as jest.Mock).mockResolvedValue(mockDevInfo);
+
+      const result = await jiraService.getIssueDevelopmentInfo(mockIssueKey);
+
+      expect(result.success).toBe(true);
+      expect(result.data).toBe(mockDevInfo);
+      expect(IssueService.getIssue).toHaveBeenCalledWith(mockIssueKey, undefined, ['id']);
+      expect(__request).toHaveBeenCalledWith(OpenAPI, {
+        method: 'GET',
+        url: '/dev-status/1.0/issue/detail',
+        query: { issueId: '1314681', applicationType: 'stash', dataType: 'pullrequest' },
+      });
+    });
+
+    it('honors explicit dataType and applicationType', async () => {
+      (IssueService.getIssue as jest.Mock).mockResolvedValue({ id: '42' });
+      (__request as jest.Mock).mockResolvedValue({});
+
+      await jiraService.getIssueDevelopmentInfo(mockIssueKey, 'repository', 'github');
+
+      expect(__request).toHaveBeenCalledWith(OpenAPI, {
+        method: 'GET',
+        url: '/dev-status/1.0/issue/detail',
+        query: { issueId: '42', applicationType: 'github', dataType: 'repository' },
+      });
+    });
+
+    it('fails without calling dev-status when the numeric id is missing', async () => {
+      (IssueService.getIssue as jest.Mock).mockResolvedValue({ key: mockIssueKey });
+
+      const result = await jiraService.getIssueDevelopmentInfo(mockIssueKey);
+
+      expect(result.success).toBe(false);
+      expect(result.error).toBe(`Could not resolve numeric id for issue ${mockIssueKey}`);
+      expect(__request).not.toHaveBeenCalled();
+    });
+
+    it('surfaces dev-status request errors', async () => {
+      (IssueService.getIssue as jest.Mock).mockResolvedValue({ id: '1314681' });
+      (__request as jest.Mock).mockRejectedValue(new Error('View Development Tools permission required'));
+
+      const result = await jiraService.getIssueDevelopmentInfo(mockIssueKey);
+
+      expect(result.success).toBe(false);
+      expect(result.error).toBe('View Development Tools permission required');
     });
   });
 

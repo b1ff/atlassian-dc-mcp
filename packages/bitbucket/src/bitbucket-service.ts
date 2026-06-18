@@ -301,8 +301,10 @@ export class BitbucketService {
    * @param text The comment text
    * @param parentId Optional parent comment ID for replies
    * @param filePath Optional file path for file-specific comments
-   * @param line Optional line number for line-specific comments
-   * @param lineType Optional line type ('ADDED', 'REMOVED', 'CONTEXT') for line comments
+   * @param line Optional end line number for line/multiline comments
+   * @param lineType Optional line type ('ADDED', 'REMOVED', 'CONTEXT') for the end line
+   * @param startLine Optional start line for multiline comments; when provided together with line, creates a range comment
+   * @param startLineType Optional line type for the start line; defaults to lineType if omitted
    * @param pending Optional flag to create a pending (draft) comment, not visible to others until a review is submitted.
    *   Only works when filePath is provided (file-level or inline comments).
    *   Top-level PR comments (no filePath) are always posted live regardless of this flag.
@@ -316,6 +318,8 @@ export class BitbucketService {
     text: string,
     parentId?: number,
     filePath?: string,
+    startLine?: number,
+    startLineType?: 'ADDED' | 'REMOVED' | 'CONTEXT',
     line?: number,
     lineType?: 'ADDED' | 'REMOVED' | 'CONTEXT',
     pending?: boolean,
@@ -355,6 +359,14 @@ export class BitbucketService {
         comment.anchor.line = line;
         comment.anchor.lineType = lineType;
         comment.anchor.fileType = 'TO'; // Default to destination file
+
+        if (startLine !== undefined) {
+          const resolvedStartLineType = startLineType ?? lineType;
+          comment.anchor.multilineAnchor = true;
+          comment.anchor.multilineStartLine = startLine;
+          comment.anchor.multilineStartLineType = resolvedStartLineType;
+          comment.anchor.multilineDestinationRange = { minimum: startLine, maximum: line };
+        }
       }
     }
 
@@ -575,6 +587,8 @@ export class BitbucketService {
    * @param fromRefId The source branch (e.g., 'refs/heads/feature-branch')
    * @param toRefId The destination branch (e.g., 'refs/heads/main')
    * @param reviewers Optional array of reviewer usernames
+   * @param draft Optional flag to create the pull request as a draft
+   * @param output Return a compact acknowledgement or the full API response. Defaults to 'ack'.
    * @returns Promise with created pull request data
    */
   async createPullRequest(
@@ -585,6 +599,7 @@ export class BitbucketService {
     fromRefId: string,
     toRefId: string,
     reviewers?: string[],
+    draft?: boolean,
     output: BitbucketMutationOutputMode = 'ack'
   ) {
     projectKey = projectKey.toUpperCase();
@@ -620,6 +635,10 @@ export class BitbucketService {
       }));
     }
 
+    if (draft !== undefined) {
+      pullRequestData.draft = draft;
+    }
+
     const result = await handleApiOperation(
       () => PullRequestsService.create(projectKey, repositorySlug, pullRequestData),
       'Error creating pull request'
@@ -644,6 +663,8 @@ export class BitbucketService {
    * @param title Optional new title for the pull request
    * @param description Optional new description for the pull request
    * @param reviewers Optional array of reviewer usernames to set
+   * @param draft Optional flag to mark the pull request as a draft or ready for review
+   * @param output Return a compact acknowledgement or the full API response. Defaults to 'ack'.
    * @returns Promise with updated pull request data
    */
   async updatePullRequest(
@@ -654,6 +675,7 @@ export class BitbucketService {
     title?: string,
     description?: string,
     reviewers?: string[],
+    draft?: boolean,
     output: BitbucketMutationOutputMode = 'ack'
   ) {
     projectKey = projectKey.toUpperCase();
@@ -676,6 +698,10 @@ export class BitbucketService {
           name: username
         }
       }));
+    }
+
+    if (draft !== undefined) {
+      pullRequestData.draft = draft;
     }
 
     const result = await handleApiOperation(
@@ -885,8 +911,10 @@ export const bitbucketToolSchemas = {
     text: z.string().describe("The comment text"),
     parentId: z.number().optional().describe("Parent comment ID for replies"),
     filePath: z.string().optional().describe("File path for file-specific comments"),
-    line: z.number().optional().describe("Line number for line-specific comments"),
-    lineType: z.enum(['ADDED', 'REMOVED', 'CONTEXT']).optional().describe("Line type for line comments"),
+    startLine: z.number().optional().describe("Start line of a multiline comment range. When provided together with 'line' (end line), creates a multiline comment spanning from startLine to line."),
+    startLineType: z.enum(['ADDED', 'REMOVED', 'CONTEXT']).optional().describe("Line type for the start line of a multiline comment. Defaults to the same value as lineType if omitted."),
+    line: z.number().optional().describe("Line number for single-line comments, or end line for multiline comments"),
+    lineType: z.enum(['ADDED', 'REMOVED', 'CONTEXT']).optional().describe("Line type for the end line (or the only line for single-line comments)"),
     pending: z.boolean().optional().describe("If true, creates a pending (draft) comment not visible to others until the review is submitted via bitbucket_submitPullRequestReview. Only works when filePath is provided — top-level PR comments (no filePath) are always posted live."),
     severity: z.enum(['NORMAL', 'BLOCKER']).optional().describe("Comment severity. Use 'BLOCKER' to post the comment as a task that must be resolved before the PR can be merged. Defaults to 'NORMAL' (regular comment)."),
     output: z.enum(['ack', 'full']).optional().describe("Return a compact acknowledgement or the full API response. Defaults to ack.")
@@ -933,7 +961,8 @@ export const bitbucketToolSchemas = {
     description: z.string().optional().describe("The pull request description"),
     fromRefId: z.string().describe("The source branch reference ID (e.g., 'refs/heads/feature-branch')"),
     toRefId: z.string().describe("The destination branch reference ID (e.g., 'refs/heads/main')"),
-    reviewers: z.array(z.string()).optional().describe("Optional array of reviewer usernames"),
+    draft: z.boolean().optional().describe("If true, the pull request is created as a draft (work-in-progress) and cannot be merged until marked ready."),
+    reviewers: z.array(z.string()).optional().describe("Optional array of reviewer usernames (use the 'name' field from Bitbucket user objects, not 'slug')"),
     output: z.enum(['ack', 'full']).optional().describe("Return a compact acknowledgement or the full API response. Defaults to ack.")
   },
   updatePullRequest: {
@@ -943,7 +972,8 @@ export const bitbucketToolSchemas = {
     version: z.number().describe("The current version of the pull request (required for optimistic locking). Obtain this by calling bitbucket_getPullRequest first."),
     title: z.string().optional().describe("The new title for the pull request"),
     description: z.string().optional().describe("The new description for the pull request"),
-    reviewers: z.array(z.string()).optional().describe("Optional array of reviewer usernames to set"),
+    draft: z.boolean().optional().describe("If provided, sets the draft (work-in-progress) status of the pull request. Pass true to mark as draft, false to mark as ready for review."),
+    reviewers: z.array(z.string()).optional().describe("Optional array of reviewer usernames to set (use the 'name' field from Bitbucket user objects, not 'slug')"),
     output: z.enum(['ack', 'full']).optional().describe("Return a compact acknowledgement or the full API response. Defaults to ack.")
   },
   getRequiredReviewers: {

@@ -390,7 +390,7 @@ describe('BitbucketService token optimization paths', () => {
       };
       (PullRequestsService.createComment2 as jest.Mock).mockResolvedValue(mockComment);
 
-      const result = await service.postPullRequestComment('TEST', 'repo', '123', 'Raw comment', undefined, undefined, undefined, undefined, undefined, undefined, 'full');
+      const result = await service.postPullRequestComment('TEST', 'repo', '123', 'Raw comment', undefined, undefined, undefined, undefined, undefined, undefined, undefined, 'full');
 
       expect(result.success).toBe(true);
       expect(result.data).toBe(mockComment);
@@ -405,7 +405,7 @@ describe('BitbucketService token optimization paths', () => {
       };
       (PullRequestsService.create as jest.Mock).mockResolvedValue(mockPullRequest);
 
-      const result = await service.createPullRequest('TEST', 'repo', 'Raw create', undefined, 'refs/heads/feature', 'refs/heads/main', undefined, 'full');
+      const result = await service.createPullRequest('TEST', 'repo', 'Raw create', undefined, 'refs/heads/feature', 'refs/heads/main', undefined, undefined, 'full');
 
       expect(result.success).toBe(true);
       expect(result.data).toBe(mockPullRequest);
@@ -420,7 +420,7 @@ describe('BitbucketService token optimization paths', () => {
       };
       (PullRequestsService.update as jest.Mock).mockResolvedValue(mockPullRequest);
 
-      const result = await service.updatePullRequest('TEST', 'repo', '123', 1, 'Raw update', undefined, undefined, 'full');
+      const result = await service.updatePullRequest('TEST', 'repo', '123', 1, 'Raw update', undefined, undefined, undefined, 'full');
 
       expect(result.success).toBe(true);
       expect(result.data).toBe(mockPullRequest);
