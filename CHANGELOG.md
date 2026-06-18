@@ -3,6 +3,17 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [0.24.0](https://github.com/b1ff/atlassian-dc-mcp/compare/v0.23.0...v0.24.0) (2026-06-18)
+
+
+### Features
+
+* **confluence:** support sliced content body reads ([0f96852](https://github.com/b1ff/atlassian-dc-mcp/commit/0f968528a284b296e93717610acbadc9239f6d44))
+
+
+
+
+
 # [0.23.0](https://github.com/b1ff/atlassian-dc-mcp/compare/v0.22.0...v0.23.0) (2026-06-18)
 
 
