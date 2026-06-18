@@ -161,6 +161,7 @@ export class JiraService {
     issueKey: string;
     transitionId: string;
     fields?: Record<string, any>;
+    customFields?: Record<string, any>;
   }) {
     return handleApiOperation(async () => {
       const requestBody: { transition: { id: string }; fields?: Record<string, any> } = {
@@ -168,6 +169,9 @@ export class JiraService {
       };
       if (params.fields) {
         requestBody.fields = params.fields;
+      }
+      if (params.customFields) {
+        Object.assign(requestBody, params.customFields);
       }
       return IssueService.doTransition(params.issueKey, requestBody);
     }, 'Error transitioning issue');
@@ -230,6 +234,7 @@ export const jiraToolSchemas = {
   transitionIssue: {
     issueKey: z.string().describe("JIRA issue key (e.g., PROJ-123)"),
     transitionId: z.string().describe("The ID of the transition to perform. Use jira_getTransitions to find available transitions and their IDs."),
-    fields: z.record(z.any()).optional().describe("Optional fields required by the transition screen. Use jira_getTransitions to see which fields are available for each transition.")
+    fields: z.record(z.any()).optional().describe("Optional fields required by the transition screen. Use jira_getTransitions to see which fields are available for each transition."),
+    customFields: z.record(z.any()).optional().describe("Optional fields merged into the JIRA transition payload. Can be used for update operations such as comments. Example: {'update': {'comment': [{'add': {'body': 'text'}}]}}")
   }
 };
