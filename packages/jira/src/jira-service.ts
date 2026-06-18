@@ -75,17 +75,20 @@ export class JiraService {
   async createIssue(params: {
     projectId: string;
     summary: string;
-    description: string;
+    description?: string;
     issueTypeId: string;
     customFields?: Record<string, any>;
   }) {
     return handleApiOperation(async () => {
-      const standardFields = {
+      const standardFields: Record<string, any> = {
         project: { key: params.projectId },
         summary: params.summary,
-        description: params.description,
         issuetype: { id: params.issueTypeId }
       };
+
+      if (params.description !== undefined && params.description !== '') {
+        standardFields.description = params.description;
+      }
 
       const fields = params.customFields
         ? { ...standardFields, ...params.customFields }
@@ -180,7 +183,7 @@ export const jiraToolSchemas = {
   createIssue: {
     projectId: z.string().describe("Project key (despite the parameter name, e.g. TEST)"),
     summary: z.string().describe("Issue summary"),
-    description: z.string().describe("Issue description in the format suitable for JIRA DATA CENTER edition (JIRA Wiki Markup)."),
+    description: z.string().optional().describe("Issue description in the format suitable for JIRA DATA CENTER edition (JIRA Wiki Markup). Optional — omit if the project's create screen does not include the description field, and use customFields to pass a project-specific description custom field instead."),
     issueTypeId: z.string().describe("Issue type id (e.g. id of Task, Bug, Story). Should be found first a correct number for specific JIRA installation."),
     customFields: z.record(z.any()).optional().describe("Optional fields merged into the JIRA create payload. Can be used for custom fields and standard fields such as labels. Examples: {'customfield_10001': 'Custom Value', 'priority': {'id': '1'}, 'assignee': {'name': 'john.doe'}, 'labels': ['urgent', 'bug']}")
   },
