@@ -3,6 +3,17 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [0.23.0](https://github.com/b1ff/atlassian-dc-mcp/compare/v0.22.0...v0.23.0) (2026-06-18)
+
+
+### Features
+
+* **jira:** add customFields support to transitionIssue ([31799d5](https://github.com/b1ff/atlassian-dc-mcp/commit/31799d54afe640960c799c253c79d5dcec079d15))
+
+
+
+
+
 # [0.22.0](https://github.com/b1ff/atlassian-dc-mcp/compare/v0.21.0...v0.22.0) (2026-06-18)
 
 
