@@ -308,6 +308,7 @@ export class BitbucketService {
    * @param pending Optional flag to create a pending (draft) comment, not visible to others until a review is submitted.
    *   Only works when filePath is provided (file-level or inline comments).
    *   Top-level PR comments (no filePath) are always posted live regardless of this flag.
+   * @param severity Optional severity for the comment. 'BLOCKER' posts the comment as a task that must be resolved before the PR can be merged. Defaults to 'NORMAL' (regular comment) when omitted.
    * @returns Promise with created comment data
    */
   async postPullRequestComment(
@@ -322,6 +323,7 @@ export class BitbucketService {
     line?: number,
     lineType?: 'ADDED' | 'REMOVED' | 'CONTEXT',
     pending?: boolean,
+    severity?: 'NORMAL' | 'BLOCKER',
     output: BitbucketMutationOutputMode = 'ack'
   ) {
     projectKey = projectKey.toUpperCase();
@@ -329,6 +331,10 @@ export class BitbucketService {
     const comment: any = {
       text
     };
+
+    if (severity) {
+      comment.severity = severity;
+    }
 
     // Mark comment as pending (draft) — not visible to others until review is submitted
     // Note: Bitbucket DC uses state:'PENDING' not pending:true
@@ -372,6 +378,69 @@ export class BitbucketService {
         comment
       ),
       'Error posting pull request comment'
+    );
+
+    if (result.success && result.data && output !== 'full') {
+      return {
+        ...result,
+        data: shapePullRequestCommentAck(result.data),
+      };
+    }
+
+    return result;
+  }
+
+  /**
+   * Update an existing pull request comment. Use this to edit text, change severity, or change state.
+   * On a BLOCKER (task) comment, setting state to 'RESOLVED' ticks the task. Note: this is NOT the same
+   * as the thread-level "Resolve" button on regular comment threads — that operates on CommentThread.resolved
+   * and is a separate concept not exposed by this endpoint.
+   * @param projectKey The project key
+   * @param repositorySlug The repository slug
+   * @param pullRequestId The pull request ID
+   * @param commentId The comment ID to update
+   * @param version The current version of the comment (required for optimistic locking)
+   * @param text Optional new comment text
+   * @param state Optional new state. On a BLOCKER comment, 'RESOLVED' ticks the task and 'OPEN' un-ticks it.
+   * @param severity Optional new severity. 'BLOCKER' converts a comment into a task, 'NORMAL' converts a task back to a regular comment.
+   * @returns Promise with updated comment data
+   */
+  async updatePullRequestComment(
+    projectKey: string,
+    repositorySlug: string,
+    pullRequestId: string,
+    commentId: string,
+    version: number,
+    text?: string,
+    state?: 'OPEN' | 'RESOLVED',
+    severity?: 'NORMAL' | 'BLOCKER',
+    output: BitbucketMutationOutputMode = 'ack'
+  ) {
+    projectKey = projectKey.toUpperCase();
+    repositorySlug = repositorySlug.toLowerCase();
+    const comment: any = { version };
+
+    if (text !== undefined) {
+      comment.text = text;
+    }
+
+    if (state) {
+      comment.state = state;
+    }
+
+    if (severity) {
+      comment.severity = severity;
+    }
+
+    const result = await handleApiOperation(
+      () => PullRequestsService.updateComment2(
+        projectKey,
+        commentId,
+        pullRequestId,
+        repositorySlug,
+        comment
+      ),
+      'Error updating pull request comment'
     );
 
     if (result.success && result.data && output !== 'full') {
@@ -847,6 +916,18 @@ export const bitbucketToolSchemas = {
     line: z.number().optional().describe("Line number for single-line comments, or end line for multiline comments"),
     lineType: z.enum(['ADDED', 'REMOVED', 'CONTEXT']).optional().describe("Line type for the end line (or the only line for single-line comments)"),
     pending: z.boolean().optional().describe("If true, creates a pending (draft) comment not visible to others until the review is submitted via bitbucket_submitPullRequestReview. Only works when filePath is provided — top-level PR comments (no filePath) are always posted live."),
+    severity: z.enum(['NORMAL', 'BLOCKER']).optional().describe("Comment severity. Use 'BLOCKER' to post the comment as a task that must be resolved before the PR can be merged. Defaults to 'NORMAL' (regular comment)."),
+    output: z.enum(['ack', 'full']).optional().describe("Return a compact acknowledgement or the full API response. Defaults to ack.")
+  },
+  updatePullRequestComment: {
+    projectKey: z.string().describe("The project key"),
+    repositorySlug: z.string().describe("The repository slug"),
+    pullRequestId: z.string().describe("The pull request ID"),
+    commentId: z.string().describe("The ID of the comment to update"),
+    version: z.number().describe("The current version of the comment, required for optimistic locking. Get it from bitbucket_getPR_CommentsAndAction or from the response of the original post/update."),
+    text: z.string().optional().describe("New comment text. Omit to leave unchanged."),
+    state: z.enum(['OPEN', 'RESOLVED']).optional().describe("New state. On a BLOCKER (task) comment, 'RESOLVED' ticks the task and 'OPEN' un-ticks it. This is NOT the thread-level 'Resolve' button on regular comment threads — that is a separate concept (CommentThread.resolved) and is not exposed by this endpoint."),
+    severity: z.enum(['NORMAL', 'BLOCKER']).optional().describe("New severity. Use 'BLOCKER' to convert a comment into a task, 'NORMAL' to convert it back."),
     output: z.enum(['ack', 'full']).optional().describe("Return a compact acknowledgement or the full API response. Defaults to ack.")
   },
   getUser: {
