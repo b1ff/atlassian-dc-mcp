@@ -3,6 +3,17 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [0.22.0](https://github.com/b1ff/atlassian-dc-mcp/compare/v0.21.0...v0.22.0) (2026-06-18)
+
+
+### Features
+
+* **jira:** add jira_getIssueDevelopmentInfo tool ([f2e9f0d](https://github.com/b1ff/atlassian-dc-mcp/commit/f2e9f0d50d0ed65a8f214b6909ab3ef6fd3fd518))
+
+
+
+
+
 # [0.21.0](https://github.com/b1ff/atlassian-dc-mcp/compare/v0.20.1...v0.21.0) (2026-06-18)
 
 **Note:** Version bump only for package @atlassian-dc-mcp/jira
