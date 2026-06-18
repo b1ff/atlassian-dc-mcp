@@ -162,6 +162,7 @@ Parameters:
 - `expand` (string, optional): Comma-separated list of properties to expand (e.g., "body.storage,version")
 - `bodyMode` (`storage` | `text` | `none`, optional): Response shape for the content body. Defaults to `storage` for backward compatibility.
 - `maxBodyChars` (number, optional): Maximum number of characters to keep when `bodyMode=text`
+- `bodyStart` (number, optional): Character offset to start the text body slice when `bodyMode=text`. Non-negative values start from the beginning; negative values start from the end, e.g. `-2000` returns the last 2000 characters.
 
 #### 2. confluence_searchContent
 

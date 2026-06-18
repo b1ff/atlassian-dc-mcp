@@ -1,6 +1,11 @@
 export type ConfluenceBodyMode = 'storage' | 'text' | 'none';
 export type ConfluenceMutationOutputMode = 'ack' | 'full';
 
+export interface ConfluenceBodySliceOptions {
+  maxBodyChars?: number;
+  bodyStart?: number;
+}
+
 const ENTITY_MAP: Record<string, string> = {
   '&nbsp;': ' ',
   '&amp;': '&',
@@ -19,15 +24,33 @@ function decodeHtmlEntities(value: string): string {
     });
 }
 
-function truncateText(value: string, maxBodyChars?: number): { value: string; truncated?: boolean; originalLength?: number } {
-  if (maxBodyChars === undefined || maxBodyChars < 1 || value.length <= maxBodyChars) {
+function sliceText(
+  value: string,
+  options: ConfluenceBodySliceOptions = {},
+): { value: string; truncated?: boolean; originalLength?: number; start?: number; end?: number } {
+  const { maxBodyChars, bodyStart } = options;
+  const originalLength = value.length;
+  const hasExplicitStart = bodyStart !== undefined;
+  const resolvedStart = hasExplicitStart && bodyStart < 0
+    ? Math.max(originalLength + bodyStart, 0)
+    : Math.min(Math.max(bodyStart ?? 0, 0), originalLength);
+
+  const resolvedEnd = maxBodyChars === undefined || maxBodyChars < 1
+    ? originalLength
+    : Math.min(resolvedStart + maxBodyChars, originalLength);
+
+  if (!hasExplicitStart && resolvedStart === 0 && resolvedEnd === originalLength) {
     return { value };
   }
 
+  const slicedValue = value.slice(resolvedStart, resolvedEnd).trimEnd();
+  const end = resolvedStart + slicedValue.length;
+  const truncated = resolvedStart > 0 || resolvedEnd < originalLength;
+
   return {
-    value: value.slice(0, maxBodyChars).trimEnd(),
-    truncated: true,
-    originalLength: value.length,
+    value: slicedValue,
+    ...(truncated ? { truncated: true, originalLength } : {}),
+    ...(hasExplicitStart ? { start: resolvedStart, end } : {}),
   };
 }
 
@@ -61,7 +84,7 @@ function getContentUrl(content: any): string | undefined {
   return undefined;
 }
 
-export function shapeConfluenceContent(content: any, bodyMode: ConfluenceBodyMode = 'storage', maxBodyChars?: number) {
+export function shapeConfluenceContent(content: any, bodyMode: ConfluenceBodyMode = 'storage', bodySliceOptions?: ConfluenceBodySliceOptions) {
   if (!content || typeof content !== 'object' || bodyMode === 'storage') {
     return content;
   }
@@ -77,14 +100,15 @@ export function shapeConfluenceContent(content: any, bodyMode: ConfluenceBodyMod
     return rest;
   }
 
-  const textBody = truncateText(confluenceStorageToText(storageValue), maxBodyChars);
+  const textBody = sliceText(confluenceStorageToText(storageValue), bodySliceOptions);
+  const { value, ...textBodyMetadata } = textBody;
   return {
     ...rest,
     body: {
       text: {
-        value: textBody.value,
+        value,
         representation: 'text',
-        ...(textBody.truncated ? { truncated: true, originalLength: textBody.originalLength } : {}),
+        ...textBodyMetadata,
       },
     },
   };

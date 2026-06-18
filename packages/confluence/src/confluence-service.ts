@@ -75,12 +75,18 @@ export class ConfluenceService {
     return handleApiOperation(() => ContentResourceService.getContentById(contentId, finalExpand), 'Error getting content');
   }
 
-  async getContent(contentId: string, expand?: string, bodyMode: ConfluenceBodyMode = 'storage', maxBodyChars?: number) {
+  async getContent(
+    contentId: string,
+    expand?: string,
+    bodyMode: ConfluenceBodyMode = 'storage',
+    maxBodyChars?: number,
+    bodyStart?: number,
+  ) {
     const result = await this.getContentRaw(contentId, expand);
     if (result.success && result.data) {
       return {
         ...result,
-        data: shapeConfluenceContent(result.data, bodyMode, maxBodyChars),
+        data: shapeConfluenceContent(result.data, bodyMode, { maxBodyChars, bodyStart }),
       };
     }
 
@@ -170,7 +176,8 @@ export const confluenceToolSchemas = {
     contentId: z.string().describe("Confluence Data Center content ID"),
     expand: z.string().optional().describe("Comma-separated list of properties to expand"),
     bodyMode: z.enum(['storage', 'text', 'none']).optional().describe("How to return the page body. Defaults to storage for backward compatibility."),
-    maxBodyChars: z.number().optional().describe("Maximum number of characters to keep when bodyMode is text")
+    maxBodyChars: z.number().optional().describe("Maximum number of characters to keep when bodyMode is text"),
+    bodyStart: z.number().int().optional().describe("Character offset to start the text body slice when bodyMode is text. Non-negative values start from the beginning; negative values start from the end, e.g. -2000 returns the last 2000 characters.")
   },
   searchContent: {
     cql: z.string().describe("Confluence Query Language (CQL) search string for Confluence Data Center"),

@@ -221,6 +221,72 @@ describe('ConfluenceService token optimization paths', () => {
     });
   });
 
+  it('slices text bodies from a requested start offset', async () => {
+    (ContentResourceService.getContentById as jest.Mock).mockResolvedValue({
+      id: '123',
+      type: 'page',
+      title: 'Test page',
+      body: {
+        storage: {
+          value: '<p>0123456789</p>',
+          representation: 'storage',
+        },
+      },
+    });
+
+    const result = await service.getContent('123', undefined, 'text', 4, 3);
+
+    expect(result.success).toBe(true);
+    expect(result.data).toEqual({
+      id: '123',
+      type: 'page',
+      title: 'Test page',
+      body: {
+        text: {
+          value: '3456',
+          representation: 'text',
+          truncated: true,
+          originalLength: 10,
+          start: 3,
+          end: 7,
+        },
+      },
+    });
+  });
+
+  it('supports negative start offsets for tail reads', async () => {
+    (ContentResourceService.getContentById as jest.Mock).mockResolvedValue({
+      id: '123',
+      type: 'page',
+      title: 'Test page',
+      body: {
+        storage: {
+          value: '<p>0123456789</p>',
+          representation: 'storage',
+        },
+      },
+    });
+
+    const result = await service.getContent('123', undefined, 'text', undefined, -4);
+
+    expect(result.success).toBe(true);
+    expect(result.data).toEqual({
+      id: '123',
+      type: 'page',
+      title: 'Test page',
+      body: {
+        text: {
+          value: '6789',
+          representation: 'text',
+          truncated: true,
+          originalLength: 10,
+          start: 6,
+          end: 10,
+        },
+      },
+    });
+  });
+
   it('omits the body when bodyMode is none', async () => {
     (ContentResourceService.getContentById as jest.Mock).mockResolvedValue({
       id: '123',

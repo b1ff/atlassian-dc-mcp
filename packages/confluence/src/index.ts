@@ -38,8 +38,8 @@ server.tool(
   "confluence_getContent",
   `Get Confluence content by ID from the ${confluenceInstanceType}`,
   confluenceToolSchemas.getContent,
-  async ({ contentId, expand, bodyMode, maxBodyChars }) => {
-    const result = await confluenceService.getContent(contentId, expand, bodyMode, maxBodyChars);
+  async ({ contentId, expand, bodyMode, maxBodyChars, bodyStart }) => {
+    const result = await confluenceService.getContent(contentId, expand, bodyMode, maxBodyChars, bodyStart);
     return formatToolResponse(result);
   }
 );
