@@ -1,5 +1,8 @@
+import { File } from 'node:buffer';
+import { readFile } from 'node:fs/promises';
+import { basename } from 'node:path';
 import { z } from 'zod';
-import { ContentResourceService, OpenAPI, SearchService, UserService } from './confluence-client/index.js';
+import { AttachmentsService, ContentResourceService, OpenAPI, SearchService, UserService } from './confluence-client/index.js';
 import { handleApiOperation, resolveOpenApiBase } from '@atlassian-dc-mcp/common';
 import { CONFLUENCE_PRODUCT, getDefaultPageSize, getMissingConfig } from './config.js';
 import { ConfluenceBodyMode, shapeConfluenceContent } from './confluence-response-mapper.js';
@@ -133,6 +136,62 @@ export class ConfluenceService {
   }
 
   /**
+   * Upload a file as an attachment to a Confluence content entity
+   * @param contentId The ID of the content the attachment will be attached to
+   * @param filePath Local filesystem path to the file to upload
+   * @param filename Optional override for the attachment filename (defaults to basename of filePath)
+   * @param comment Optional comment describing the attachment
+   * @param minorEdit If true, no notification email will be generated
+   * @param hidden If true, no notification email or activity stream entry will be generated
+   * @param allowDuplicated Allow upload even if an attachment with the same filename exists
+   */
+  async uploadAttachment(
+    contentId: string,
+    filePath: string,
+    filename?: string,
+    comment?: string,
+    minorEdit?: boolean,
+    hidden?: boolean,
+    allowDuplicated?: boolean,
+    versionIfExists?: boolean,
+  ) {
+    const buffer = await readFile(filePath);
+    const name = filename || basename(filePath);
+    const file = new File([buffer], name);
+    // X-Atlassian-Token: nocheck is required for multipart attachment POSTs (XSRF bypass).
+    // Set it only for the duration of this call; restore afterwards.
+    const prevHeaders = OpenAPI.HEADERS;
+    OpenAPI.HEADERS = { 'X-Atlassian-Token': 'nocheck' };
+    try {
+      if (versionIfExists) {
+        const existing = await AttachmentsService.getAttachments(contentId, undefined, name);
+        const existingId = (existing as any)?.results?.[0]?.id;
+        if (existingId) {
+          // MockAttachmentRequest types file as string, but getFormData handles Blob/File via isBlob()
+          return await handleApiOperation(
+            () => AttachmentsService.updateData(existingId, contentId, { file } as any),
+            'Error uploading attachment version',
+          );
+        }
+      }
+      // MockAttachmentRequest types file as string, but getFormData in request.ts handles Blob/File via isBlob()
+      const formData = { file, comment, minorEdit, hidden } as any;
+      return await handleApiOperation(
+        () => AttachmentsService.createAttachments(
+          contentId,
+          undefined,
+          allowDuplicated ? 'true' : undefined,
+          undefined,
+          formData,
+        ),
+        'Error uploading attachment',
+      );
+    } finally {
+      OpenAPI.HEADERS = prevHeaders;
+    }
+  }
+
+  /**
    * Search for spaces by text
    * @param searchText Text to search for in space names or descriptions
    * @param limit Maximum number of results to return
@@ -208,5 +267,15 @@ export const confluenceToolSchemas = {
     start: z.number().optional().describe("Start index for pagination"),
     expand: z.string().optional().describe("Comma-separated list of properties to expand"),
     excerpt: z.enum(['none', 'highlight']).optional().describe("Excerpt mode for search results. Defaults to none.")
+  },
+  uploadAttachment: {
+    contentId: z.string().describe("ID of the Confluence content (page) to attach the file to"),
+    filePath: z.string().describe("Absolute local filesystem path of the file to upload"),
+    filename: z.string().optional().describe("Override for the attachment filename (defaults to the basename of filePath)"),
+    comment: z.string().optional().describe("Optional comment describing the attachment"),
+    minorEdit: z.boolean().optional().describe("If true, no notification email is sent to watchers"),
+    hidden: z.boolean().optional().describe("If true, no notification email or activity stream entry is generated"),
+    allowDuplicated: z.boolean().optional().describe("Allow upload even if an attachment with the same filename already exists"),
+    versionIfExists: z.boolean().optional().describe("If true and an attachment with the same filename already exists, upload as a new version instead of failing")
   }
 };

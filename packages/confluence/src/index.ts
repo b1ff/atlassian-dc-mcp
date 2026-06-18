@@ -141,6 +141,25 @@ server.tool(
   }
 );
 
+server.tool(
+  "confluence_uploadAttachment",
+  "Upload a local file as an attachment to a Confluence content (page)",
+  confluenceToolSchemas.uploadAttachment,
+  async ({ contentId, filePath, filename, comment, minorEdit, hidden, allowDuplicated, versionIfExists }) => {
+    const result = await confluenceService.uploadAttachment(
+      contentId,
+      filePath,
+      filename,
+      comment,
+      minorEdit,
+      hidden,
+      allowDuplicated,
+      versionIfExists,
+    );
+    return formatToolResponse(result);
+  }
+);
+
 server.tool('confluence_searchSpace',
   `Search for spaces in ${confluenceInstanceType}`,
   confluenceToolSchemas.searchSpaces,
