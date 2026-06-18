@@ -3,6 +3,17 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [0.21.0](https://github.com/b1ff/atlassian-dc-mcp/compare/v0.20.1...v0.21.0) (2026-06-18)
+
+
+### Features
+
+* **bitbucket:** add multiline comment support for pull request comments ([edaf6ea](https://github.com/b1ff/atlassian-dc-mcp/commit/edaf6ea9a200afa811a8546f492d05fb37c4fe52))
+
+
+
+
+
 ## [0.20.1](https://github.com/b1ff/atlassian-dc-mcp/compare/v0.20.0...v0.20.1) (2026-06-18)
 
 **Note:** Version bump only for package atlassian-dc-mcp
