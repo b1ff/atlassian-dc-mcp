@@ -24,6 +24,10 @@ interface CommentAnchor {
   path: string;
   diffType: string;
   orphaned: boolean;
+  multilineMarker?: {
+    startLine: number;
+    startLineType: string;
+  };
 }
 
 interface CommentProperties {
@@ -131,6 +135,8 @@ interface SimplifiedAnchor {
   line: number;
   path: string;
   fileType?: string;
+  startLine?: number;
+  startLineType?: string;
 }
 
 interface SimplifiedComment {
@@ -240,7 +246,13 @@ function simplifyAnchor(anchor: CommentAnchor): SimplifiedAnchor {
   return {
     line: anchor.line,
     path: anchor.path,
-    fileType: anchor.fileType
+    fileType: anchor.fileType,
+    ...(anchor.multilineMarker
+      ? {
+          startLine: anchor.multilineMarker.startLine,
+          startLineType: anchor.multilineMarker.startLineType
+        }
+      : {})
   };
 }
 
