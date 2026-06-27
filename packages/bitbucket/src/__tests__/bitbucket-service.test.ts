@@ -861,10 +861,8 @@ describe('BitbucketService', () => {
           line: 15,
           lineType: 'ADDED',
           fileType: 'TO',
-          multilineAnchor: true,
-          multilineStartLine: 10,
-          multilineStartLineType: 'ADDED',
-          multilineDestinationRange: { minimum: 10, maximum: 15 }
+          multilineMarker: { startLine: 10, startLineType: 'ADDED' },
+          multilineSpan: { dstSpanStart: 10, dstSpanEnd: 15 }
         }
       };
       (PullRequestsService.createComment2 as jest.Mock).mockResolvedValue(mockComment);
@@ -906,10 +904,8 @@ describe('BitbucketService', () => {
             line: 15,
             lineType: 'ADDED',
             fileType: 'TO',
-            multilineAnchor: true,
-            multilineStartLine: 10,
-            multilineStartLineType: 'ADDED',
-            multilineDestinationRange: { minimum: 10, maximum: 15 }
+            multilineMarker: { startLine: 10, startLineType: 'ADDED' },
+            multilineSpan: { dstSpanStart: 10, dstSpanEnd: 15 }
           }
         }
       );
@@ -926,10 +922,8 @@ describe('BitbucketService', () => {
           line: 8,
           lineType: 'ADDED',
           fileType: 'TO',
-          multilineAnchor: true,
-          multilineStartLine: 5,
-          multilineStartLineType: 'CONTEXT',
-          multilineDestinationRange: { minimum: 5, maximum: 8 }
+          multilineMarker: { startLine: 5, startLineType: 'CONTEXT' },
+          multilineSpan: { dstSpanStart: 5, dstSpanEnd: 8 }
         }
       };
       (PullRequestsService.createComment2 as jest.Mock).mockResolvedValue(mockComment);
@@ -959,13 +953,131 @@ describe('BitbucketService', () => {
             line: 8,
             lineType: 'ADDED',
             fileType: 'TO',
-            multilineAnchor: true,
-            multilineStartLine: 5,
-            multilineStartLineType: 'CONTEXT',
-            multilineDestinationRange: { minimum: 5, maximum: 8 }
+            multilineMarker: { startLine: 5, startLineType: 'CONTEXT' },
+            multilineSpan: { dstSpanStart: 5, dstSpanEnd: 8 }
           }
         }
       );
+    });
+
+    it('should normalize a reversed multiline range (startLine > line)', async () => {
+      (PullRequestsService.createComment2 as jest.Mock).mockResolvedValue({ id: 1, anchor: { path: 'src/test.js' } });
+
+      await bitbucketService.postPullRequestComment(
+        mockProjectKey,
+        mockRepositorySlug,
+        mockPullRequestId,
+        'Reversed range',
+        undefined,      // parentId
+        'src/test.js',  // filePath
+        15,             // startLine (greater than line)
+        'ADDED',        // startLineType
+        10,             // line (end line, smaller)
+        'ADDED'         // lineType
+      );
+
+      expect(PullRequestsService.createComment2).toHaveBeenCalledWith(
+        mockProjectKey,
+        mockPullRequestId,
+        mockRepositorySlug,
+        {
+          text: 'Reversed range',
+          anchor: {
+            path: 'src/test.js',
+            diffType: 'EFFECTIVE',
+            line: 15,
+            lineType: 'ADDED',
+            fileType: 'TO',
+            multilineMarker: { startLine: 10, startLineType: 'ADDED' },
+            multilineSpan: { dstSpanStart: 10, dstSpanEnd: 15 }
+          }
+        }
+      );
+    });
+
+    it('should anchor a REMOVED multiline range to the source file', async () => {
+      (PullRequestsService.createComment2 as jest.Mock).mockResolvedValue({ id: 1, anchor: { path: 'src/test.js' } });
+
+      await bitbucketService.postPullRequestComment(
+        mockProjectKey,
+        mockRepositorySlug,
+        mockPullRequestId,
+        'Removed range',
+        undefined,      // parentId
+        'src/test.js',  // filePath
+        2,              // startLine
+        'REMOVED',      // startLineType
+        5,              // line (end line)
+        'REMOVED'       // lineType
+      );
+
+      expect(PullRequestsService.createComment2).toHaveBeenCalledWith(
+        mockProjectKey,
+        mockPullRequestId,
+        mockRepositorySlug,
+        {
+          text: 'Removed range',
+          anchor: {
+            path: 'src/test.js',
+            diffType: 'EFFECTIVE',
+            line: 5,
+            lineType: 'REMOVED',
+            fileType: 'FROM',
+            multilineMarker: { startLine: 2, startLineType: 'REMOVED' },
+            multilineSpan: { srcSpanStart: 2, srcSpanEnd: 5 }
+          }
+        }
+      );
+    });
+
+    it('should warn when a multi-line suggestion is anchored to a single line', async () => {
+      (PullRequestsService.createComment2 as jest.Mock).mockResolvedValue({
+        id: 99,
+        anchor: { path: 'src/test.js', line: 5, lineType: 'ADDED' }
+      });
+
+      const result = await bitbucketService.postPullRequestComment(
+        mockProjectKey,
+        mockRepositorySlug,
+        mockPullRequestId,
+        '```suggestion\nconst a = 1;\nconst b = 2;\n```',
+        undefined,      // parentId
+        'src/test.js',  // filePath
+        undefined,      // startLine (single-line anchor — the bug shape)
+        undefined,      // startLineType
+        5,              // line
+        'ADDED'         // lineType
+      );
+
+      expect(result.success).toBe(true);
+      expect((result.data as any).warning).toMatch(/multi-line ```suggestion/);
+      // single-line anchor: no multiline fields sent
+      const sentAnchor = (PullRequestsService.createComment2 as jest.Mock).mock.calls[0][3].anchor;
+      expect(sentAnchor.multilineMarker).toBeUndefined();
+      expect(sentAnchor.multilineSpan).toBeUndefined();
+    });
+
+    it('should not warn when a multi-line suggestion has a proper multiline range', async () => {
+      (PullRequestsService.createComment2 as jest.Mock).mockResolvedValue({
+        id: 100,
+        anchor: { path: 'src/test.js', line: 5, lineType: 'ADDED', multilineMarker: { startLine: 4, startLineType: 'ADDED' } }
+      });
+
+      const result = await bitbucketService.postPullRequestComment(
+        mockProjectKey,
+        mockRepositorySlug,
+        mockPullRequestId,
+        '```suggestion\nconst a = 1;\nconst b = 2;\n```',
+        undefined,      // parentId
+        'src/test.js',  // filePath
+        4,              // startLine
+        'ADDED',        // startLineType
+        5,              // line
+        'ADDED'         // lineType
+      );
+
+      expect(result.success).toBe(true);
+      expect((result.data as any).warning).toBeUndefined();
     });
 
     it('should handle API errors gracefully', async () => {

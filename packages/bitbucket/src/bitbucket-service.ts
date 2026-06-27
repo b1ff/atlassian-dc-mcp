@@ -23,6 +23,84 @@ function resolveToken(token: string | (() => string | undefined), missingTokenMe
   };
 }
 
+type DiffLineType = 'ADDED' | 'REMOVED' | 'CONTEXT';
+
+/**
+ * Build a Bitbucket DC inline comment anchor.
+ *
+ * For a multiline range, Bitbucket DC (>= 9.3.0) requires `multilineMarker` + `multilineSpan`.
+ * The legacy `multilineStartLine`/`multilineStartLineType`/`multilineAnchor`/`multilineDestinationRange`
+ * fields are silently ignored by the server, which then stores a single-line anchor — so a multiline
+ * `​```suggestion` only replaces its first line on Apply. Field names verified against BB DC 9.3.2.
+ */
+function buildCommentAnchor(params: {
+  filePath: string;
+  line?: number;
+  lineType?: DiffLineType;
+  startLine?: number;
+  startLineType?: DiffLineType;
+}): Record<string, any> {
+  const { filePath, line, lineType } = params;
+  const anchor: Record<string, any> = { path: filePath, diffType: 'EFFECTIVE' };
+  if (line === undefined || !lineType) {
+    return anchor;
+  }
+
+  if (params.startLine === undefined) {
+    anchor.line = line;
+    anchor.lineType = lineType;
+    anchor.fileType = lineType === 'REMOVED' ? 'FROM' : 'TO';
+    return anchor;
+  }
+
+  // Normalize so the marker sits on the lower line and `line` on the upper line.
+  let startLine = params.startLine;
+  let startLineType: DiffLineType = params.startLineType ?? lineType;
+  let endLine = line;
+  let endLineType: DiffLineType = lineType;
+  if (startLine > endLine) {
+    [startLine, endLine] = [endLine, startLine];
+    [startLineType, endLineType] = [endLineType, startLineType];
+  }
+
+  const fileType = endLineType === 'REMOVED' ? 'FROM' : 'TO';
+  anchor.line = endLine;
+  anchor.lineType = endLineType;
+  anchor.fileType = fileType;
+  anchor.multilineMarker = { startLine, startLineType };
+  anchor.multilineSpan =
+    fileType === 'FROM'
+      ? { srcSpanStart: startLine, srcSpanEnd: endLine }
+      : { dstSpanStart: startLine, dstSpanEnd: endLine };
+  return anchor;
+}
+
+const SUGGESTION_BLOCK_RE = /```suggestion\b[^\n]*\n([\s\S]*?)```/;
+
+/**
+ * Warn when a multi-line `​```suggestion` block is anchored to a single line: Bitbucket only replaces
+ * the anchored line on Apply, leaving the rest (duplicated code). Returns undefined when there is no
+ * concern. Heuristic — a 1-line anchor with a multi-line suggestion is the common failure shape.
+ */
+function multilineSuggestionWarning(text: string, startLine?: number): string | undefined {
+  if (startLine !== undefined) {
+    return undefined;
+  }
+  const match = SUGGESTION_BLOCK_RE.exec(text);
+  if (!match) {
+    return undefined;
+  }
+  const suggestionLineCount = match[1].replace(/\n$/, '').split('\n').length;
+  if (suggestionLineCount <= 1) {
+    return undefined;
+  }
+  return (
+    'The comment contains a multi-line ```suggestion block but is anchored to a single line. ' +
+    'On Apply, Bitbucket replaces only that one line and leaves the rest. To replace multiple lines, ' +
+    'set startLine (first replaced line) and line (last replaced line) to span the whole range.'
+  );
+}
+
 export class BitbucketService {
   private readonly getPageSize: () => number;
 
@@ -349,26 +427,10 @@ export class BitbucketService {
 
     // Add anchor for file/line comments
     if (filePath) {
-      comment.anchor = {
-        path: filePath,
-        diffType: 'EFFECTIVE'
-      };
-
-      // Add line-specific anchor properties
-      if (line !== undefined && lineType) {
-        comment.anchor.line = line;
-        comment.anchor.lineType = lineType;
-        comment.anchor.fileType = 'TO'; // Default to destination file
-
-        if (startLine !== undefined) {
-          const resolvedStartLineType = startLineType ?? lineType;
-          comment.anchor.multilineAnchor = true;
-          comment.anchor.multilineStartLine = startLine;
-          comment.anchor.multilineStartLineType = resolvedStartLineType;
-          comment.anchor.multilineDestinationRange = { minimum: startLine, maximum: line };
-        }
-      }
+      comment.anchor = buildCommentAnchor({ filePath, line, lineType, startLine, startLineType });
     }
+
+    const suggestionWarning = filePath ? multilineSuggestionWarning(text, startLine) : undefined;
 
     const result = await handleApiOperation(
       () => PullRequestsService.createComment2(
@@ -383,8 +445,15 @@ export class BitbucketService {
     if (result.success && result.data && output !== 'full') {
       return {
         ...result,
-        data: shapePullRequestCommentAck(result.data),
+        data: {
+          ...shapePullRequestCommentAck(result.data),
+          ...(suggestionWarning ? { warning: suggestionWarning } : {}),
+        },
       };
+    }
+
+    if (result.success && suggestionWarning) {
+      return { ...result, warning: suggestionWarning };
     }
 
     return result;
@@ -911,10 +980,10 @@ export const bitbucketToolSchemas = {
     text: z.string().describe("The comment text"),
     parentId: z.number().optional().describe("Parent comment ID for replies"),
     filePath: z.string().optional().describe("File path for file-specific comments"),
-    startLine: z.number().optional().describe("Start line of a multiline comment range. When provided together with 'line' (end line), creates a multiline comment spanning from startLine to line."),
-    startLineType: z.enum(['ADDED', 'REMOVED', 'CONTEXT']).optional().describe("Line type for the start line of a multiline comment. Defaults to the same value as lineType if omitted."),
-    line: z.number().optional().describe("Line number for single-line comments, or end line for multiline comments"),
-    lineType: z.enum(['ADDED', 'REMOVED', 'CONTEXT']).optional().describe("Line type for the end line (or the only line for single-line comments)"),
+    startLine: z.number().optional().describe("First line of a multiline range. Provide together with 'line' (the last line) to span multiple lines. REQUIRED for a multi-line ```suggestion: the anchored range (startLine..line) is exactly what 'Apply suggestion' replaces — omit it and only the single 'line' is replaced, leaving the rest. Requires Bitbucket DC >= 9.3.0 for multiline suggestions."),
+    startLineType: z.enum(['ADDED', 'REMOVED', 'CONTEXT']).optional().describe("Line type for the start line of a multiline range. Defaults to the same value as lineType if omitted."),
+    line: z.number().optional().describe("Single-line comments: the line. Multiline: the LAST line of the range (use startLine for the first). For a ```suggestion this is the last replaced line."),
+    lineType: z.enum(['ADDED', 'REMOVED', 'CONTEXT']).optional().describe("Line type for 'line' (the end line, or the only line for single-line comments). Use 'ADDED'/'CONTEXT' for the new/target file, 'REMOVED' for the original/source file."),
     pending: z.boolean().optional().describe("If true, creates a pending (draft) comment not visible to others until the review is submitted via bitbucket_submitPullRequestReview. Only works when filePath is provided — top-level PR comments (no filePath) are always posted live."),
     severity: z.enum(['NORMAL', 'BLOCKER']).optional().describe("Comment severity. Use 'BLOCKER' to post the comment as a task that must be resolved before the PR can be merged. Defaults to 'NORMAL' (regular comment)."),
     output: z.enum(['ack', 'full']).optional().describe("Return a compact acknowledgement or the full API response. Defaults to ack.")
