@@ -3,7 +3,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { initializeRuntimeConfig } from '@atlassian-dc-mcp/common';
 import { BitbucketService } from '../bitbucket-service.js';
-import { PullRequestsService } from '../bitbucket-client/index.js';
+import { BuildsAndDeploymentsService, PullRequestsService } from '../bitbucket-client/index.js';
 import { request as mockRequest } from '../bitbucket-client/core/request.js';
 
 // Mock the request function
@@ -24,6 +24,12 @@ jest.mock('../bitbucket-client/index.js', () => ({
     getPage: jest.fn(),
     getReviewers: jest.fn(),
     get3: jest.fn()
+  },
+  BuildsAndDeploymentsService: {
+    getPageOfRequiredBuildsMergeChecks: jest.fn(),
+    createRequiredBuildsMergeCheck: jest.fn(),
+    updateRequiredBuildsMergeCheck: jest.fn(),
+    deleteRequiredBuildsMergeCheck: jest.fn()
   },
   OpenAPI: {
     BASE: '',
@@ -2471,6 +2477,91 @@ describe('BitbucketService', () => {
         'TEST', 'test-repo', undefined, undefined,
         'refs/heads/feature', 'refs/heads/main'
       );
+    });
+  });
+
+  describe('required builds merge checks', () => {
+    it('should get merge checks with the default page size', async () => {
+      const mockData = { values: [{ id: 1 }], isLastPage: true };
+      (BuildsAndDeploymentsService.getPageOfRequiredBuildsMergeChecks as jest.Mock).mockResolvedValue(mockData);
+
+      const result = await bitbucketService.getRequiredBuildsMergeChecks('test', 'Test-Repo');
+
+      expect(result.success).toBe(true);
+      expect(result.data).toBe(mockData);
+      expect(BuildsAndDeploymentsService.getPageOfRequiredBuildsMergeChecks).toHaveBeenCalledWith('TEST', 'test-repo', undefined, 25);
+    });
+
+    it('should create a merge check with a built body', async () => {
+      const mockData = { id: 1 };
+      (BuildsAndDeploymentsService.createRequiredBuildsMergeCheck as jest.Mock).mockResolvedValue(mockData);
+
+      const result = await bitbucketService.createRequiredBuildsMergeCheck(
+        'test', 'Test-Repo', ['build-foo'], 'BRANCH', 'refs/heads/master', 'master', 'BRANCH', 'refs/heads/dev', 'dev'
+      );
+
+      expect(result.success).toBe(true);
+      expect(result.data).toBe(mockData);
+      expect(BuildsAndDeploymentsService.createRequiredBuildsMergeCheck).toHaveBeenCalledWith('TEST', 'test-repo', {
+        buildParentKeys: ['build-foo'],
+        refMatcher: { id: 'refs/heads/master', displayId: 'master', type: { id: 'BRANCH' } },
+        exemptRefMatcher: { id: 'refs/heads/dev', displayId: 'dev', type: { id: 'BRANCH' } }
+      });
+    });
+
+    it('should omit the exempt matcher when not fully provided', async () => {
+      (BuildsAndDeploymentsService.createRequiredBuildsMergeCheck as jest.Mock).mockResolvedValue({});
+
+      await bitbucketService.createRequiredBuildsMergeCheck('TEST', 'test-repo', ['build-foo'], 'ANY_REF', 'ANY_REF');
+
+      expect(BuildsAndDeploymentsService.createRequiredBuildsMergeCheck).toHaveBeenCalledWith('TEST', 'test-repo', {
+        buildParentKeys: ['build-foo'],
+        refMatcher: { id: 'ANY_REF', displayId: 'ANY_REF', type: { id: 'ANY_REF' } }
+      });
+    });
+
+    it('should handle errors when creating a merge check', async () => {
+      (BuildsAndDeploymentsService.createRequiredBuildsMergeCheck as jest.Mock).mockRejectedValue(new Error('API Error'));
+
+      const result = await bitbucketService.createRequiredBuildsMergeCheck('TEST', 'test-repo', ['build-foo'], 'ANY_REF', 'ANY_REF');
+
+      expect(result.success).toBe(false);
+      expect(result.error).toBeDefined();
+    });
+
+    it('should update a merge check coercing the id to a number', async () => {
+      const mockData = { id: 1 };
+      (BuildsAndDeploymentsService.updateRequiredBuildsMergeCheck as jest.Mock).mockResolvedValue(mockData);
+
+      const result = await bitbucketService.updateRequiredBuildsMergeCheck(
+        'test', 'Test-Repo', '1', ['build-foo', 'build-bar'], 'BRANCH', 'refs/heads/master', 'master'
+      );
+
+      expect(result.success).toBe(true);
+      expect(result.data).toBe(mockData);
+      expect(BuildsAndDeploymentsService.updateRequiredBuildsMergeCheck).toHaveBeenCalledWith('TEST', 1, 'test-repo', {
+        buildParentKeys: ['build-foo', 'build-bar'],
+        refMatcher: { id: 'refs/heads/master', displayId: 'master', type: { id: 'BRANCH' } }
+      });
+    });
+
+    it('should delete a merge check coercing the id and return an ack', async () => {
+      (BuildsAndDeploymentsService.deleteRequiredBuildsMergeCheck as jest.Mock).mockResolvedValue(undefined);
+
+      const result = await bitbucketService.deleteRequiredBuildsMergeCheck('test', 'Test-Repo', '1');
+
+      expect(result.success).toBe(true);
+      expect(result.data).toEqual({ deleted: true, id: '1' });
+      expect(BuildsAndDeploymentsService.deleteRequiredBuildsMergeCheck).toHaveBeenCalledWith('TEST', 1, 'test-repo');
+    });
+
+    it('should preserve the error field when delete fails', async () => {
+      (BuildsAndDeploymentsService.deleteRequiredBuildsMergeCheck as jest.Mock).mockRejectedValue(new Error('API Error'));
+
+      const result = await bitbucketService.deleteRequiredBuildsMergeCheck('TEST', 'test-repo', '1');
+
+      expect(result.success).toBe(false);
+      expect(result.error).toBeDefined();
     });
   });
 });
