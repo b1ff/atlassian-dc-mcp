@@ -137,6 +137,45 @@ export class BitbucketService {
   }
 
   /**
+   * Create a branch in a repository
+   * @param projectKey The project key
+   * @param repositorySlug The repository slug
+   * @param name The name of the new branch (e.g. 'feature/login')
+   * @param startPoint The commit hash or ref to branch from (e.g. 'refs/heads/master' or a commit id)
+   * @returns Promise with the created branch
+   */
+  async createBranch(projectKey: string, repositorySlug: string, name: string, startPoint: string) {
+    projectKey = projectKey.toUpperCase();
+    repositorySlug = repositorySlug.toLowerCase();
+    return handleApiOperation(
+      () => RepositoryService.createBranch(projectKey, repositorySlug, { name, startPoint }),
+      'Error creating branch'
+    );
+  }
+
+  /**
+   * Delete a branch in a repository
+   * @param projectKey The project key
+   * @param repositorySlug The repository slug
+   * @param name The branch to delete (e.g. 'refs/heads/feature/login' or the branch name)
+   * @param dryRun If true, validate the deletion without actually removing the branch
+   * @returns Promise resolving to an acknowledgement
+   */
+  async deleteBranch(projectKey: string, repositorySlug: string, name: string, dryRun?: boolean) {
+    projectKey = projectKey.toUpperCase();
+    repositorySlug = repositorySlug.toLowerCase();
+    const requestBody: any = { name, ...(dryRun !== undefined ? { dryRun } : {}) };
+    const result = await handleApiOperation(
+      () => RepositoryService.deleteBranch(projectKey, repositorySlug, requestBody),
+      'Error deleting branch'
+    );
+    if (result.success) {
+      return { ...result, data: { deleted: !dryRun, name } };
+    }
+    return result;
+  }
+
+  /**
    * Get pull requests for a repository
    * @param projectKey The project key
    * @param repositorySlug The repository slug
@@ -874,6 +913,18 @@ export const bitbucketToolSchemas = {
   getRepository: {
     projectKey: z.string().describe("The project key"),
     repositorySlug: z.string().describe("The repository slug")
+  },
+  createBranch: {
+    projectKey: z.string().describe("The project key"),
+    repositorySlug: z.string().describe("The repository slug"),
+    name: z.string().describe("The name of the new branch (e.g. 'feature/login')"),
+    startPoint: z.string().describe("The commit hash or ref to branch from (e.g. 'refs/heads/master' or a commit id)")
+  },
+  deleteBranch: {
+    projectKey: z.string().describe("The project key"),
+    repositorySlug: z.string().describe("The repository slug"),
+    name: z.string().describe("The branch to delete, as a full ref (e.g. 'refs/heads/feature/login') or branch name"),
+    dryRun: z.boolean().optional().describe("If true, validate the deletion without actually removing the branch")
   },
   getCommits: {
     projectKey: z.string().describe("The project key"),

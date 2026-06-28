@@ -68,6 +68,26 @@ server.tool(
 );
 
 server.tool(
+  "bitbucket_createBranch",
+  "Create a branch in a Bitbucket repository from a given start point (ref or commit). Useful to start a feature branch before opening a pull request.",
+  bitbucketToolSchemas.createBranch,
+  async ({ projectKey, repositorySlug, name, startPoint }) => {
+    const result = await bitbucketService.createBranch(projectKey, repositorySlug, name, startPoint);
+    return formatToolResponse(result);
+  }
+);
+
+server.tool(
+  "bitbucket_deleteBranch",
+  "Delete a branch in a Bitbucket repository. Pass dryRun: true to validate the deletion without performing it. WARNING: deleting a branch is irreversible once performed.",
+  bitbucketToolSchemas.deleteBranch,
+  async ({ projectKey, repositorySlug, name, dryRun }) => {
+    const result = await bitbucketService.deleteBranch(projectKey, repositorySlug, name, dryRun);
+    return formatToolResponse(result);
+  }
+);
+
+server.tool(
   "bitbucket_getCommits",
   "Get commits for a Bitbucket repository",
   bitbucketToolSchemas.getCommits,
