@@ -137,6 +137,43 @@ export class BitbucketService {
   }
 
   /**
+   * Create or edit a file in a repository and commit the change
+   * @param projectKey The project key
+   * @param repositorySlug The repository slug
+   * @param path The path of the file to create or modify
+   * @param content The full new content of the file
+   * @param message The commit message
+   * @param branch The branch to commit on (e.g. 'refs/heads/master' or 'master')
+   * @param sourceCommitId The commit id the file was last seen at; required when editing an existing file to detect conflicts. Omit for a new file.
+   * @param sourceBranch When set, creates `branch` from this starting branch before committing
+   * @returns Promise with the created commit
+   */
+  async editFile(
+    projectKey: string,
+    repositorySlug: string,
+    path: string,
+    content: string,
+    message: string,
+    branch: string,
+    sourceCommitId?: string,
+    sourceBranch?: string
+  ) {
+    projectKey = projectKey.toUpperCase();
+    repositorySlug = repositorySlug.toLowerCase();
+    const formData: any = {
+      content,
+      message,
+      branch,
+      ...(sourceCommitId ? { sourceCommitId } : {}),
+      ...(sourceBranch ? { sourceBranch } : {}),
+    };
+    return handleApiOperation(
+      () => RepositoryService.editFile(path, projectKey, repositorySlug, formData),
+      'Error editing file'
+    );
+  }
+
+  /**
    * Get pull requests for a repository
    * @param projectKey The project key
    * @param repositorySlug The repository slug
@@ -874,6 +911,16 @@ export const bitbucketToolSchemas = {
   getRepository: {
     projectKey: z.string().describe("The project key"),
     repositorySlug: z.string().describe("The repository slug")
+  },
+  editFile: {
+    projectKey: z.string().describe("The project key"),
+    repositorySlug: z.string().describe("The repository slug"),
+    path: z.string().describe("The path of the file to create or modify (e.g. 'src/index.ts')"),
+    content: z.string().describe("The full new content of the file"),
+    message: z.string().describe("The commit message"),
+    branch: z.string().describe("The branch to commit on (e.g. 'master' or 'refs/heads/master')"),
+    sourceCommitId: z.string().optional().describe("The commit id the file was last seen at. Required when editing an existing file (conflict detection); omit when creating a new file."),
+    sourceBranch: z.string().optional().describe("When set, the target branch is created from this starting branch before committing.")
   },
   getCommits: {
     projectKey: z.string().describe("The project key"),

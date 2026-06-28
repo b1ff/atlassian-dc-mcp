@@ -68,6 +68,16 @@ server.tool(
 );
 
 server.tool(
+  "bitbucket_editFile",
+  "Create or edit a file in a Bitbucket repository and commit the change in one call (no clone needed). For an existing file, pass sourceCommitId (the commit the file was last seen at) for conflict detection; omit it to create a new file. Returns the created commit.",
+  bitbucketToolSchemas.editFile,
+  async ({ projectKey, repositorySlug, path, content, message, branch, sourceCommitId, sourceBranch }) => {
+    const result = await bitbucketService.editFile(projectKey, repositorySlug, path, content, message, branch, sourceCommitId, sourceBranch);
+    return formatToolResponse(result);
+  }
+);
+
+server.tool(
   "bitbucket_getCommits",
   "Get commits for a Bitbucket repository",
   bitbucketToolSchemas.getCommits,
