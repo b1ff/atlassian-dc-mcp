@@ -824,6 +824,144 @@ export class BitbucketService {
     return result;
   }
 
+  /**
+   * Find webhooks in a repository
+   * @param projectKey The project key
+   * @param repositorySlug The repository slug
+   * @param event Optional webhook event ID to filter for (e.g. 'repo:refs_changed')
+   * @param statistics Optional flag to include invocation statistics for each webhook
+   * @returns Promise with the page of webhooks
+   */
+  async getWebhooks(projectKey: string, repositorySlug: string, event?: string, statistics?: boolean) {
+    projectKey = projectKey.toUpperCase();
+    repositorySlug = repositorySlug.toLowerCase();
+    return handleApiOperation(
+      () => RepositoryService.findWebhooks1(projectKey, repositorySlug, event, statistics),
+      'Error fetching webhooks'
+    );
+  }
+
+  /**
+   * Get a single webhook by ID
+   * @param projectKey The project key
+   * @param repositorySlug The repository slug
+   * @param webhookId The ID of the webhook
+   * @param statistics Optional flag to include invocation statistics
+   * @returns Promise with the webhook
+   */
+  async getWebhook(projectKey: string, repositorySlug: string, webhookId: string, statistics?: boolean) {
+    projectKey = projectKey.toUpperCase();
+    repositorySlug = repositorySlug.toLowerCase();
+    return handleApiOperation(
+      () => RepositoryService.getWebhook1(
+        projectKey,
+        webhookId,
+        repositorySlug,
+        statistics === undefined ? undefined : String(statistics)
+      ),
+      'Error fetching webhook'
+    );
+  }
+
+  /**
+   * Create a webhook for a repository
+   * @param projectKey The project key
+   * @param repositorySlug The repository slug
+   * @param name The webhook name
+   * @param url The endpoint URL the webhook will POST to
+   * @param events List of event IDs to subscribe to (e.g. ['repo:refs_changed', 'pr:opened'])
+   * @param active Optional flag controlling whether the webhook is enabled (default: true)
+   * @param secret Optional secret used to sign webhook payloads (HMAC)
+   * @param sslVerificationRequired Optional flag for SSL verification on the endpoint URL
+   * @returns Promise with the created webhook
+   */
+  async createWebhook(
+    projectKey: string,
+    repositorySlug: string,
+    name: string,
+    url: string,
+    events: string[],
+    active?: boolean,
+    secret?: string,
+    sslVerificationRequired?: boolean
+  ) {
+    projectKey = projectKey.toUpperCase();
+    repositorySlug = repositorySlug.toLowerCase();
+    const requestBody = this.buildWebhookBody(name, url, events, active, secret, sslVerificationRequired);
+    return handleApiOperation(
+      () => RepositoryService.createWebhook1(projectKey, repositorySlug, requestBody),
+      'Error creating webhook'
+    );
+  }
+
+  /**
+   * Update an existing webhook (replaces its configuration)
+   * @param projectKey The project key
+   * @param repositorySlug The repository slug
+   * @param webhookId The ID of the webhook to update
+   * @param name The webhook name
+   * @param url The endpoint URL the webhook will POST to
+   * @param events List of event IDs to subscribe to
+   * @param active Optional flag controlling whether the webhook is enabled
+   * @param secret Optional secret used to sign webhook payloads (HMAC)
+   * @param sslVerificationRequired Optional flag for SSL verification on the endpoint URL
+   * @returns Promise with the updated webhook
+   */
+  async updateWebhook(
+    projectKey: string,
+    repositorySlug: string,
+    webhookId: string,
+    name: string,
+    url: string,
+    events: string[],
+    active?: boolean,
+    secret?: string,
+    sslVerificationRequired?: boolean
+  ) {
+    projectKey = projectKey.toUpperCase();
+    repositorySlug = repositorySlug.toLowerCase();
+    const requestBody = this.buildWebhookBody(name, url, events, active, secret, sslVerificationRequired);
+    return handleApiOperation(
+      () => RepositoryService.updateWebhook1(projectKey, webhookId, repositorySlug, requestBody),
+      'Error updating webhook'
+    );
+  }
+
+  /**
+   * Delete a webhook
+   * @param projectKey The project key
+   * @param repositorySlug The repository slug
+   * @param webhookId The ID of the webhook to delete
+   * @returns Promise with a delete acknowledgement
+   */
+  async deleteWebhook(projectKey: string, repositorySlug: string, webhookId: string) {
+    projectKey = projectKey.toUpperCase();
+    repositorySlug = repositorySlug.toLowerCase();
+    const result = await handleApiOperation(
+      () => RepositoryService.deleteWebhook1(projectKey, webhookId, repositorySlug),
+      'Error deleting webhook'
+    );
+    return { ...result, data: { deleted: true, webhookId } };
+  }
+
+  private buildWebhookBody(
+    name: string,
+    url: string,
+    events: string[],
+    active?: boolean,
+    secret?: string,
+    sslVerificationRequired?: boolean
+  ): any {
+    return {
+      name,
+      url,
+      events,
+      ...(active !== undefined ? { active } : {}),
+      ...(secret ? { configuration: { secret } } : {}),
+      ...(sslVerificationRequired !== undefined ? { sslVerificationRequired } : {}),
+    };
+  }
+
   async validateSetup(): Promise<void> {
     await __request(OpenAPI, {
       method: 'GET',
@@ -995,5 +1133,43 @@ export const bitbucketToolSchemas = {
   getInboxPullRequests: {
     start: z.number().optional().describe("Start number for the page (inclusive). If not passed, first page is assumed"),
     limit: z.number().optional().describe("Number of items to return. If not passed, the package default page size is used.")
+  },
+  getWebhooks: {
+    projectKey: z.string().describe("The project key"),
+    repositorySlug: z.string().describe("The repository slug"),
+    event: z.string().optional().describe("Optional webhook event ID to filter for (e.g. 'repo:refs_changed', 'pr:opened')"),
+    statistics: z.boolean().optional().describe("If true, include invocation statistics for each webhook")
+  },
+  getWebhook: {
+    projectKey: z.string().describe("The project key"),
+    repositorySlug: z.string().describe("The repository slug"),
+    webhookId: z.string().describe("The ID of the webhook"),
+    statistics: z.boolean().optional().describe("If true, include invocation statistics for the webhook")
+  },
+  createWebhook: {
+    projectKey: z.string().describe("The project key"),
+    repositorySlug: z.string().describe("The repository slug"),
+    name: z.string().describe("The webhook name"),
+    url: z.string().describe("The endpoint URL the webhook will POST to"),
+    events: z.array(z.string()).describe("List of event IDs to subscribe to (e.g. ['repo:refs_changed', 'pr:opened', 'pr:merged'])"),
+    active: z.boolean().optional().describe("Whether the webhook is enabled. Defaults to true on the server side."),
+    secret: z.string().optional().describe("Optional secret used to sign webhook payloads (HMAC)"),
+    sslVerificationRequired: z.boolean().optional().describe("Whether SSL verification is required for the endpoint URL")
+  },
+  updateWebhook: {
+    projectKey: z.string().describe("The project key"),
+    repositorySlug: z.string().describe("The repository slug"),
+    webhookId: z.string().describe("The ID of the webhook to update"),
+    name: z.string().describe("The webhook name"),
+    url: z.string().describe("The endpoint URL the webhook will POST to"),
+    events: z.array(z.string()).describe("List of event IDs to subscribe to. This replaces the existing event set."),
+    active: z.boolean().optional().describe("Whether the webhook is enabled"),
+    secret: z.string().optional().describe("Optional secret used to sign webhook payloads (HMAC)"),
+    sslVerificationRequired: z.boolean().optional().describe("Whether SSL verification is required for the endpoint URL")
+  },
+  deleteWebhook: {
+    projectKey: z.string().describe("The project key"),
+    repositorySlug: z.string().describe("The repository slug"),
+    webhookId: z.string().describe("The ID of the webhook to delete")
   }
 };

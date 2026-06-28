@@ -218,4 +218,54 @@ server.tool(
   }
 );
 
+server.tool(
+  "bitbucket_getWebhooks",
+  "List webhooks configured on a Bitbucket repository. Requires REPO_ADMIN permission. Optionally filter by event ID and include invocation statistics.",
+  bitbucketToolSchemas.getWebhooks,
+  async ({ projectKey, repositorySlug, event, statistics }) => {
+    const result = await bitbucketService.getWebhooks(projectKey, repositorySlug, event, statistics);
+    return formatToolResponse(result);
+  }
+);
+
+server.tool(
+  "bitbucket_getWebhook",
+  "Get a single Bitbucket repository webhook by its ID. Requires REPO_ADMIN permission.",
+  bitbucketToolSchemas.getWebhook,
+  async ({ projectKey, repositorySlug, webhookId, statistics }) => {
+    const result = await bitbucketService.getWebhook(projectKey, repositorySlug, webhookId, statistics);
+    return formatToolResponse(result);
+  }
+);
+
+server.tool(
+  "bitbucket_createWebhook",
+  "Create a webhook on a Bitbucket repository. Requires REPO_ADMIN permission. Provide the target URL and a list of event IDs to subscribe to (e.g. 'repo:refs_changed', 'pr:opened', 'pr:merged').",
+  bitbucketToolSchemas.createWebhook,
+  async ({ projectKey, repositorySlug, name, url, events, active, secret, sslVerificationRequired }) => {
+    const result = await bitbucketService.createWebhook(projectKey, repositorySlug, name, url, events, active, secret, sslVerificationRequired);
+    return formatToolResponse(result);
+  }
+);
+
+server.tool(
+  "bitbucket_updateWebhook",
+  "Update an existing Bitbucket repository webhook. Requires REPO_ADMIN permission. This replaces the webhook configuration, including its event set, so pass the full desired name/url/events.",
+  bitbucketToolSchemas.updateWebhook,
+  async ({ projectKey, repositorySlug, webhookId, name, url, events, active, secret, sslVerificationRequired }) => {
+    const result = await bitbucketService.updateWebhook(projectKey, repositorySlug, webhookId, name, url, events, active, secret, sslVerificationRequired);
+    return formatToolResponse(result);
+  }
+);
+
+server.tool(
+  "bitbucket_deleteWebhook",
+  "Delete a webhook from a Bitbucket repository by its ID. Requires REPO_ADMIN permission.",
+  bitbucketToolSchemas.deleteWebhook,
+  async ({ projectKey, repositorySlug, webhookId }) => {
+    const result = await bitbucketService.deleteWebhook(projectKey, repositorySlug, webhookId);
+    return formatToolResponse(result);
+  }
+);
+
 await connectServer(server);
