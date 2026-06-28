@@ -139,7 +139,7 @@ server.tool(
 
 server.tool(
   "bitbucket_updatePullRequestComment",
-  "Update an existing pull request comment. Use to edit text, change severity, or change state. On a BLOCKER (task) comment, state: 'RESOLVED' ticks the task. NOTE: this is the task-tick, not the thread-level 'Resolve' button on regular comment threads — that is a separate concept (CommentThread.resolved) and is not exposed by this endpoint. Requires the current 'version' from optimistic locking; fetch it via bitbucket_getPR_CommentsAndAction or use the version returned when the comment was created.",
+  "Update an existing pull request comment. Use to edit text, change severity, or resolve/reopen it via state. On a regular comment, state: 'RESOLVED' resolves the comment thread (the 'Resolve' button in the UI) and 'OPEN' reopens it. On a BLOCKER (task) comment, 'RESOLVED' also ticks the task and 'OPEN' un-ticks it. Resolution is driven by the root comment's state. Requires the current 'version' from optimistic locking; fetch it via bitbucket_getPR_CommentsAndAction or use the version returned when the comment was created.",
   bitbucketToolSchemas.updatePullRequestComment,
   async ({ projectKey, repositorySlug, pullRequestId, commentId, version, text, state, severity, output }) => {
     const result = await bitbucketService.updatePullRequestComment(projectKey, repositorySlug, pullRequestId, commentId, version, text, state, severity, output);
