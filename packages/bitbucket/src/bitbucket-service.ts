@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { OpenAPI, ProjectService, PullRequestsService, RepositoryService } from './bitbucket-client/index.js';
+import { BuildsAndDeploymentsService, DeprecatedService, OpenAPI, ProjectService, PullRequestsService, RepositoryService } from './bitbucket-client/index.js';
 import { request as __request } from './bitbucket-client/core/request.js';
 import { handleApiOperation, resolveOpenApiBase } from '@atlassian-dc-mcp/common';
 import { simplifyInboxPullRequests } from './inbox-pr-mapper.js';
@@ -75,6 +75,74 @@ export class BitbucketService {
         limit ?? this.getPageSize()
       ),
       'Error fetching commits'
+    );
+  }
+
+  /**
+   * List build statuses for a commit
+   * @param commitId The commit id (hash) whose build statuses to list
+   * @param orderBy Optional ordering of the results
+   * @param start Optional pagination start
+   * @param limit Optional pagination limit (defaults to the package page size)
+   * @returns Promise with the build statuses
+   * @remarks Uses the global (repository-agnostic) build-status API, keyed only by commit id.
+   */
+  async listBuildStatuses(commitId: string, orderBy?: string, start?: number, limit?: number) {
+    return handleApiOperation(
+      () => DeprecatedService.getBuildStatus(commitId, orderBy, start, limit ?? this.getPageSize()),
+      'Error fetching build statuses'
+    );
+  }
+
+  /**
+   * Add (or update) a build status for a commit
+   * @param projectKey The project key
+   * @param repositorySlug The repository slug
+   * @param commitId The commit id (hash) to attach the build status to
+   * @param state The build state: SUCCESSFUL, FAILED, or INPROGRESS
+   * @param key A unique key identifying the build (e.g. the pipeline/plan key)
+   * @param url The URL to the build result
+   * @param name Optional display name for the build
+   * @param description Optional description for the build
+   * @returns Promise resolving to an acknowledgement
+   */
+  async addBuildStatus(
+    projectKey: string,
+    repositorySlug: string,
+    commitId: string,
+    state: 'SUCCESSFUL' | 'FAILED' | 'INPROGRESS',
+    key: string,
+    url: string,
+    name?: string,
+    description?: string
+  ) {
+    projectKey = projectKey.toUpperCase();
+    repositorySlug = repositorySlug.toLowerCase();
+    const requestBody: any = { state, key, url, ...(name ? { name } : {}), ...(description ? { description } : {}) };
+    const result = await handleApiOperation(
+      () => BuildsAndDeploymentsService.add(projectKey, commitId, repositorySlug, requestBody),
+      'Error adding build status'
+    );
+    if (result.success) {
+      return { ...result, data: { added: true, commitId, key } };
+    }
+    return result;
+  }
+
+  /**
+   * Get a single build status for a commit by its key
+   * @param projectKey The project key
+   * @param repositorySlug The repository slug
+   * @param commitId The commit id (hash)
+   * @param key The unique key of the build status to fetch
+   * @returns Promise with the build status
+   */
+  async getBuildStatus(projectKey: string, repositorySlug: string, commitId: string, key: string) {
+    projectKey = projectKey.toUpperCase();
+    repositorySlug = repositorySlug.toLowerCase();
+    return handleApiOperation(
+      () => BuildsAndDeploymentsService.get(projectKey, commitId, repositorySlug, key),
+      'Error fetching build status'
     );
   }
 
@@ -882,6 +950,28 @@ export const bitbucketToolSchemas = {
     since: z.string().optional().describe("The commit ID (exclusively) to retrieve commits after"),
     until: z.string().optional().describe("The commit ID (inclusively) to retrieve commits before"),
     limit: z.number().optional().describe("Number of items to return. If not passed, the package default page size is used.")
+  },
+  listBuildStatuses: {
+    commitId: z.string().describe("The commit id (hash) whose build statuses to list. Note: build statuses are keyed by commit id globally, independent of project/repository."),
+    orderBy: z.string().optional().describe("Optional ordering of the results"),
+    start: z.number().optional().describe("Start number for pagination"),
+    limit: z.number().optional().describe("Number of items to return. If not passed, the package default page size is used.")
+  },
+  addBuildStatus: {
+    projectKey: z.string().describe("The project key"),
+    repositorySlug: z.string().describe("The repository slug"),
+    commitId: z.string().describe("The commit id (hash) to attach the build status to"),
+    state: z.enum(['SUCCESSFUL', 'FAILED', 'INPROGRESS']).describe("The build state"),
+    key: z.string().describe("A unique key identifying the build (e.g. the pipeline or plan key)"),
+    url: z.string().describe("The URL to the build result"),
+    name: z.string().optional().describe("Optional display name for the build"),
+    description: z.string().optional().describe("Optional description for the build")
+  },
+  getBuildStatus: {
+    projectKey: z.string().describe("The project key"),
+    repositorySlug: z.string().describe("The repository slug"),
+    commitId: z.string().describe("The commit id (hash)"),
+    key: z.string().describe("The unique key of the build status to fetch")
   },
   getPullRequestComments: {
     projectKey: z.string().describe("The project key"),

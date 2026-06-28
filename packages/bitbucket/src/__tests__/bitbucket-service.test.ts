@@ -3,7 +3,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { initializeRuntimeConfig } from '@atlassian-dc-mcp/common';
 import { BitbucketService } from '../bitbucket-service.js';
-import { PullRequestsService } from '../bitbucket-client/index.js';
+import { BuildsAndDeploymentsService, DeprecatedService, PullRequestsService } from '../bitbucket-client/index.js';
 import { request as mockRequest } from '../bitbucket-client/core/request.js';
 
 // Mock the request function
@@ -24,6 +24,13 @@ jest.mock('../bitbucket-client/index.js', () => ({
     getPage: jest.fn(),
     getReviewers: jest.fn(),
     get3: jest.fn()
+  },
+  DeprecatedService: {
+    getBuildStatus: jest.fn()
+  },
+  BuildsAndDeploymentsService: {
+    add: jest.fn(),
+    get: jest.fn()
   },
   OpenAPI: {
     BASE: '',
@@ -135,6 +142,125 @@ describe('BitbucketService', () => {
         mockPullRequestId
       );
 
+      expect(result.success).toBe(false);
+      expect(result.error).toBe('API Error');
+    });
+  });
+
+  describe('listBuildStatuses', () => {
+    it('should list build statuses for a commit', async () => {
+      const mockStatuses = { values: [{ key: 'build-1', state: 'SUCCESSFUL' }], isLastPage: true };
+      (DeprecatedService.getBuildStatus as jest.Mock).mockResolvedValue(mockStatuses);
+
+      const result = await bitbucketService.listBuildStatuses('abc123');
+
+      expect(result.success).toBe(true);
+      expect(result.data).toBe(mockStatuses);
+      expect(DeprecatedService.getBuildStatus).toHaveBeenCalledWith('abc123', undefined, undefined, 25);
+    });
+
+    it('should pass orderBy and pagination through', async () => {
+      (DeprecatedService.getBuildStatus as jest.Mock).mockResolvedValue({ values: [] });
+      await bitbucketService.listBuildStatuses('abc123', 'newest', 5, 50);
+      expect(DeprecatedService.getBuildStatus).toHaveBeenCalledWith('abc123', 'newest', 5, 50);
+    });
+
+    it('should handle API errors gracefully', async () => {
+      (DeprecatedService.getBuildStatus as jest.Mock).mockRejectedValue(new Error('API Error'));
+      const result = await bitbucketService.listBuildStatuses('abc123');
+      expect(result.success).toBe(false);
+      expect(result.error).toBe('API Error');
+    });
+  });
+
+  describe('addBuildStatus', () => {
+    it('should add a build status with minimal fields', async () => {
+      (BuildsAndDeploymentsService.add as jest.Mock).mockResolvedValue(undefined);
+
+      const result = await bitbucketService.addBuildStatus(
+        mockProjectKey,
+        mockRepositorySlug,
+        'abc123',
+        'SUCCESSFUL',
+        'build-1',
+        'http://ci/build/1'
+      );
+
+      expect(result.success).toBe(true);
+      expect(result.data).toEqual({ added: true, commitId: 'abc123', key: 'build-1' });
+      expect(BuildsAndDeploymentsService.add).toHaveBeenCalledWith(
+        mockProjectKey,
+        'abc123',
+        mockRepositorySlug,
+        { state: 'SUCCESSFUL', key: 'build-1', url: 'http://ci/build/1' }
+      );
+    });
+
+    it('should include optional name and description', async () => {
+      (BuildsAndDeploymentsService.add as jest.Mock).mockResolvedValue(undefined);
+      await bitbucketService.addBuildStatus(
+        mockProjectKey,
+        mockRepositorySlug,
+        'abc123',
+        'FAILED',
+        'build-2',
+        'http://ci/build/2',
+        'Unit tests',
+        'Failed on step 3'
+      );
+      expect(BuildsAndDeploymentsService.add).toHaveBeenCalledWith(
+        mockProjectKey,
+        'abc123',
+        mockRepositorySlug,
+        { state: 'FAILED', key: 'build-2', url: 'http://ci/build/2', name: 'Unit tests', description: 'Failed on step 3' }
+      );
+    });
+
+    it('should handle API errors gracefully', async () => {
+      (BuildsAndDeploymentsService.add as jest.Mock).mockRejectedValue(new Error('API Error'));
+      const result = await bitbucketService.addBuildStatus(
+        mockProjectKey,
+        mockRepositorySlug,
+        'abc123',
+        'SUCCESSFUL',
+        'build-1',
+        'http://ci/build/1'
+      );
+      expect(result.success).toBe(false);
+      expect(result.error).toBe('API Error');
+    });
+  });
+
+  describe('getBuildStatus', () => {
+    it('should get a single build status by key', async () => {
+      const mockStatus = { key: 'build-1', state: 'SUCCESSFUL' };
+      (BuildsAndDeploymentsService.get as jest.Mock).mockResolvedValue(mockStatus);
+
+      const result = await bitbucketService.getBuildStatus(
+        mockProjectKey,
+        mockRepositorySlug,
+        'abc123',
+        'build-1'
+      );
+
+      expect(result.success).toBe(true);
+      expect(result.data).toBe(mockStatus);
+      expect(BuildsAndDeploymentsService.get).toHaveBeenCalledWith(
+        mockProjectKey,
+        'abc123',
+        mockRepositorySlug,
+        'build-1'
+      );
+    });
+
+    it('should handle API errors gracefully', async () => {
+      (BuildsAndDeploymentsService.get as jest.Mock).mockRejectedValue(new Error('API Error'));
+      const result = await bitbucketService.getBuildStatus(
+        mockProjectKey,
+        mockRepositorySlug,
+        'abc123',
+        'build-1'
+      );
       expect(result.success).toBe(false);
       expect(result.error).toBe('API Error');
     });

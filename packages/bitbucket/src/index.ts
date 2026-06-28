@@ -78,6 +78,36 @@ server.tool(
 );
 
 server.tool(
+  "bitbucket_listBuildStatuses",
+  "List build statuses (CI results) for a commit. NOTE: build statuses are keyed globally by commit id, so this does not take a project/repository.",
+  bitbucketToolSchemas.listBuildStatuses,
+  async ({ commitId, orderBy, start, limit }) => {
+    const result = await bitbucketService.listBuildStatuses(commitId, orderBy, start, limit);
+    return formatToolResponse(result);
+  }
+);
+
+server.tool(
+  "bitbucket_addBuildStatus",
+  "Add (or update) a build status (CI result) on a commit. state is SUCCESSFUL, FAILED, or INPROGRESS; key uniquely identifies the build and url links to its result.",
+  bitbucketToolSchemas.addBuildStatus,
+  async ({ projectKey, repositorySlug, commitId, state, key, url, name, description }) => {
+    const result = await bitbucketService.addBuildStatus(projectKey, repositorySlug, commitId, state, key, url, name, description);
+    return formatToolResponse(result);
+  }
+);
+
+server.tool(
+  "bitbucket_getBuildStatus",
+  "Get a single build status for a commit by its key.",
+  bitbucketToolSchemas.getBuildStatus,
+  async ({ projectKey, repositorySlug, commitId, key }) => {
+    const result = await bitbucketService.getBuildStatus(projectKey, repositorySlug, commitId, key);
+    return formatToolResponse(result);
+  }
+);
+
+server.tool(
   "bitbucket_getPullRequests",
   "Get pull requests for a Bitbucket repository",
   bitbucketToolSchemas.getPullRequests,
