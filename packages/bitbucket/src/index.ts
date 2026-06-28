@@ -157,6 +157,26 @@ server.tool(
   }
 );
 
+server.tool(
+  "bitbucket_addPullRequestReviewer",
+  "Add a single reviewer to a pull request without replacing existing reviewers (unlike bitbucket_updatePullRequest, which replaces the whole reviewer list). Resolve userSlug via bitbucket_getUser if needed.",
+  bitbucketToolSchemas.addPullRequestReviewer,
+  async ({ projectKey, repositorySlug, pullRequestId, userSlug }) => {
+    const result = await bitbucketService.addPullRequestReviewer(projectKey, repositorySlug, pullRequestId, userSlug);
+    return formatToolResponse(result);
+  }
+);
+
+server.tool(
+  "bitbucket_removePullRequestReviewer",
+  "Remove a reviewer from a pull request. The user remains a participant but loses the REVIEWER role.",
+  bitbucketToolSchemas.removePullRequestReviewer,
+  async ({ projectKey, repositorySlug, pullRequestId, userSlug }) => {
+    const result = await bitbucketService.removePullRequestReviewer(projectKey, repositorySlug, pullRequestId, userSlug);
+    return formatToolResponse(result);
+  }
+);
+
 
 server.tool(
   "bitbucket_getPullRequestDiff",
