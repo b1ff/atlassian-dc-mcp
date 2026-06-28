@@ -2473,4 +2473,63 @@ describe('BitbucketService', () => {
       );
     });
   });
+
+  describe('searchCode', () => {
+    const { request: mockRequest } = require('../bitbucket-client/core/request.js');
+
+    it('should search code with the default page size', async () => {
+      const mockData = { code: { count: 1, values: [{ repository: { slug: 'demo' } }] } };
+      mockRequest.mockResolvedValue(mockData);
+
+      const result = await bitbucketService.searchCode('app');
+
+      expect(result.success).toBe(true);
+      expect(result.data).toBe(mockData);
+      expect(mockRequest).toHaveBeenCalledWith(
+        expect.any(Object),
+        {
+          method: 'POST',
+          url: '/search/latest/search',
+          body: {
+            query: 'app',
+            entities: { code: {} },
+            limits: { primary: 25 }
+          },
+          mediaType: 'application/json',
+          errors: {
+            400: 'The search query was malformed.',
+            401: 'The currently authenticated user is not permitted to search.',
+          },
+        }
+      );
+    });
+
+    it('should pass explicit primary and secondary limits', async () => {
+      mockRequest.mockResolvedValue({ code: { count: 0, values: [] } });
+
+      await bitbucketService.searchCode('repo:demo TODO', 10, 5);
+
+      expect(mockRequest).toHaveBeenCalledWith(
+        expect.any(Object),
+        expect.objectContaining({
+          method: 'POST',
+          url: '/search/latest/search',
+          body: {
+            query: 'repo:demo TODO',
+            entities: { code: {} },
+            limits: { primary: 10, secondary: 5 }
+          },
+        })
+      );
+    });
+
+    it('should handle errors when searching', async () => {
+      mockRequest.mockRejectedValue(new Error('API Error'));
+
+      const result = await bitbucketService.searchCode('app');
+
+      expect(result.success).toBe(false);
+      expect(result.error).toBeDefined();
+    });
+  });
 });
