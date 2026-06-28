@@ -824,6 +824,112 @@ export class BitbucketService {
     return result;
   }
 
+  /**
+   * Get the branch (ref) restrictions configured for a repository
+   * @param projectKey The project key
+   * @param repositorySlug The repository slug
+   * @param matcherType Optional matcher type to filter on (BRANCH, PATTERN, MODEL_CATEGORY, MODEL_BRANCH)
+   * @param matcherId Optional matcher id to filter on (requires matcherType)
+   * @param type Optional restriction type to filter on (read-only, no-deletes, fast-forward-only, pull-request-only, no-creates)
+   * @param start Optional pagination start
+   * @param limit Optional pagination limit (defaults to the package page size)
+   * @returns Promise with the page of restrictions
+   */
+  async getBranchRestrictions(
+    projectKey: string,
+    repositorySlug: string,
+    matcherType?: 'BRANCH' | 'PATTERN' | 'MODEL_CATEGORY' | 'MODEL_BRANCH',
+    matcherId?: string,
+    type?: 'read-only' | 'no-deletes' | 'fast-forward-only' | 'pull-request-only' | 'no-creates',
+    start?: number,
+    limit?: number
+  ) {
+    projectKey = projectKey.toUpperCase();
+    repositorySlug = repositorySlug.toLowerCase();
+    return handleApiOperation(
+      () => RepositoryService.getRestrictions1(
+        projectKey, repositorySlug, matcherType, matcherId, type, start, limit ?? this.getPageSize()
+      ),
+      'Error fetching branch restrictions'
+    );
+  }
+
+  /**
+   * Create a branch (ref) restriction for a repository
+   * @param projectKey The project key
+   * @param repositorySlug The repository slug
+   * @param type The restriction type (read-only, no-deletes, fast-forward-only, pull-request-only, no-creates)
+   * @param matcherType Matcher type for the restricted ref (ANY_REF, BRANCH, PATTERN, MODEL_CATEGORY, MODEL_BRANCH)
+   * @param matcherValue Matcher value (e.g. 'refs/heads/main', a pattern, or a model id)
+   * @param matcherDisplayId Optional display value for the matcher (defaults to the value)
+   * @param exemptUserSlugs Optional list of user slugs exempt from the restriction
+   * @param exemptGroupNames Optional list of group names exempt from the restriction
+   * @param exemptAccessKeyIds Optional list of SSH access key IDs exempt from the restriction
+   * @returns Promise with the created restriction
+   */
+  async createBranchRestriction(
+    projectKey: string,
+    repositorySlug: string,
+    type: string,
+    matcherType: string,
+    matcherValue: string,
+    matcherDisplayId?: string,
+    exemptUserSlugs?: string[],
+    exemptGroupNames?: string[],
+    exemptAccessKeyIds?: number[]
+  ) {
+    projectKey = projectKey.toUpperCase();
+    repositorySlug = repositorySlug.toLowerCase();
+    const restriction: any = {
+      type,
+      matcher: {
+        id: matcherValue,
+        displayId: matcherDisplayId ?? matcherValue,
+        type: { id: matcherType },
+      },
+      ...(exemptUserSlugs ? { userSlugs: exemptUserSlugs } : {}),
+      ...(exemptGroupNames ? { groupNames: exemptGroupNames } : {}),
+      ...(exemptAccessKeyIds ? { accessKeyIds: exemptAccessKeyIds } : {}),
+    };
+    return handleApiOperation(
+      () => RepositoryService.createRestrictions1(projectKey, repositorySlug, [restriction]),
+      'Error creating branch restriction'
+    );
+  }
+
+  /**
+   * Get a single branch (ref) restriction by ID
+   * @param projectKey The project key
+   * @param repositorySlug The repository slug
+   * @param id The restriction ID
+   * @returns Promise with the restriction
+   */
+  async getBranchRestriction(projectKey: string, repositorySlug: string, id: string) {
+    projectKey = projectKey.toUpperCase();
+    repositorySlug = repositorySlug.toLowerCase();
+    return handleApiOperation(
+      () => RepositoryService.getRestriction1(projectKey, id, repositorySlug),
+      'Error fetching branch restriction'
+    );
+  }
+
+  /**
+   * Delete a branch (ref) restriction by ID
+   * @param projectKey The project key
+   * @param repositorySlug The repository slug
+   * @param id The restriction ID
+   * @returns Promise with a delete acknowledgement
+   */
+  async deleteBranchRestriction(projectKey: string, repositorySlug: string, id: string) {
+    projectKey = projectKey.toUpperCase();
+    repositorySlug = repositorySlug.toLowerCase();
+    const result = await handleApiOperation(
+      () => RepositoryService.deleteRestriction1(projectKey, id, repositorySlug),
+      'Error deleting branch restriction'
+    );
+    return { ...result, data: { deleted: true, id } };
+  }
+
   async validateSetup(): Promise<void> {
     await __request(OpenAPI, {
       method: 'GET',
@@ -995,5 +1101,35 @@ export const bitbucketToolSchemas = {
   getInboxPullRequests: {
     start: z.number().optional().describe("Start number for the page (inclusive). If not passed, first page is assumed"),
     limit: z.number().optional().describe("Number of items to return. If not passed, the package default page size is used.")
+  },
+  getBranchRestrictions: {
+    projectKey: z.string().describe("The project key"),
+    repositorySlug: z.string().describe("The repository slug"),
+    matcherType: z.enum(['BRANCH', 'PATTERN', 'MODEL_CATEGORY', 'MODEL_BRANCH']).optional().describe("Filter by matcher type"),
+    matcherId: z.string().optional().describe("Filter by matcher id (requires matcherType)"),
+    type: z.enum(['read-only', 'no-deletes', 'fast-forward-only', 'pull-request-only', 'no-creates']).optional().describe("Filter by restriction type"),
+    start: z.number().optional().describe("Start number for pagination"),
+    limit: z.number().optional().describe("Number of items to return. If not passed, the package default page size is used.")
+  },
+  createBranchRestriction: {
+    projectKey: z.string().describe("The project key"),
+    repositorySlug: z.string().describe("The repository slug"),
+    type: z.enum(['read-only', 'no-deletes', 'fast-forward-only', 'pull-request-only', 'no-creates']).describe("The restriction type: read-only (prevent changes), no-deletes, fast-forward-only (prevent rewriting history), pull-request-only (prevent changes without a PR), no-creates"),
+    matcherType: z.enum(['ANY_REF', 'BRANCH', 'PATTERN', 'MODEL_CATEGORY', 'MODEL_BRANCH']).describe("Matcher type for the restricted ref"),
+    matcherValue: z.string().describe("Matcher value. For BRANCH use a ref id like 'refs/heads/main'; for PATTERN use the pattern; for MODEL_* use the model id; for ANY_REF use 'ANY_REF'."),
+    matcherDisplayId: z.string().optional().describe("Display value for the matcher (defaults to the matcher value, e.g. 'main' for 'refs/heads/main')"),
+    exemptUserSlugs: z.array(z.string()).optional().describe("User slugs exempt from the restriction"),
+    exemptGroupNames: z.array(z.string()).optional().describe("Group names exempt from the restriction"),
+    exemptAccessKeyIds: z.array(z.number()).optional().describe("SSH access key IDs exempt from the restriction")
+  },
+  getBranchRestriction: {
+    projectKey: z.string().describe("The project key"),
+    repositorySlug: z.string().describe("The repository slug"),
+    id: z.string().describe("The restriction ID")
+  },
+  deleteBranchRestriction: {
+    projectKey: z.string().describe("The project key"),
+    repositorySlug: z.string().describe("The repository slug"),
+    id: z.string().describe("The restriction ID")
   }
 };

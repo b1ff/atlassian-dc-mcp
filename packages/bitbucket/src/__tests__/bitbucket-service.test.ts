@@ -3,7 +3,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { initializeRuntimeConfig } from '@atlassian-dc-mcp/common';
 import { BitbucketService } from '../bitbucket-service.js';
-import { PullRequestsService } from '../bitbucket-client/index.js';
+import { PullRequestsService, RepositoryService } from '../bitbucket-client/index.js';
 import { request as mockRequest } from '../bitbucket-client/core/request.js';
 
 // Mock the request function
@@ -24,6 +24,12 @@ jest.mock('../bitbucket-client/index.js', () => ({
     getPage: jest.fn(),
     getReviewers: jest.fn(),
     get3: jest.fn()
+  },
+  RepositoryService: {
+    getRestrictions1: jest.fn(),
+    createRestrictions1: jest.fn(),
+    getRestriction1: jest.fn(),
+    deleteRestriction1: jest.fn()
   },
   OpenAPI: {
     BASE: '',
@@ -2471,6 +2477,90 @@ describe('BitbucketService', () => {
         'TEST', 'test-repo', undefined, undefined,
         'refs/heads/feature', 'refs/heads/main'
       );
+    });
+  });
+
+  describe('branch restrictions', () => {
+    it('should get branch restrictions with filters and default limit', async () => {
+      const mockData = { values: [{ id: 1 }], isLastPage: true };
+      (RepositoryService.getRestrictions1 as jest.Mock).mockResolvedValue(mockData);
+
+      const result = await bitbucketService.getBranchRestrictions('test', 'Test-Repo', 'BRANCH', 'refs/heads/master', 'no-deletes');
+
+      expect(result.success).toBe(true);
+      expect(result.data).toBe(mockData);
+      expect(RepositoryService.getRestrictions1).toHaveBeenCalledWith(
+        'TEST', 'test-repo', 'BRANCH', 'refs/heads/master', 'no-deletes', undefined, 25
+      );
+    });
+
+    it('should create a branch restriction wrapped in a bulk array', async () => {
+      const mockData = { id: 1, type: 'no-deletes' };
+      (RepositoryService.createRestrictions1 as jest.Mock).mockResolvedValue(mockData);
+
+      const result = await bitbucketService.createBranchRestriction(
+        'test', 'Test-Repo', 'no-deletes', 'BRANCH', 'refs/heads/master', 'master', ['admin'], ['devs'], [7]
+      );
+
+      expect(result.success).toBe(true);
+      expect(result.data).toBe(mockData);
+      expect(RepositoryService.createRestrictions1).toHaveBeenCalledWith('TEST', 'test-repo', [{
+        type: 'no-deletes',
+        matcher: { id: 'refs/heads/master', displayId: 'master', type: { id: 'BRANCH' } },
+        userSlugs: ['admin'],
+        groupNames: ['devs'],
+        accessKeyIds: [7]
+      }]);
+    });
+
+    it('should omit exemption fields when not provided', async () => {
+      (RepositoryService.createRestrictions1 as jest.Mock).mockResolvedValue({});
+
+      await bitbucketService.createBranchRestriction('TEST', 'test-repo', 'read-only', 'ANY_REF', 'ANY_REF');
+
+      expect(RepositoryService.createRestrictions1).toHaveBeenCalledWith('TEST', 'test-repo', [{
+        type: 'read-only',
+        matcher: { id: 'ANY_REF', displayId: 'ANY_REF', type: { id: 'ANY_REF' } }
+      }]);
+    });
+
+    it('should handle errors when creating a restriction', async () => {
+      (RepositoryService.createRestrictions1 as jest.Mock).mockRejectedValue(new Error('API Error'));
+
+      const result = await bitbucketService.createBranchRestriction('TEST', 'test-repo', 'read-only', 'ANY_REF', 'ANY_REF');
+
+      expect(result.success).toBe(false);
+      expect(result.error).toBeDefined();
+    });
+
+    it('should get a single restriction by id', async () => {
+      const mockData = { id: 5 };
+      (RepositoryService.getRestriction1 as jest.Mock).mockResolvedValue(mockData);
+
+      const result = await bitbucketService.getBranchRestriction('test', 'Test-Repo', '5');
+
+      expect(result.success).toBe(true);
+      expect(result.data).toBe(mockData);
+      expect(RepositoryService.getRestriction1).toHaveBeenCalledWith('TEST', '5', 'test-repo');
+    });
+
+    it('should delete a restriction and return an ack', async () => {
+      (RepositoryService.deleteRestriction1 as jest.Mock).mockResolvedValue(undefined);
+
+      const result = await bitbucketService.deleteBranchRestriction('test', 'Test-Repo', '5');
+
+      expect(result.success).toBe(true);
+      expect(result.data).toEqual({ deleted: true, id: '5' });
+      expect(RepositoryService.deleteRestriction1).toHaveBeenCalledWith('TEST', '5', 'test-repo');
+    });
+
+    it('should preserve the error field when delete fails', async () => {
+      (RepositoryService.deleteRestriction1 as jest.Mock).mockRejectedValue(new Error('API Error'));
+
+      const result = await bitbucketService.deleteBranchRestriction('TEST', 'test-repo', '5');
+
+      expect(result.success).toBe(false);
+      expect(result.error).toBeDefined();
     });
   });
 });
