@@ -218,4 +218,44 @@ server.tool(
   }
 );
 
+server.tool(
+  "bitbucket_getDefaultReviewerConditions",
+  "List the default reviewer conditions configured for a Bitbucket repository. Each condition maps a source/target ref matcher to a set of default reviewers and a required-approvals count.",
+  bitbucketToolSchemas.getDefaultReviewerConditions,
+  async ({ projectKey, repositorySlug }) => {
+    const result = await bitbucketService.getDefaultReviewerConditions(projectKey, repositorySlug);
+    return formatToolResponse(result);
+  }
+);
+
+server.tool(
+  "bitbucket_createDefaultReviewerCondition",
+  "Create a default reviewer condition on a Bitbucket repository. Matchers are specified by type (ANY_REF, BRANCH, PATTERN, MODEL_CATEGORY, MODEL_BRANCH) and value. Reviewers are given as numeric user IDs (resolve usernames via bitbucket_getUser).",
+  bitbucketToolSchemas.createDefaultReviewerCondition,
+  async ({ projectKey, repositorySlug, sourceMatcherType, sourceMatcherValue, targetMatcherType, targetMatcherValue, reviewerIds, requiredApprovals, sourceMatcherDisplayId, targetMatcherDisplayId }) => {
+    const result = await bitbucketService.createDefaultReviewerCondition(projectKey, repositorySlug, sourceMatcherType, sourceMatcherValue, targetMatcherType, targetMatcherValue, reviewerIds, requiredApprovals, sourceMatcherDisplayId, targetMatcherDisplayId);
+    return formatToolResponse(result);
+  }
+);
+
+server.tool(
+  "bitbucket_updateDefaultReviewerCondition",
+  "Update a default reviewer condition on a Bitbucket repository. This replaces the whole condition, so provide the complete desired matchers and reviewer set.",
+  bitbucketToolSchemas.updateDefaultReviewerCondition,
+  async ({ projectKey, repositorySlug, id, sourceMatcherType, sourceMatcherValue, targetMatcherType, targetMatcherValue, reviewerIds, requiredApprovals, sourceMatcherDisplayId, targetMatcherDisplayId }) => {
+    const result = await bitbucketService.updateDefaultReviewerCondition(projectKey, repositorySlug, id, sourceMatcherType, sourceMatcherValue, targetMatcherType, targetMatcherValue, reviewerIds, requiredApprovals, sourceMatcherDisplayId, targetMatcherDisplayId);
+    return formatToolResponse(result);
+  }
+);
+
+server.tool(
+  "bitbucket_deleteDefaultReviewerCondition",
+  "Delete a default reviewer condition from a Bitbucket repository by its ID.",
+  bitbucketToolSchemas.deleteDefaultReviewerCondition,
+  async ({ projectKey, repositorySlug, id }) => {
+    const result = await bitbucketService.deleteDefaultReviewerCondition(projectKey, repositorySlug, id);
+    return formatToolResponse(result);
+  }
+);
+
 await connectServer(server);
