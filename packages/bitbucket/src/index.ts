@@ -68,6 +68,36 @@ server.tool(
 );
 
 server.tool(
+  "bitbucket_getTags",
+  "Get tags for a Bitbucket repository. Supports filtering by name substring and ordering (ALPHABETICAL or MODIFICATION).",
+  bitbucketToolSchemas.getTags,
+  async ({ projectKey, repositorySlug, filterText, orderBy, start, limit }) => {
+    const result = await bitbucketService.getTags(projectKey, repositorySlug, filterText, orderBy, start, limit);
+    return formatToolResponse(result);
+  }
+);
+
+server.tool(
+  "bitbucket_getTag",
+  "Get a single tag by name from a Bitbucket repository.",
+  bitbucketToolSchemas.getTag,
+  async ({ projectKey, repositorySlug, name }) => {
+    const result = await bitbucketService.getTag(projectKey, repositorySlug, name);
+    return formatToolResponse(result);
+  }
+);
+
+server.tool(
+  "bitbucket_createTag",
+  "Create a tag in a Bitbucket repository pointing at a ref or commit. Provide a message to create an annotated tag.",
+  bitbucketToolSchemas.createTag,
+  async ({ projectKey, repositorySlug, name, startPoint, message }) => {
+    const result = await bitbucketService.createTag(projectKey, repositorySlug, name, startPoint, message);
+    return formatToolResponse(result);
+  }
+);
+
+server.tool(
   "bitbucket_getCommits",
   "Get commits for a Bitbucket repository",
   bitbucketToolSchemas.getCommits,
