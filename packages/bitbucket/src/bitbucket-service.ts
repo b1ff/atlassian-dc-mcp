@@ -720,6 +720,132 @@ export class BitbucketService {
   }
 
   /**
+   * Check whether a pull request can be merged
+   * @param projectKey The project key
+   * @param repositorySlug The repository slug
+   * @param pullRequestId The pull request ID
+   * @returns Promise with mergeability data (canMerge, conflicted, vetoes)
+   */
+  async canMergePullRequest(
+    projectKey: string,
+    repositorySlug: string,
+    pullRequestId: string
+  ) {
+    projectKey = projectKey.toUpperCase();
+    repositorySlug = repositorySlug.toLowerCase();
+    return handleApiOperation(
+      () => PullRequestsService.canMerge(projectKey, pullRequestId, repositorySlug),
+      'Error checking pull request mergeability'
+    );
+  }
+
+  /**
+   * Merge a pull request
+   * @param projectKey The project key
+   * @param repositorySlug The repository slug
+   * @param pullRequestId The pull request ID
+   * @param version The current version of the pull request (required for optimistic locking)
+   * @param message Optional custom merge commit message
+   * @param strategyId Optional merge strategy id (e.g. 'no-ff', 'ff', 'ff-only', 'rebase-no-ff', 'squash')
+   * @param output Return a compact acknowledgement or the full API response. Defaults to 'ack'.
+   * @returns Promise with merged pull request data
+   */
+  async mergePullRequest(
+    projectKey: string,
+    repositorySlug: string,
+    pullRequestId: string,
+    version: number,
+    message?: string,
+    strategyId?: string,
+    output: BitbucketMutationOutputMode = 'ack'
+  ) {
+    projectKey = projectKey.toUpperCase();
+    repositorySlug = repositorySlug.toLowerCase();
+    const requestBody: any = {
+      ...(message ? { message } : {}),
+      ...(strategyId ? { strategyId } : {}),
+    };
+
+    const result = await handleApiOperation(
+      () => PullRequestsService.merge(projectKey, pullRequestId, repositorySlug, String(version), requestBody),
+      'Error merging pull request'
+    );
+
+    if (result.success && result.data && output !== 'full') {
+      return { ...result, data: shapePullRequestAck(result.data) };
+    }
+
+    return result;
+  }
+
+  /**
+   * Decline a pull request
+   * @param projectKey The project key
+   * @param repositorySlug The repository slug
+   * @param pullRequestId The pull request ID
+   * @param version The current version of the pull request (required for optimistic locking)
+   * @param comment Optional comment explaining why the pull request was declined
+   * @param output Return a compact acknowledgement or the full API response. Defaults to 'ack'.
+   * @returns Promise with declined pull request data
+   */
+  async declinePullRequest(
+    projectKey: string,
+    repositorySlug: string,
+    pullRequestId: string,
+    version: number,
+    comment?: string,
+    output: BitbucketMutationOutputMode = 'ack'
+  ) {
+    projectKey = projectKey.toUpperCase();
+    repositorySlug = repositorySlug.toLowerCase();
+    const requestBody: any = {
+      ...(comment ? { comment } : {}),
+    };
+
+    const result = await handleApiOperation(
+      () => PullRequestsService.decline(projectKey, pullRequestId, repositorySlug, String(version), requestBody),
+      'Error declining pull request'
+    );
+
+    if (result.success && result.data && output !== 'full') {
+      return { ...result, data: shapePullRequestAck(result.data) };
+    }
+
+    return result;
+  }
+
+  /**
+   * Reopen a declined pull request
+   * @param projectKey The project key
+   * @param repositorySlug The repository slug
+   * @param pullRequestId The pull request ID
+   * @param version The current version of the pull request (required for optimistic locking)
+   * @param output Return a compact acknowledgement or the full API response. Defaults to 'ack'.
+   * @returns Promise with reopened pull request data
+   */
+  async reopenPullRequest(
+    projectKey: string,
+    repositorySlug: string,
+    pullRequestId: string,
+    version: number,
+    output: BitbucketMutationOutputMode = 'ack'
+  ) {
+    projectKey = projectKey.toUpperCase();
+    repositorySlug = repositorySlug.toLowerCase();
+
+    const result = await handleApiOperation(
+      () => PullRequestsService.reopen(projectKey, pullRequestId, repositorySlug, String(version), {}),
+      'Error reopening pull request'
+    );
+
+    if (result.success && result.data && output !== 'full') {
+      return { ...result, data: shapePullRequestAck(result.data) };
+    }
+
+    return result;
+  }
+
+  /**
    * Get required reviewers for PR creation
    * Returns a set of users who are required reviewers for pull requests created from the given source repository
    * and ref to the given target ref in this repository.
@@ -974,6 +1100,35 @@ export const bitbucketToolSchemas = {
     description: z.string().optional().describe("The new description for the pull request"),
     draft: z.boolean().optional().describe("If provided, sets the draft (work-in-progress) status of the pull request. Pass true to mark as draft, false to mark as ready for review."),
     reviewers: z.array(z.string()).optional().describe("Optional array of reviewer usernames to set (use the 'name' field from Bitbucket user objects, not 'slug')"),
+    output: z.enum(['ack', 'full']).optional().describe("Return a compact acknowledgement or the full API response. Defaults to ack.")
+  },
+  canMergePullRequest: {
+    projectKey: z.string().describe("The project key"),
+    repositorySlug: z.string().describe("The repository slug"),
+    pullRequestId: z.string().describe("The pull request ID")
+  },
+  mergePullRequest: {
+    projectKey: z.string().describe("The project key"),
+    repositorySlug: z.string().describe("The repository slug"),
+    pullRequestId: z.string().describe("The pull request ID"),
+    version: z.number().describe("The current version of the pull request (required for optimistic locking). Obtain it via bitbucket_getPullRequest. Use bitbucket_canMergePullRequest first to confirm there are no merge vetoes."),
+    message: z.string().optional().describe("Optional custom merge commit message"),
+    strategyId: z.string().optional().describe("Optional merge strategy id, e.g. 'no-ff', 'ff', 'ff-only', 'rebase-no-ff', or 'squash'. Must be enabled on the repository. Defaults to the repository's configured strategy."),
+    output: z.enum(['ack', 'full']).optional().describe("Return a compact acknowledgement or the full API response. Defaults to ack.")
+  },
+  declinePullRequest: {
+    projectKey: z.string().describe("The project key"),
+    repositorySlug: z.string().describe("The repository slug"),
+    pullRequestId: z.string().describe("The pull request ID"),
+    version: z.number().describe("The current version of the pull request (required for optimistic locking). Obtain it via bitbucket_getPullRequest."),
+    comment: z.string().optional().describe("Optional comment explaining why the pull request is being declined"),
+    output: z.enum(['ack', 'full']).optional().describe("Return a compact acknowledgement or the full API response. Defaults to ack.")
+  },
+  reopenPullRequest: {
+    projectKey: z.string().describe("The project key"),
+    repositorySlug: z.string().describe("The repository slug"),
+    pullRequestId: z.string().describe("The pull request ID"),
+    version: z.number().describe("The current version of the declined pull request (required for optimistic locking). Obtain it via bitbucket_getPullRequest."),
     output: z.enum(['ack', 'full']).optional().describe("Return a compact acknowledgement or the full API response. Defaults to ack.")
   },
   getRequiredReviewers: {

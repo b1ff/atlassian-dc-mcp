@@ -159,6 +159,46 @@ server.tool(
 
 
 server.tool(
+  "bitbucket_canMergePullRequest",
+  "Check whether a pull request can be merged. Returns canMerge, conflicted, and a list of vetoes (e.g. unresolved tasks, insufficient approvals, merge conflicts). Use this as a read-only guard before calling bitbucket_mergePullRequest.",
+  bitbucketToolSchemas.canMergePullRequest,
+  async ({ projectKey, repositorySlug, pullRequestId }) => {
+    const result = await bitbucketService.canMergePullRequest(projectKey, repositorySlug, pullRequestId);
+    return formatToolResponse(result);
+  }
+);
+
+server.tool(
+  "bitbucket_mergePullRequest",
+  "Merge a pull request. IMPORTANT: You MUST first call bitbucket_getPullRequest to get the current 'version' (optimistic locking) — the call fails without it. Recommended: call bitbucket_canMergePullRequest first to ensure there are no merge vetoes. Optionally pass a custom merge message and a strategyId (must be enabled on the repository).",
+  bitbucketToolSchemas.mergePullRequest,
+  async ({ projectKey, repositorySlug, pullRequestId, version, message, strategyId, output }) => {
+    const result = await bitbucketService.mergePullRequest(projectKey, repositorySlug, pullRequestId, version, message, strategyId, output);
+    return formatToolResponse(result);
+  }
+);
+
+server.tool(
+  "bitbucket_declinePullRequest",
+  "Decline (reject) an open pull request without merging. IMPORTANT: You MUST first call bitbucket_getPullRequest to get the current 'version' (optimistic locking). Optionally pass a comment explaining the decision. A declined PR can later be reopened with bitbucket_reopenPullRequest.",
+  bitbucketToolSchemas.declinePullRequest,
+  async ({ projectKey, repositorySlug, pullRequestId, version, comment, output }) => {
+    const result = await bitbucketService.declinePullRequest(projectKey, repositorySlug, pullRequestId, version, comment, output);
+    return formatToolResponse(result);
+  }
+);
+
+server.tool(
+  "bitbucket_reopenPullRequest",
+  "Reopen a previously declined pull request. IMPORTANT: You MUST first call bitbucket_getPullRequest to get the current 'version' (optimistic locking). Only works on PRs in the DECLINED state.",
+  bitbucketToolSchemas.reopenPullRequest,
+  async ({ projectKey, repositorySlug, pullRequestId, version, output }) => {
+    const result = await bitbucketService.reopenPullRequest(projectKey, repositorySlug, pullRequestId, version, output);
+    return formatToolResponse(result);
+  }
+);
+
+server.tool(
   "bitbucket_getPullRequestDiff",
   "Get text diff for a specific file in a Bitbucket pull request. Returns plain text diff format. Note: Before getting diff, use getPullRequestChanges to understand what files were changed in the PR",
   bitbucketToolSchemas.getPullRequestDiff,

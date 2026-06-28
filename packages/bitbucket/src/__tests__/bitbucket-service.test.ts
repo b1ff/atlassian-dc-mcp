@@ -23,7 +23,11 @@ jest.mock('../bitbucket-client/index.js', () => ({
     updateStatus: jest.fn(),
     getPage: jest.fn(),
     getReviewers: jest.fn(),
-    get3: jest.fn()
+    get3: jest.fn(),
+    canMerge: jest.fn(),
+    merge: jest.fn(),
+    decline: jest.fn(),
+    reopen: jest.fn()
   },
   OpenAPI: {
     BASE: '',
@@ -1634,6 +1638,256 @@ describe('BitbucketService', () => {
 
       expect(result.success).toBe(false);
       expect(result.error).toBe('Version conflict - PR has been modified');
+    });
+  });
+
+  describe('canMergePullRequest', () => {
+    it('should successfully check mergeability', async () => {
+      const mockMergeability = { canMerge: true, conflicted: false, vetoes: [] };
+      (PullRequestsService.canMerge as jest.Mock).mockResolvedValue(mockMergeability);
+
+      const result = await bitbucketService.canMergePullRequest(
+        mockProjectKey,
+        mockRepositorySlug,
+        mockPullRequestId
+      );
+
+      expect(result.success).toBe(true);
+      expect(result.data).toBe(mockMergeability);
+      expect(PullRequestsService.canMerge).toHaveBeenCalledWith(
+        mockProjectKey,
+        mockPullRequestId,
+        mockRepositorySlug
+      );
+    });
+
+    it('should handle API errors gracefully', async () => {
+      const mockError = new Error('API Error');
+      (PullRequestsService.canMerge as jest.Mock).mockRejectedValue(mockError);
+
+      const result = await bitbucketService.canMergePullRequest(
+        mockProjectKey,
+        mockRepositorySlug,
+        mockPullRequestId
+      );
+
+      expect(result.success).toBe(false);
+      expect(result.error).toBe('API Error');
+    });
+  });
+
+  describe('mergePullRequest', () => {
+    it('should successfully merge a PR with minimal parameters', async () => {
+      const mockMergedPR = {
+        id: 1,
+        version: 2,
+        title: 'Test PR',
+        state: 'MERGED',
+        fromRef: { id: 'refs/heads/feature-branch' },
+        toRef: { id: 'refs/heads/main' }
+      };
+      (PullRequestsService.merge as jest.Mock).mockResolvedValue(mockMergedPR);
+
+      const result = await bitbucketService.mergePullRequest(
+        mockProjectKey,
+        mockRepositorySlug,
+        mockPullRequestId,
+        1
+      );
+
+      expect(result.success).toBe(true);
+      expect(result.data).toEqual({
+        id: 1,
+        version: 2,
+        title: 'Test PR',
+        state: 'MERGED',
+        fromRefId: 'refs/heads/feature-branch',
+        toRefId: 'refs/heads/main',
+        reviewerCount: 0,
+      });
+      expect(PullRequestsService.merge).toHaveBeenCalledWith(
+        mockProjectKey,
+        mockPullRequestId,
+        mockRepositorySlug,
+        '1',
+        {}
+      );
+    });
+
+    it('should pass message and strategyId in the request body', async () => {
+      const mockMergedPR = { id: 1, version: 2, state: 'MERGED' };
+      (PullRequestsService.merge as jest.Mock).mockResolvedValue(mockMergedPR);
+
+      await bitbucketService.mergePullRequest(
+        mockProjectKey,
+        mockRepositorySlug,
+        mockPullRequestId,
+        1,
+        'Custom merge message',
+        'squash'
+      );
+
+      expect(PullRequestsService.merge).toHaveBeenCalledWith(
+        mockProjectKey,
+        mockPullRequestId,
+        mockRepositorySlug,
+        '1',
+        { message: 'Custom merge message', strategyId: 'squash' }
+      );
+    });
+
+    it('should return the full response when output is full', async () => {
+      const mockMergedPR = { id: 1, version: 2, state: 'MERGED' };
+      (PullRequestsService.merge as jest.Mock).mockResolvedValue(mockMergedPR);
+
+      const result = await bitbucketService.mergePullRequest(
+        mockProjectKey,
+        mockRepositorySlug,
+        mockPullRequestId,
+        1,
+        undefined,
+        undefined,
+        'full'
+      );
+
+      expect(result.success).toBe(true);
+      expect(result.data).toBe(mockMergedPR);
+    });
+
+    it('should handle merge veto errors gracefully', async () => {
+      const mockError = new Error('The pull request has unresolved tasks');
+      (PullRequestsService.merge as jest.Mock).mockRejectedValue(mockError);
+
+      const result = await bitbucketService.mergePullRequest(
+        mockProjectKey,
+        mockRepositorySlug,
+        mockPullRequestId,
+        1
+      );
+
+      expect(result.success).toBe(false);
+      expect(result.error).toBe('The pull request has unresolved tasks');
+    });
+  });
+
+  describe('declinePullRequest', () => {
+    it('should successfully decline a PR', async () => {
+      const mockDeclinedPR = {
+        id: 1,
+        version: 2,
+        title: 'Test PR',
+        state: 'DECLINED'
+      };
+      (PullRequestsService.decline as jest.Mock).mockResolvedValue(mockDeclinedPR);
+
+      const result = await bitbucketService.declinePullRequest(
+        mockProjectKey,
+        mockRepositorySlug,
+        mockPullRequestId,
+        1
+      );
+
+      expect(result.success).toBe(true);
+      expect(result.data).toEqual({
+        id: 1,
+        version: 2,
+        title: 'Test PR',
+        state: 'DECLINED',
+        reviewerCount: 0,
+      });
+      expect(PullRequestsService.decline).toHaveBeenCalledWith(
+        mockProjectKey,
+        mockPullRequestId,
+        mockRepositorySlug,
+        '1',
+        {}
+      );
+    });
+
+    it('should pass an optional comment in the request body', async () => {
+      const mockDeclinedPR = { id: 1, version: 2, state: 'DECLINED' };
+      (PullRequestsService.decline as jest.Mock).mockResolvedValue(mockDeclinedPR);
+
+      await bitbucketService.declinePullRequest(
+        mockProjectKey,
+        mockRepositorySlug,
+        mockPullRequestId,
+        1,
+        'Superseded by another PR'
+      );
+
+      expect(PullRequestsService.decline).toHaveBeenCalledWith(
+        mockProjectKey,
+        mockPullRequestId,
+        mockRepositorySlug,
+        '1',
+        { comment: 'Superseded by another PR' }
+      );
+    });
+
+    it('should handle API errors gracefully', async () => {
+      const mockError = new Error('API Error');
+      (PullRequestsService.decline as jest.Mock).mockRejectedValue(mockError);
+
+      const result = await bitbucketService.declinePullRequest(
+        mockProjectKey,
+        mockRepositorySlug,
+        mockPullRequestId,
+        1
+      );
+
+      expect(result.success).toBe(false);
+      expect(result.error).toBe('API Error');
+    });
+  });
+
+  describe('reopenPullRequest', () => {
+    it('should successfully reopen a declined PR', async () => {
+      const mockReopenedPR = {
+        id: 1,
+        version: 3,
+        title: 'Test PR',
+        state: 'OPEN'
+      };
+      (PullRequestsService.reopen as jest.Mock).mockResolvedValue(mockReopenedPR);
+
+      const result = await bitbucketService.reopenPullRequest(
+        mockProjectKey,
+        mockRepositorySlug,
+        mockPullRequestId,
+        2
+      );
+
+      expect(result.success).toBe(true);
+      expect(result.data).toEqual({
+        id: 1,
+        version: 3,
+        title: 'Test PR',
+        state: 'OPEN',
+        reviewerCount: 0,
+      });
+      expect(PullRequestsService.reopen).toHaveBeenCalledWith(
+        mockProjectKey,
+        mockPullRequestId,
+        mockRepositorySlug,
+        '2',
+        {}
+      );
+    });
+
+    it('should handle API errors gracefully', async () => {
+      const mockError = new Error('Pull request is not declined');
+      (PullRequestsService.reopen as jest.Mock).mockRejectedValue(mockError);
+
+      const result = await bitbucketService.reopenPullRequest(
+        mockProjectKey,
+        mockRepositorySlug,
+        mockPullRequestId,
+        2
+      );
+
+      expect(result.success).toBe(false);
+      expect(result.error).toBe('Pull request is not declined');
     });
   });
 
