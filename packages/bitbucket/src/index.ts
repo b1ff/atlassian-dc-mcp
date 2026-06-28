@@ -68,6 +68,26 @@ server.tool(
 );
 
 server.tool(
+  "bitbucket_getBranches",
+  "Get branches for a Bitbucket repository. Supports filtering by name substring and ordering (ALPHABETICAL or MODIFICATION). Useful before creating a pull request to discover valid source/target refs.",
+  bitbucketToolSchemas.getBranches,
+  async ({ projectKey, repositorySlug, filterText, orderBy, start, limit }) => {
+    const result = await bitbucketService.getBranches(projectKey, repositorySlug, filterText, orderBy, start, limit);
+    return formatToolResponse(result);
+  }
+);
+
+server.tool(
+  "bitbucket_getDefaultBranch",
+  "Get the default branch of a Bitbucket repository (e.g. main or master). Useful as the target ref when creating a pull request.",
+  bitbucketToolSchemas.getDefaultBranch,
+  async ({ projectKey, repositorySlug }) => {
+    const result = await bitbucketService.getDefaultBranch(projectKey, repositorySlug);
+    return formatToolResponse(result);
+  }
+);
+
+server.tool(
   "bitbucket_getCommits",
   "Get commits for a Bitbucket repository",
   bitbucketToolSchemas.getCommits,

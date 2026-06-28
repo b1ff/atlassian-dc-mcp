@@ -137,6 +137,58 @@ export class BitbucketService {
   }
 
   /**
+   * Get branches for a repository
+   * @param projectKey The project key
+   * @param repositorySlug The repository slug
+   * @param filterText Optional text the branch name must contain
+   * @param orderBy Optional ordering: ALPHABETICAL or MODIFICATION (most recently modified first)
+   * @param start Optional pagination start
+   * @param limit Optional pagination limit (defaults to the package page size)
+   * @returns Promise with branches data
+   */
+  async getBranches(
+    projectKey: string,
+    repositorySlug: string,
+    filterText?: string,
+    orderBy?: 'ALPHABETICAL' | 'MODIFICATION',
+    start?: number,
+    limit?: number
+  ) {
+    projectKey = projectKey.toUpperCase();
+    repositorySlug = repositorySlug.toLowerCase();
+    return handleApiOperation(
+      () => RepositoryService.getBranches(
+        projectKey,
+        repositorySlug,
+        undefined, // boostMatches
+        undefined, // context
+        orderBy,
+        undefined, // details
+        filterText,
+        undefined, // base
+        start,
+        limit ?? this.getPageSize()
+      ),
+      'Error fetching branches'
+    );
+  }
+
+  /**
+   * Get the default branch of a repository
+   * @param projectKey The project key
+   * @param repositorySlug The repository slug
+   * @returns Promise with the default branch data
+   */
+  async getDefaultBranch(projectKey: string, repositorySlug: string) {
+    projectKey = projectKey.toUpperCase();
+    repositorySlug = repositorySlug.toLowerCase();
+    return handleApiOperation(
+      () => RepositoryService.getDefaultBranch1(projectKey, repositorySlug),
+      'Error fetching default branch'
+    );
+  }
+
+  /**
    * Get pull requests for a repository
    * @param projectKey The project key
    * @param repositorySlug The repository slug
@@ -872,6 +924,18 @@ export const bitbucketToolSchemas = {
     limit: z.number().optional().describe("Number of items to return. If not passed, the package default page size is used.")
   },
   getRepository: {
+    projectKey: z.string().describe("The project key"),
+    repositorySlug: z.string().describe("The repository slug")
+  },
+  getBranches: {
+    projectKey: z.string().describe("The project key"),
+    repositorySlug: z.string().describe("The repository slug"),
+    filterText: z.string().optional().describe("Optional text that the returned branch names must contain (substring match)"),
+    orderBy: z.enum(['ALPHABETICAL', 'MODIFICATION']).optional().describe("Ordering of the results: ALPHABETICAL by branch name, or MODIFICATION (most recently modified first)"),
+    start: z.number().optional().describe("Start number for pagination"),
+    limit: z.number().optional().describe("Number of items to return. If not passed, the package default page size is used.")
+  },
+  getDefaultBranch: {
     projectKey: z.string().describe("The project key"),
     repositorySlug: z.string().describe("The repository slug")
   },
