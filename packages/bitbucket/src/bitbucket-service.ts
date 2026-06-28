@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { OpenAPI, ProjectService, PullRequestsService, RepositoryService } from './bitbucket-client/index.js';
+import { BuildsAndDeploymentsService, OpenAPI, ProjectService, PullRequestsService, RepositoryService } from './bitbucket-client/index.js';
 import { request as __request } from './bitbucket-client/core/request.js';
 import { handleApiOperation, resolveOpenApiBase } from '@atlassian-dc-mcp/common';
 import { simplifyInboxPullRequests } from './inbox-pr-mapper.js';
@@ -824,6 +824,144 @@ export class BitbucketService {
     return result;
   }
 
+  /**
+   * Get the required-builds merge checks configured for a repository
+   * @param projectKey The project key
+   * @param repositorySlug The repository slug
+   * @param start Optional pagination start
+   * @param limit Optional pagination limit (defaults to the package page size)
+   * @returns Promise with the page of required-builds merge checks
+   */
+  async getRequiredBuildsMergeChecks(projectKey: string, repositorySlug: string, start?: number, limit?: number) {
+    projectKey = projectKey.toUpperCase();
+    repositorySlug = repositorySlug.toLowerCase();
+    return handleApiOperation(
+      () => BuildsAndDeploymentsService.getPageOfRequiredBuildsMergeChecks(
+        projectKey, repositorySlug, start, limit ?? this.getPageSize()
+      ),
+      'Error fetching required builds merge checks'
+    );
+  }
+
+  /**
+   * Create a required-builds merge check for a repository
+   * @param projectKey The project key
+   * @param repositorySlug The repository slug
+   * @param buildParentKeys Non-empty list of build parent keys that must have green builds for the check to pass
+   * @param refMatcherType Matcher type for the target ref (ANY_REF, BRANCH, PATTERN, MODEL_CATEGORY, MODEL_BRANCH)
+   * @param refMatcherValue Matcher value for the target ref (e.g. 'refs/heads/main')
+   * @param refMatcherDisplayId Optional display value for the ref matcher (defaults to the value)
+   * @param exemptRefMatcherType Optional matcher type for the exempt source ref
+   * @param exemptRefMatcherValue Optional matcher value for the exempt source ref
+   * @param exemptRefMatcherDisplayId Optional display value for the exempt ref matcher
+   * @returns Promise with the created merge check
+   */
+  async createRequiredBuildsMergeCheck(
+    projectKey: string,
+    repositorySlug: string,
+    buildParentKeys: string[],
+    refMatcherType: string,
+    refMatcherValue: string,
+    refMatcherDisplayId?: string,
+    exemptRefMatcherType?: string,
+    exemptRefMatcherValue?: string,
+    exemptRefMatcherDisplayId?: string
+  ) {
+    projectKey = projectKey.toUpperCase();
+    repositorySlug = repositorySlug.toLowerCase();
+    const requestBody = this.buildRequiredBuildsBody(
+      buildParentKeys, refMatcherType, refMatcherValue, refMatcherDisplayId,
+      exemptRefMatcherType, exemptRefMatcherValue, exemptRefMatcherDisplayId
+    );
+    return handleApiOperation(
+      () => BuildsAndDeploymentsService.createRequiredBuildsMergeCheck(projectKey, repositorySlug, requestBody),
+      'Error creating required builds merge check'
+    );
+  }
+
+  /**
+   * Update an existing required-builds merge check (replaces the check)
+   * @param projectKey The project key
+   * @param repositorySlug The repository slug
+   * @param id The ID of the merge check to update
+   * @param buildParentKeys Non-empty list of build parent keys
+   * @param refMatcherType Matcher type for the target ref
+   * @param refMatcherValue Matcher value for the target ref
+   * @param refMatcherDisplayId Optional display value for the ref matcher
+   * @param exemptRefMatcherType Optional matcher type for the exempt source ref
+   * @param exemptRefMatcherValue Optional matcher value for the exempt source ref
+   * @param exemptRefMatcherDisplayId Optional display value for the exempt ref matcher
+   * @returns Promise with the updated merge check
+   */
+  async updateRequiredBuildsMergeCheck(
+    projectKey: string,
+    repositorySlug: string,
+    id: string,
+    buildParentKeys: string[],
+    refMatcherType: string,
+    refMatcherValue: string,
+    refMatcherDisplayId?: string,
+    exemptRefMatcherType?: string,
+    exemptRefMatcherValue?: string,
+    exemptRefMatcherDisplayId?: string
+  ) {
+    projectKey = projectKey.toUpperCase();
+    repositorySlug = repositorySlug.toLowerCase();
+    const requestBody = this.buildRequiredBuildsBody(
+      buildParentKeys, refMatcherType, refMatcherValue, refMatcherDisplayId,
+      exemptRefMatcherType, exemptRefMatcherValue, exemptRefMatcherDisplayId
+    );
+    return handleApiOperation(
+      () => BuildsAndDeploymentsService.updateRequiredBuildsMergeCheck(projectKey, Number(id), repositorySlug, requestBody),
+      'Error updating required builds merge check'
+    );
+  }
+
+  /**
+   * Delete a required-builds merge check by ID
+   * @param projectKey The project key
+   * @param repositorySlug The repository slug
+   * @param id The ID of the merge check to delete
+   * @returns Promise with a delete acknowledgement
+   */
+  async deleteRequiredBuildsMergeCheck(projectKey: string, repositorySlug: string, id: string) {
+    projectKey = projectKey.toUpperCase();
+    repositorySlug = repositorySlug.toLowerCase();
+    const result = await handleApiOperation(
+      () => BuildsAndDeploymentsService.deleteRequiredBuildsMergeCheck(projectKey, Number(id), repositorySlug),
+      'Error deleting required builds merge check'
+    );
+    return { ...result, data: { deleted: true, id } };
+  }
+
+  private buildRequiredBuildsBody(
+    buildParentKeys: string[],
+    refMatcherType: string,
+    refMatcherValue: string,
+    refMatcherDisplayId?: string,
+    exemptRefMatcherType?: string,
+    exemptRefMatcherValue?: string,
+    exemptRefMatcherDisplayId?: string
+  ): any {
+    return {
+      buildParentKeys,
+      refMatcher: {
+        id: refMatcherValue,
+        displayId: refMatcherDisplayId ?? refMatcherValue,
+        type: { id: refMatcherType },
+      },
+      ...(exemptRefMatcherType && exemptRefMatcherValue
+        ? {
+            exemptRefMatcher: {
+              id: exemptRefMatcherValue,
+              displayId: exemptRefMatcherDisplayId ?? exemptRefMatcherValue,
+              type: { id: exemptRefMatcherType },
+            },
+          }
+        : {}),
+    };
+  }
+
   async validateSetup(): Promise<void> {
     await __request(OpenAPI, {
       method: 'GET',
@@ -995,5 +1133,39 @@ export const bitbucketToolSchemas = {
   getInboxPullRequests: {
     start: z.number().optional().describe("Start number for the page (inclusive). If not passed, first page is assumed"),
     limit: z.number().optional().describe("Number of items to return. If not passed, the package default page size is used.")
+  },
+  getRequiredBuildsMergeChecks: {
+    projectKey: z.string().describe("The project key"),
+    repositorySlug: z.string().describe("The repository slug"),
+    start: z.number().optional().describe("Start number for pagination"),
+    limit: z.number().optional().describe("Number of items to return. If not passed, the package default page size is used.")
+  },
+  createRequiredBuildsMergeCheck: {
+    projectKey: z.string().describe("The project key"),
+    repositorySlug: z.string().describe("The repository slug"),
+    buildParentKeys: z.array(z.string()).describe("Non-empty list of build parent keys that must have green builds for the check to pass"),
+    refMatcherType: z.enum(['ANY_REF', 'BRANCH', 'PATTERN', 'MODEL_CATEGORY', 'MODEL_BRANCH']).describe("Matcher type for the target ref the check applies to"),
+    refMatcherValue: z.string().describe("Matcher value for the target ref. For BRANCH use a ref id like 'refs/heads/main'; for PATTERN use the pattern; for MODEL_* use the model id; for ANY_REF use 'ANY_REF'."),
+    refMatcherDisplayId: z.string().optional().describe("Display value for the ref matcher (defaults to the matcher value)"),
+    exemptRefMatcherType: z.enum(['ANY_REF', 'BRANCH', 'PATTERN', 'MODEL_CATEGORY', 'MODEL_BRANCH']).optional().describe("Matcher type for source refs exempt from the check"),
+    exemptRefMatcherValue: z.string().optional().describe("Matcher value for source refs exempt from the check"),
+    exemptRefMatcherDisplayId: z.string().optional().describe("Display value for the exempt ref matcher (defaults to its value)")
+  },
+  updateRequiredBuildsMergeCheck: {
+    projectKey: z.string().describe("The project key"),
+    repositorySlug: z.string().describe("The repository slug"),
+    id: z.string().describe("The ID of the merge check to update"),
+    buildParentKeys: z.array(z.string()).describe("Non-empty list of build parent keys. The update replaces the whole check, so pass the complete desired list."),
+    refMatcherType: z.enum(['ANY_REF', 'BRANCH', 'PATTERN', 'MODEL_CATEGORY', 'MODEL_BRANCH']).describe("Matcher type for the target ref"),
+    refMatcherValue: z.string().describe("Matcher value for the target ref"),
+    refMatcherDisplayId: z.string().optional().describe("Display value for the ref matcher (defaults to the matcher value)"),
+    exemptRefMatcherType: z.enum(['ANY_REF', 'BRANCH', 'PATTERN', 'MODEL_CATEGORY', 'MODEL_BRANCH']).optional().describe("Matcher type for source refs exempt from the check"),
+    exemptRefMatcherValue: z.string().optional().describe("Matcher value for source refs exempt from the check"),
+    exemptRefMatcherDisplayId: z.string().optional().describe("Display value for the exempt ref matcher (defaults to its value)")
+  },
+  deleteRequiredBuildsMergeCheck: {
+    projectKey: z.string().describe("The project key"),
+    repositorySlug: z.string().describe("The repository slug"),
+    id: z.string().describe("The ID of the merge check to delete")
   }
 };

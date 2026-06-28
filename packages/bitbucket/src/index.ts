@@ -218,4 +218,44 @@ server.tool(
   }
 );
 
+server.tool(
+  "bitbucket_getRequiredBuildsMergeChecks",
+  "List the required-builds merge checks configured for a Bitbucket repository. Each check requires green builds for the given build keys before a PR targeting the matched ref can be merged.",
+  bitbucketToolSchemas.getRequiredBuildsMergeChecks,
+  async ({ projectKey, repositorySlug, start, limit }) => {
+    const result = await bitbucketService.getRequiredBuildsMergeChecks(projectKey, repositorySlug, start, limit);
+    return formatToolResponse(result);
+  }
+);
+
+server.tool(
+  "bitbucket_createRequiredBuildsMergeCheck",
+  "Create a required-builds merge check on a Bitbucket repository. Requires REPO_ADMIN. Provide the build parent keys that must be green and a target ref matcher (type + value); optionally exempt source refs.",
+  bitbucketToolSchemas.createRequiredBuildsMergeCheck,
+  async ({ projectKey, repositorySlug, buildParentKeys, refMatcherType, refMatcherValue, refMatcherDisplayId, exemptRefMatcherType, exemptRefMatcherValue, exemptRefMatcherDisplayId }) => {
+    const result = await bitbucketService.createRequiredBuildsMergeCheck(projectKey, repositorySlug, buildParentKeys, refMatcherType, refMatcherValue, refMatcherDisplayId, exemptRefMatcherType, exemptRefMatcherValue, exemptRefMatcherDisplayId);
+    return formatToolResponse(result);
+  }
+);
+
+server.tool(
+  "bitbucket_updateRequiredBuildsMergeCheck",
+  "Update a required-builds merge check on a Bitbucket repository. Requires REPO_ADMIN. This replaces the whole check, so provide the complete desired build keys and matcher.",
+  bitbucketToolSchemas.updateRequiredBuildsMergeCheck,
+  async ({ projectKey, repositorySlug, id, buildParentKeys, refMatcherType, refMatcherValue, refMatcherDisplayId, exemptRefMatcherType, exemptRefMatcherValue, exemptRefMatcherDisplayId }) => {
+    const result = await bitbucketService.updateRequiredBuildsMergeCheck(projectKey, repositorySlug, id, buildParentKeys, refMatcherType, refMatcherValue, refMatcherDisplayId, exemptRefMatcherType, exemptRefMatcherValue, exemptRefMatcherDisplayId);
+    return formatToolResponse(result);
+  }
+);
+
+server.tool(
+  "bitbucket_deleteRequiredBuildsMergeCheck",
+  "Delete a required-builds merge check from a Bitbucket repository by its ID. Requires REPO_ADMIN.",
+  bitbucketToolSchemas.deleteRequiredBuildsMergeCheck,
+  async ({ projectKey, repositorySlug, id }) => {
+    const result = await bitbucketService.deleteRequiredBuildsMergeCheck(projectKey, repositorySlug, id);
+    return formatToolResponse(result);
+  }
+);
+
 await connectServer(server);
