@@ -824,6 +824,46 @@ export class BitbucketService {
     return result;
   }
 
+  /**
+   * Search code across Bitbucket using the search REST module.
+   *
+   * The query string supports Bitbucket search modifiers, e.g. `project:TEST`,
+   * `repo:projectkey/repositoryslug` (e.g. `repo:TEST/demo`), `ext:js`, so scoping to a
+   * project or repository is done inside the query text. Note: `repo:` must include the
+   * project key (`repo:KEY/slug`); a bare `repo:slug` is rejected by the server.
+   *
+   * Note: the `/rest/search` endpoint is a separate Bitbucket REST module that is not part of
+   * the generated client, so this is issued via the low-level request helper (same approach as
+   * the dashboard/inbox endpoints).
+   *
+   * @param query The search query (may include modifiers like `repo:`, `project:`, `ext:`)
+   * @param limit Optional primary result limit (defaults to the package page size)
+   * @param secondaryLimit Optional secondary limit (number of hit contexts per match)
+   * @returns Promise with the code search results
+   */
+  async searchCode(query: string, limit?: number, secondaryLimit?: number) {
+    return handleApiOperation(
+      () => __request(OpenAPI, {
+        method: 'POST',
+        url: '/search/latest/search',
+        body: {
+          query,
+          entities: { code: {} },
+          limits: {
+            primary: limit ?? this.getPageSize(),
+            ...(secondaryLimit !== undefined ? { secondary: secondaryLimit } : {}),
+          },
+        },
+        mediaType: 'application/json',
+        errors: {
+          400: 'The search query was malformed.',
+          401: 'The currently authenticated user is not permitted to search.',
+        },
+      }),
+      'Error searching code'
+    );
+  }
+
   async validateSetup(): Promise<void> {
     await __request(OpenAPI, {
       method: 'GET',
@@ -995,5 +1035,10 @@ export const bitbucketToolSchemas = {
   getInboxPullRequests: {
     start: z.number().optional().describe("Start number for the page (inclusive). If not passed, first page is assumed"),
     limit: z.number().optional().describe("Number of items to return. If not passed, the package default page size is used.")
+  },
+  searchCode: {
+    query: z.string().describe("The search query. Supports Bitbucket search modifiers, e.g. 'project:TEST authenticate', 'repo:TEST/demo TODO' (the repo modifier must be 'repo:projectkey/repositoryslug'), 'ext:ts useState'. Scope to a project or repository inside the query text."),
+    limit: z.number().optional().describe("Maximum number of matching files to return. If not passed, the package default page size is used."),
+    secondaryLimit: z.number().optional().describe("Maximum number of hit contexts (matching code snippets) to return per file")
   }
 };

@@ -218,4 +218,14 @@ server.tool(
   }
 );
 
+server.tool(
+  "bitbucket_searchCode",
+  "Search code across Bitbucket. The query supports search modifiers like 'project:<key>', 'repo:<key>/<slug>', and 'ext:<extension>' to scope or filter results (e.g. 'project:TEST authenticate', 'repo:TEST/demo ext:js TODO'). NOTE: the 'repo:' modifier requires the project key — 'repo:projectkey/repositoryslug', not a bare slug. Returns matching files with hit contexts (snippets).",
+  bitbucketToolSchemas.searchCode,
+  async ({ query, limit, secondaryLimit }) => {
+    const result = await bitbucketService.searchCode(query, limit, secondaryLimit);
+    return formatToolResponse(result);
+  }
+);
+
 await connectServer(server);
