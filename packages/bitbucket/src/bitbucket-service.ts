@@ -79,6 +79,63 @@ export class BitbucketService {
   }
 
   /**
+   * Get the raw content of a file at a given revision
+   * @param projectKey The project key
+   * @param repositorySlug The repository slug
+   * @param path The path of the file to retrieve
+   * @param at Optional commit hash or ref (e.g. 'refs/heads/main'); defaults to the default branch
+   * @returns Promise with the raw file content
+   */
+  async getFileContent(
+    projectKey: string,
+    repositorySlug: string,
+    path: string,
+    at?: string
+  ) {
+    projectKey = projectKey.toUpperCase();
+    repositorySlug = repositorySlug.toLowerCase();
+    return handleApiOperation(
+      () => RepositoryService.streamRaw(path, projectKey, repositorySlug, at),
+      'Error fetching file content'
+    );
+  }
+
+  /**
+   * Browse a repository file or directory
+   * @param projectKey The project key
+   * @param repositorySlug The repository slug
+   * @param path Optional path to browse; defaults to the repository root (directory listing)
+   * @param at Optional commit hash or ref; defaults to the default branch
+   * @param type If true, return only the node type (FILE, DIRECTORY, SUBMODULE) instead of content
+   * @param blame If true, include blame information
+   * @returns Promise with the browse result (directory children or paginated file lines)
+   */
+  async browseRepository(
+    projectKey: string,
+    repositorySlug: string,
+    path: string = '',
+    at?: string,
+    type?: boolean,
+    blame?: boolean
+  ) {
+    projectKey = projectKey.toUpperCase();
+    repositorySlug = repositorySlug.toLowerCase();
+    return handleApiOperation(
+      () => RepositoryService.getContent1(
+        path,
+        projectKey,
+        repositorySlug,
+        undefined, // noContent
+        at,
+        undefined, // size
+        blame ? 'true' : undefined,
+        type ? 'true' : undefined
+      ),
+      'Error browsing repository content'
+    );
+  }
+
+  /**
    * Get a list of projects
    * @param name Optional filter by project name
    * @param permission Optional filter by permission
@@ -882,6 +939,20 @@ export const bitbucketToolSchemas = {
     since: z.string().optional().describe("The commit ID (exclusively) to retrieve commits after"),
     until: z.string().optional().describe("The commit ID (inclusively) to retrieve commits before"),
     limit: z.number().optional().describe("Number of items to return. If not passed, the package default page size is used.")
+  },
+  getFileContent: {
+    projectKey: z.string().describe("The project key"),
+    repositorySlug: z.string().describe("The repository slug"),
+    path: z.string().describe("The path of the file to retrieve (e.g. 'src/index.ts')"),
+    at: z.string().optional().describe("Optional commit hash or ref to read the file at (e.g. 'refs/heads/main' or a commit id). Defaults to the repository's default branch.")
+  },
+  browseRepository: {
+    projectKey: z.string().describe("The project key"),
+    repositorySlug: z.string().describe("The repository slug"),
+    path: z.string().optional().describe("Path to browse. Omit or pass an empty string to list the repository root. A directory path returns its children; a file path returns the file content as paginated lines."),
+    at: z.string().optional().describe("Optional commit hash or ref to browse at. Defaults to the repository's default branch."),
+    type: z.boolean().optional().describe("If true, return only the node type (FILE, DIRECTORY, or SUBMODULE) of the path instead of its content."),
+    blame: z.boolean().optional().describe("If true, include blame information in the response.")
   },
   getPullRequestComments: {
     projectKey: z.string().describe("The project key"),

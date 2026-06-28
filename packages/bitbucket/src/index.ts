@@ -78,6 +78,26 @@ server.tool(
 );
 
 server.tool(
+  "bitbucket_getFileContent",
+  "Get the raw text content of a file in a Bitbucket repository at a given ref or commit. Lets you read source files without cloning. Defaults to the repository's default branch when 'at' is omitted.",
+  bitbucketToolSchemas.getFileContent,
+  async ({ projectKey, repositorySlug, path, at }) => {
+    const result = await bitbucketService.getFileContent(projectKey, repositorySlug, path, at);
+    return formatToolResponse(result);
+  }
+);
+
+server.tool(
+  "bitbucket_browseRepository",
+  "Browse a repository path in a Bitbucket repository. Omit 'path' (or pass empty) to list the root directory; a directory path lists its children; a file path returns the file content as paginated lines. Use 'type: true' to fetch only the node type (FILE/DIRECTORY/SUBMODULE).",
+  bitbucketToolSchemas.browseRepository,
+  async ({ projectKey, repositorySlug, path, at, type, blame }) => {
+    const result = await bitbucketService.browseRepository(projectKey, repositorySlug, path, at, type, blame);
+    return formatToolResponse(result);
+  }
+);
+
+server.tool(
   "bitbucket_getPullRequests",
   "Get pull requests for a Bitbucket repository",
   bitbucketToolSchemas.getPullRequests,
