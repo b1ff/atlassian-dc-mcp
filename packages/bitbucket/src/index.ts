@@ -218,4 +218,34 @@ server.tool(
   }
 );
 
+server.tool(
+  "bitbucket_createProject",
+  "Create a new Bitbucket project. Requires PROJECT_CREATE permission. The key must be unique.",
+  bitbucketToolSchemas.createProject,
+  async ({ key, name, description }) => {
+    const result = await bitbucketService.createProject(key, name, description);
+    return formatToolResponse(result);
+  }
+);
+
+server.tool(
+  "bitbucket_updateProject",
+  "Update an existing Bitbucket project's name or description. Requires PROJECT_ADMIN permission. The project key is never changed. Only the provided fields are updated.",
+  bitbucketToolSchemas.updateProject,
+  async ({ key, name, description }) => {
+    const result = await bitbucketService.updateProject(key, name, description);
+    return formatToolResponse(result);
+  }
+);
+
+server.tool(
+  "bitbucket_deleteProject",
+  "Delete a Bitbucket project. Requires PROJECT_ADMIN permission. The project must contain no repositories or the call fails with a conflict.",
+  bitbucketToolSchemas.deleteProject,
+  async ({ key }) => {
+    const result = await bitbucketService.deleteProject(key);
+    return formatToolResponse(result);
+  }
+);
+
 await connectServer(server);
