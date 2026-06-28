@@ -78,6 +78,26 @@ server.tool(
 );
 
 server.tool(
+  "bitbucket_getCommitComments",
+  "Get comments on a commit in a Bitbucket repository. A file path is required — Bitbucket only returns commit comments scoped to a file.",
+  bitbucketToolSchemas.getCommitComments,
+  async ({ projectKey, repositorySlug, commitId, path, since, start, limit }) => {
+    const result = await bitbucketService.getCommitComments(projectKey, repositorySlug, commitId, path, since, start, limit);
+    return formatToolResponse(result);
+  }
+);
+
+server.tool(
+  "bitbucket_addCommitComment",
+  "Add a comment to a commit in a Bitbucket repository. Provide a path (and optionally a line) to anchor the comment to a file.",
+  bitbucketToolSchemas.addCommitComment,
+  async ({ projectKey, repositorySlug, commitId, text, path, line, lineType }) => {
+    const result = await bitbucketService.addCommitComment(projectKey, repositorySlug, commitId, text, path, line, lineType);
+    return formatToolResponse(result);
+  }
+);
+
+server.tool(
   "bitbucket_getPullRequests",
   "Get pull requests for a Bitbucket repository",
   bitbucketToolSchemas.getPullRequests,
