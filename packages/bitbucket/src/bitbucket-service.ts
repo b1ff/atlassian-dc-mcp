@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { OpenAPI, ProjectService, PullRequestsService, RepositoryService } from './bitbucket-client/index.js';
+import { BuildsAndDeploymentsService, OpenAPI, ProjectService, PullRequestsService, RepositoryService } from './bitbucket-client/index.js';
 import { request as __request } from './bitbucket-client/core/request.js';
 import { handleApiOperation, resolveOpenApiBase } from '@atlassian-dc-mcp/common';
 import { simplifyInboxPullRequests } from './inbox-pr-mapper.js';
@@ -76,6 +76,116 @@ export class BitbucketService {
       ),
       'Error fetching commits'
     );
+  }
+
+  /**
+   * Create or replace a Code Insights report on a commit
+   * @param projectKey The project key
+   * @param repositorySlug The repository slug
+   * @param commitId The commit id (hash) the report is attached to
+   * @param key A unique key identifying the report (namespaced, e.g. 'mycompany.eslint')
+   * @param report The report payload (title required; optional details, result PASS/FAIL, reporter, link, logoUrl, data[])
+   * @returns Promise with the created report
+   */
+  async setInsightReport(
+    projectKey: string,
+    repositorySlug: string,
+    commitId: string,
+    key: string,
+    report: Record<string, any>
+  ) {
+    projectKey = projectKey.toUpperCase();
+    repositorySlug = repositorySlug.toLowerCase();
+    return handleApiOperation(
+      () => BuildsAndDeploymentsService.setACodeInsightsReport(projectKey, commitId, repositorySlug, key, report as any),
+      'Error setting code insights report'
+    );
+  }
+
+  /**
+   * Get a Code Insights report on a commit
+   */
+  async getInsightReport(projectKey: string, repositorySlug: string, commitId: string, key: string) {
+    projectKey = projectKey.toUpperCase();
+    repositorySlug = repositorySlug.toLowerCase();
+    return handleApiOperation(
+      () => BuildsAndDeploymentsService.getACodeInsightsReport(projectKey, commitId, repositorySlug, key),
+      'Error fetching code insights report'
+    );
+  }
+
+  /**
+   * Delete a Code Insights report (and its annotations) on a commit
+   */
+  async deleteInsightReport(projectKey: string, repositorySlug: string, commitId: string, key: string) {
+    projectKey = projectKey.toUpperCase();
+    repositorySlug = repositorySlug.toLowerCase();
+    const result = await handleApiOperation(
+      () => BuildsAndDeploymentsService.deleteACodeInsightsReport(projectKey, commitId, repositorySlug, key),
+      'Error deleting code insights report'
+    );
+    if (result.success) {
+      return { ...result, data: { deleted: true, key } };
+    }
+    return result;
+  }
+
+  /**
+   * Add annotations to a Code Insights report (bulk)
+   * @param annotations Array of annotations; each: { externalId, path, line, message, severity (LOW/MEDIUM/HIGH), link?, type? }
+   */
+  async addInsightAnnotations(
+    projectKey: string,
+    repositorySlug: string,
+    commitId: string,
+    key: string,
+    annotations: Array<Record<string, any>>
+  ) {
+    projectKey = projectKey.toUpperCase();
+    repositorySlug = repositorySlug.toLowerCase();
+    const result = await handleApiOperation(
+      () => BuildsAndDeploymentsService.addAnnotations(projectKey, commitId, repositorySlug, key, { annotations } as any),
+      'Error adding code insights annotations'
+    );
+    if (result.success) {
+      return { ...result, data: { added: annotations.length, key } };
+    }
+    return result;
+  }
+
+  /**
+   * Get annotations of a Code Insights report
+   */
+  async getInsightAnnotations(projectKey: string, repositorySlug: string, commitId: string, key: string) {
+    projectKey = projectKey.toUpperCase();
+    repositorySlug = repositorySlug.toLowerCase();
+    return handleApiOperation(
+      () => BuildsAndDeploymentsService.getAnnotations(projectKey, commitId, repositorySlug, key),
+      'Error fetching code insights annotations'
+    );
+  }
+
+  /**
+   * Delete annotations of a Code Insights report
+   * @param externalId Optional external id; when given, only that annotation is deleted, otherwise all
+   */
+  async deleteInsightAnnotations(
+    projectKey: string,
+    repositorySlug: string,
+    commitId: string,
+    key: string,
+    externalId?: string
+  ) {
+    projectKey = projectKey.toUpperCase();
+    repositorySlug = repositorySlug.toLowerCase();
+    const result = await handleApiOperation(
+      () => BuildsAndDeploymentsService.deleteAnnotations(projectKey, commitId, repositorySlug, key, externalId),
+      'Error deleting code insights annotations'
+    );
+    if (result.success) {
+      return { ...result, data: { deleted: true, key, ...(externalId ? { externalId } : {}) } };
+    }
+    return result;
   }
 
   /**
@@ -882,6 +992,61 @@ export const bitbucketToolSchemas = {
     since: z.string().optional().describe("The commit ID (exclusively) to retrieve commits after"),
     until: z.string().optional().describe("The commit ID (inclusively) to retrieve commits before"),
     limit: z.number().optional().describe("Number of items to return. If not passed, the package default page size is used.")
+  },
+  setInsightReport: {
+    projectKey: z.string().describe("The project key"),
+    repositorySlug: z.string().describe("The repository slug"),
+    commitId: z.string().describe("The commit id (hash) the report is attached to"),
+    key: z.string().describe("A unique, namespaced key identifying the report (e.g. 'mycompany.eslint')"),
+    report: z.object({
+      title: z.string().describe("The report title"),
+      details: z.string().optional().describe("Detailed description"),
+      result: z.enum(['PASS', 'FAIL']).optional().describe("Overall report result"),
+      reporter: z.string().optional().describe("Name of the tool/reporter that produced the report"),
+      link: z.string().optional().describe("URL linking to the full report"),
+      logoUrl: z.string().optional().describe("URL of a logo to display"),
+      data: z.array(z.any()).optional().describe("Array of report data items ({ title, type, value })")
+    }).passthrough().describe("The Code Insights report payload")
+  },
+  getInsightReport: {
+    projectKey: z.string().describe("The project key"),
+    repositorySlug: z.string().describe("The repository slug"),
+    commitId: z.string().describe("The commit id (hash)"),
+    key: z.string().describe("The report key")
+  },
+  deleteInsightReport: {
+    projectKey: z.string().describe("The project key"),
+    repositorySlug: z.string().describe("The repository slug"),
+    commitId: z.string().describe("The commit id (hash)"),
+    key: z.string().describe("The report key")
+  },
+  addInsightAnnotations: {
+    projectKey: z.string().describe("The project key"),
+    repositorySlug: z.string().describe("The repository slug"),
+    commitId: z.string().describe("The commit id (hash)"),
+    key: z.string().describe("The report key the annotations belong to"),
+    annotations: z.array(z.object({
+      externalId: z.string().describe("Unique id of the annotation within the report"),
+      path: z.string().describe("File path the annotation refers to"),
+      line: z.number().describe("Line number the annotation refers to"),
+      message: z.string().describe("The annotation message"),
+      severity: z.enum(['LOW', 'MEDIUM', 'HIGH']).describe("Annotation severity"),
+      link: z.string().optional().describe("URL with more detail"),
+      type: z.enum(['VULNERABILITY', 'CODE_SMELL', 'BUG']).optional().describe("Annotation type")
+    }).passthrough()).describe("Array of annotations to add to the report")
+  },
+  getInsightAnnotations: {
+    projectKey: z.string().describe("The project key"),
+    repositorySlug: z.string().describe("The repository slug"),
+    commitId: z.string().describe("The commit id (hash)"),
+    key: z.string().describe("The report key")
+  },
+  deleteInsightAnnotations: {
+    projectKey: z.string().describe("The project key"),
+    repositorySlug: z.string().describe("The repository slug"),
+    commitId: z.string().describe("The commit id (hash)"),
+    key: z.string().describe("The report key"),
+    externalId: z.string().optional().describe("If given, delete only this annotation; otherwise delete all annotations of the report")
   },
   getPullRequestComments: {
     projectKey: z.string().describe("The project key"),

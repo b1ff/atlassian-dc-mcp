@@ -78,6 +78,66 @@ server.tool(
 );
 
 server.tool(
+  "bitbucket_setInsightReport",
+  "Create or replace a Code Insights report on a commit (e.g. linter/scanner results). The report 'key' must be unique and namespaced. Use bitbucket_addInsightAnnotations to attach per-line findings.",
+  bitbucketToolSchemas.setInsightReport,
+  async ({ projectKey, repositorySlug, commitId, key, report }) => {
+    const result = await bitbucketService.setInsightReport(projectKey, repositorySlug, commitId, key, report);
+    return formatToolResponse(result);
+  }
+);
+
+server.tool(
+  "bitbucket_getInsightReport",
+  "Get a Code Insights report on a commit by its key.",
+  bitbucketToolSchemas.getInsightReport,
+  async ({ projectKey, repositorySlug, commitId, key }) => {
+    const result = await bitbucketService.getInsightReport(projectKey, repositorySlug, commitId, key);
+    return formatToolResponse(result);
+  }
+);
+
+server.tool(
+  "bitbucket_deleteInsightReport",
+  "Delete a Code Insights report (and its annotations) on a commit.",
+  bitbucketToolSchemas.deleteInsightReport,
+  async ({ projectKey, repositorySlug, commitId, key }) => {
+    const result = await bitbucketService.deleteInsightReport(projectKey, repositorySlug, commitId, key);
+    return formatToolResponse(result);
+  }
+);
+
+server.tool(
+  "bitbucket_addInsightAnnotations",
+  "Add annotations (per-file/line findings) to a Code Insights report. The report must already exist (bitbucket_setInsightReport).",
+  bitbucketToolSchemas.addInsightAnnotations,
+  async ({ projectKey, repositorySlug, commitId, key, annotations }) => {
+    const result = await bitbucketService.addInsightAnnotations(projectKey, repositorySlug, commitId, key, annotations);
+    return formatToolResponse(result);
+  }
+);
+
+server.tool(
+  "bitbucket_getInsightAnnotations",
+  "Get the annotations of a Code Insights report on a commit.",
+  bitbucketToolSchemas.getInsightAnnotations,
+  async ({ projectKey, repositorySlug, commitId, key }) => {
+    const result = await bitbucketService.getInsightAnnotations(projectKey, repositorySlug, commitId, key);
+    return formatToolResponse(result);
+  }
+);
+
+server.tool(
+  "bitbucket_deleteInsightAnnotations",
+  "Delete annotations of a Code Insights report. Pass externalId to delete a single annotation, or omit it to delete all.",
+  bitbucketToolSchemas.deleteInsightAnnotations,
+  async ({ projectKey, repositorySlug, commitId, key, externalId }) => {
+    const result = await bitbucketService.deleteInsightAnnotations(projectKey, repositorySlug, commitId, key, externalId);
+    return formatToolResponse(result);
+  }
+);
+
+server.tool(
   "bitbucket_getPullRequests",
   "Get pull requests for a Bitbucket repository",
   bitbucketToolSchemas.getPullRequests,
