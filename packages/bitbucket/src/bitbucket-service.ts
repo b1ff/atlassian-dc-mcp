@@ -824,6 +824,104 @@ export class BitbucketService {
     return result;
   }
 
+  /**
+   * Delete a pull request comment
+   * @param projectKey The project key
+   * @param repositorySlug The repository slug
+   * @param pullRequestId The pull request ID
+   * @param commentId The ID of the comment to delete
+   * @param version The current version of the comment (optimistic locking)
+   * @returns Promise with a delete acknowledgement
+   */
+  async deletePullRequestComment(
+    projectKey: string,
+    repositorySlug: string,
+    pullRequestId: string,
+    commentId: string,
+    version: number
+  ) {
+    projectKey = projectKey.toUpperCase();
+    repositorySlug = repositorySlug.toLowerCase();
+    const result = await handleApiOperation(
+      () => PullRequestsService.deleteComment2(projectKey, commentId, pullRequestId, repositorySlug, String(version)),
+      'Error deleting pull request comment'
+    );
+    return { ...result, data: { deleted: true, commentId } };
+  }
+
+  /**
+   * Apply a code suggestion contained in a pull request comment to the source branch
+   * @param projectKey The project key
+   * @param repositorySlug The repository slug
+   * @param pullRequestId The pull request ID
+   * @param commentId The ID of the comment that contains the suggestion
+   * @param commentVersion The current version of the comment
+   * @param pullRequestVersion The current version of the pull request
+   * @param commitMessage Commit message for the commit that applies the suggestion (required by the server)
+   * @param suggestionIndex Optional index of the suggestion within the comment (defaults to the first)
+   * @returns Promise with an apply acknowledgement
+   */
+  async applyPullRequestSuggestion(
+    projectKey: string,
+    repositorySlug: string,
+    pullRequestId: string,
+    commentId: string,
+    commentVersion: number,
+    pullRequestVersion: number,
+    commitMessage: string,
+    suggestionIndex?: number
+  ) {
+    projectKey = projectKey.toUpperCase();
+    repositorySlug = repositorySlug.toLowerCase();
+    // The apply-suggestion endpoint reads the commit message from `message` (not `commitMessage`
+    // as the generated model suggests) and rejects an empty value.
+    const requestBody: any = {
+      commentVersion,
+      pullRequestVersion,
+      message: commitMessage,
+      ...(suggestionIndex !== undefined ? { suggestionIndex } : {}),
+    };
+    const result = await handleApiOperation(
+      () => PullRequestsService.applySuggestion(projectKey, commentId, pullRequestId, repositorySlug, requestBody),
+      'Error applying pull request suggestion'
+    );
+    return { ...result, data: { applied: true, commentId } };
+  }
+
+  /**
+   * Start watching a pull request (subscribe the authenticated user to notifications)
+   * @param projectKey The project key
+   * @param repositorySlug The repository slug
+   * @param pullRequestId The pull request ID
+   * @returns Promise with a watch acknowledgement
+   */
+  async watchPullRequest(projectKey: string, repositorySlug: string, pullRequestId: string) {
+    projectKey = projectKey.toUpperCase();
+    repositorySlug = repositorySlug.toLowerCase();
+    const result = await handleApiOperation(
+      () => PullRequestsService.watch1(projectKey, pullRequestId, repositorySlug),
+      'Error watching pull request'
+    );
+    return { ...result, data: { watching: true, pullRequestId } };
+  }
+
+  /**
+   * Stop watching a pull request (unsubscribe the authenticated user)
+   * @param projectKey The project key
+   * @param repositorySlug The repository slug
+   * @param pullRequestId The pull request ID
+   * @returns Promise with an unwatch acknowledgement
+   */
+  async unwatchPullRequest(projectKey: string, repositorySlug: string, pullRequestId: string) {
+    projectKey = projectKey.toUpperCase();
+    repositorySlug = repositorySlug.toLowerCase();
+    const result = await handleApiOperation(
+      () => PullRequestsService.unwatch1(projectKey, pullRequestId, repositorySlug),
+      'Error unwatching pull request'
+    );
+    return { ...result, data: { watching: false, pullRequestId } };
+  }
+
   async validateSetup(): Promise<void> {
     await __request(OpenAPI, {
       method: 'GET',
@@ -995,5 +1093,32 @@ export const bitbucketToolSchemas = {
   getInboxPullRequests: {
     start: z.number().optional().describe("Start number for the page (inclusive). If not passed, first page is assumed"),
     limit: z.number().optional().describe("Number of items to return. If not passed, the package default page size is used.")
+  },
+  deletePullRequestComment: {
+    projectKey: z.string().describe("The project key"),
+    repositorySlug: z.string().describe("The repository slug"),
+    pullRequestId: z.string().describe("The pull request ID"),
+    commentId: z.string().describe("The ID of the comment to delete"),
+    version: z.number().describe("The current version of the comment, required for optimistic locking. A comment with replies cannot be deleted.")
+  },
+  applyPullRequestSuggestion: {
+    projectKey: z.string().describe("The project key"),
+    repositorySlug: z.string().describe("The repository slug"),
+    pullRequestId: z.string().describe("The pull request ID"),
+    commentId: z.string().describe("The ID of the comment that contains the code suggestion"),
+    commentVersion: z.number().describe("The current version of the comment containing the suggestion"),
+    pullRequestVersion: z.number().describe("The current version of the pull request"),
+    commitMessage: z.string().describe("Commit message for the commit that applies the suggestion. Required and must be non-empty."),
+    suggestionIndex: z.number().optional().describe("Index of the suggestion within the comment when it contains several. Defaults to the first suggestion.")
+  },
+  watchPullRequest: {
+    projectKey: z.string().describe("The project key"),
+    repositorySlug: z.string().describe("The repository slug"),
+    pullRequestId: z.string().describe("The pull request ID")
+  },
+  unwatchPullRequest: {
+    projectKey: z.string().describe("The project key"),
+    repositorySlug: z.string().describe("The repository slug"),
+    pullRequestId: z.string().describe("The pull request ID")
   }
 };

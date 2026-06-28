@@ -218,4 +218,44 @@ server.tool(
   }
 );
 
+server.tool(
+  "bitbucket_deletePullRequestComment",
+  "Delete a comment from a Bitbucket pull request. Requires the current comment 'version' for optimistic locking. A comment that has replies cannot be deleted.",
+  bitbucketToolSchemas.deletePullRequestComment,
+  async ({ projectKey, repositorySlug, pullRequestId, commentId, version }) => {
+    const result = await bitbucketService.deletePullRequestComment(projectKey, repositorySlug, pullRequestId, commentId, version);
+    return formatToolResponse(result);
+  }
+);
+
+server.tool(
+  "bitbucket_applyPullRequestSuggestion",
+  "Apply a code suggestion contained in a pull request comment directly to the source branch, creating a commit. Requires the current comment version and pull request version. Equivalent to the 'Apply suggestion' button in the Bitbucket UI.",
+  bitbucketToolSchemas.applyPullRequestSuggestion,
+  async ({ projectKey, repositorySlug, pullRequestId, commentId, commentVersion, pullRequestVersion, commitMessage, suggestionIndex }) => {
+    const result = await bitbucketService.applyPullRequestSuggestion(projectKey, repositorySlug, pullRequestId, commentId, commentVersion, pullRequestVersion, commitMessage, suggestionIndex);
+    return formatToolResponse(result);
+  }
+);
+
+server.tool(
+  "bitbucket_watchPullRequest",
+  "Start watching a pull request, subscribing the authenticated user to its notifications.",
+  bitbucketToolSchemas.watchPullRequest,
+  async ({ projectKey, repositorySlug, pullRequestId }) => {
+    const result = await bitbucketService.watchPullRequest(projectKey, repositorySlug, pullRequestId);
+    return formatToolResponse(result);
+  }
+);
+
+server.tool(
+  "bitbucket_unwatchPullRequest",
+  "Stop watching a pull request, unsubscribing the authenticated user from its notifications.",
+  bitbucketToolSchemas.unwatchPullRequest,
+  async ({ projectKey, repositorySlug, pullRequestId }) => {
+    const result = await bitbucketService.unwatchPullRequest(projectKey, repositorySlug, pullRequestId);
+    return formatToolResponse(result);
+  }
+);
+
 await connectServer(server);

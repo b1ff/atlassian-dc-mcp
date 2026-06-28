@@ -23,7 +23,11 @@ jest.mock('../bitbucket-client/index.js', () => ({
     updateStatus: jest.fn(),
     getPage: jest.fn(),
     getReviewers: jest.fn(),
-    get3: jest.fn()
+    get3: jest.fn(),
+    deleteComment2: jest.fn(),
+    applySuggestion: jest.fn(),
+    watch1: jest.fn(),
+    unwatch1: jest.fn()
   },
   OpenAPI: {
     BASE: '',
@@ -2471,6 +2475,85 @@ describe('BitbucketService', () => {
         'TEST', 'test-repo', undefined, undefined,
         'refs/heads/feature', 'refs/heads/main'
       );
+    });
+  });
+
+  describe('pull request operations', () => {
+    it('should delete a pull request comment and return an ack', async () => {
+      (PullRequestsService.deleteComment2 as jest.Mock).mockResolvedValue(undefined);
+
+      const result = await bitbucketService.deletePullRequestComment('test', 'Test-Repo', '123', '99', 4);
+
+      expect(result.success).toBe(true);
+      expect(result.data).toEqual({ deleted: true, commentId: '99' });
+      expect(PullRequestsService.deleteComment2).toHaveBeenCalledWith('TEST', '99', '123', 'test-repo', '4');
+    });
+
+    it('should preserve the error field when comment delete fails', async () => {
+      (PullRequestsService.deleteComment2 as jest.Mock).mockRejectedValue(new Error('API Error'));
+
+      const result = await bitbucketService.deletePullRequestComment('TEST', 'test-repo', '123', '99', 4);
+
+      expect(result.success).toBe(false);
+      expect(result.error).toBeDefined();
+    });
+
+    it('should apply a suggestion with a full body', async () => {
+      (PullRequestsService.applySuggestion as jest.Mock).mockResolvedValue(undefined);
+
+      const result = await bitbucketService.applyPullRequestSuggestion(
+        'test', 'Test-Repo', '123', '99', 2, 5, 'apply fix', 1
+      );
+
+      expect(result.success).toBe(true);
+      expect(result.data).toEqual({ applied: true, commentId: '99' });
+      expect(PullRequestsService.applySuggestion).toHaveBeenCalledWith('TEST', '99', '123', 'test-repo', {
+        commentVersion: 2,
+        pullRequestVersion: 5,
+        message: 'apply fix',
+        suggestionIndex: 1
+      });
+    });
+
+    it('should apply a suggestion omitting the optional suggestion index', async () => {
+      (PullRequestsService.applySuggestion as jest.Mock).mockResolvedValue(undefined);
+
+      await bitbucketService.applyPullRequestSuggestion('TEST', 'test-repo', '123', '99', 2, 5, 'apply fix');
+
+      expect(PullRequestsService.applySuggestion).toHaveBeenCalledWith('TEST', '99', '123', 'test-repo', {
+        commentVersion: 2,
+        pullRequestVersion: 5,
+        message: 'apply fix'
+      });
+    });
+
+    it('should watch a pull request and return an ack', async () => {
+      (PullRequestsService.watch1 as jest.Mock).mockResolvedValue(undefined);
+
+      const result = await bitbucketService.watchPullRequest('test', 'Test-Repo', '123');
+
+      expect(result.success).toBe(true);
+      expect(result.data).toEqual({ watching: true, pullRequestId: '123' });
+      expect(PullRequestsService.watch1).toHaveBeenCalledWith('TEST', '123', 'test-repo');
+    });
+
+    it('should unwatch a pull request and return an ack', async () => {
+      (PullRequestsService.unwatch1 as jest.Mock).mockResolvedValue(undefined);
+
+      const result = await bitbucketService.unwatchPullRequest('test', 'Test-Repo', '123');
+
+      expect(result.success).toBe(true);
+      expect(result.data).toEqual({ watching: false, pullRequestId: '123' });
+      expect(PullRequestsService.unwatch1).toHaveBeenCalledWith('TEST', '123', 'test-repo');
+    });
+
+    it('should preserve the error field when watch fails', async () => {
+      (PullRequestsService.watch1 as jest.Mock).mockRejectedValue(new Error('API Error'));
+
+      const result = await bitbucketService.watchPullRequest('TEST', 'test-repo', '123');
+
+      expect(result.success).toBe(false);
+      expect(result.error).toBeDefined();
     });
   });
 });
