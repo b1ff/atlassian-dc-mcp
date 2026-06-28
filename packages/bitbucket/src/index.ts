@@ -78,6 +78,36 @@ server.tool(
 );
 
 server.tool(
+  "bitbucket_getCommit",
+  "Get a single commit by its id (hash) from a Bitbucket repository. Returns author, message, parents, and timestamps.",
+  bitbucketToolSchemas.getCommit,
+  async ({ projectKey, repositorySlug, commitId, path }) => {
+    const result = await bitbucketService.getCommit(projectKey, repositorySlug, commitId, path);
+    return formatToolResponse(result);
+  }
+);
+
+server.tool(
+  "bitbucket_getCommitDiff",
+  "Get the diff of a single commit in a Bitbucket repository. Pass 'path' to limit the diff to one file, or omit it for the whole-commit diff.",
+  bitbucketToolSchemas.getCommitDiff,
+  async ({ projectKey, repositorySlug, commitId, path, contextLines, whitespace, srcPath }) => {
+    const result = await bitbucketService.getCommitDiff(projectKey, repositorySlug, commitId, path, contextLines, whitespace, srcPath);
+    return formatToolResponse(result);
+  }
+);
+
+server.tool(
+  "bitbucket_compareRefs",
+  "Compare two refs/commits in a Bitbucket repository. compareType 'commits' (default) lists the commits between them; 'changes' lists the changed files. Supports cross-repository comparison via fromRepo.",
+  bitbucketToolSchemas.compareRefs,
+  async ({ projectKey, repositorySlug, from, to, fromRepo, compareType, start, limit }) => {
+    const result = await bitbucketService.compareRefs(projectKey, repositorySlug, from, to, fromRepo, compareType, start, limit);
+    return formatToolResponse(result);
+  }
+);
+
+server.tool(
   "bitbucket_getPullRequests",
   "Get pull requests for a Bitbucket repository",
   bitbucketToolSchemas.getPullRequests,
