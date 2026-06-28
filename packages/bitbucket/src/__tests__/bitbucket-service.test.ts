@@ -3,7 +3,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { initializeRuntimeConfig } from '@atlassian-dc-mcp/common';
 import { BitbucketService } from '../bitbucket-service.js';
-import { PullRequestsService } from '../bitbucket-client/index.js';
+import { PullRequestsService, RepositoryService } from '../bitbucket-client/index.js';
 import { request as mockRequest } from '../bitbucket-client/core/request.js';
 
 // Mock the request function
@@ -24,6 +24,10 @@ jest.mock('../bitbucket-client/index.js', () => ({
     getPage: jest.fn(),
     getReviewers: jest.fn(),
     get3: jest.fn()
+  },
+  RepositoryService: {
+    getComments: jest.fn(),
+    createComment: jest.fn()
   },
   OpenAPI: {
     BASE: '',
@@ -135,6 +139,113 @@ describe('BitbucketService', () => {
         mockPullRequestId
       );
 
+      expect(result.success).toBe(false);
+      expect(result.error).toBe('API Error');
+    });
+  });
+
+  describe('getCommitComments', () => {
+    it('should get commit comments for a path', async () => {
+      const mockComments = { values: [{ id: 1, text: 'looks good' }], isLastPage: true };
+      (RepositoryService.getComments as jest.Mock).mockResolvedValue(mockComments);
+
+      const result = await bitbucketService.getCommitComments(mockProjectKey, mockRepositorySlug, 'abc123', 'src/app.js');
+
+      expect(result.success).toBe(true);
+      expect(result.data).toBe(mockComments);
+      expect(RepositoryService.getComments).toHaveBeenCalledWith(
+        mockProjectKey,
+        'abc123',
+        mockRepositorySlug,
+        'src/app.js',
+        undefined, // since
+        undefined, // start
+        25
+      );
+    });
+
+    it('should pass since and pagination through', async () => {
+      (RepositoryService.getComments as jest.Mock).mockResolvedValue({ values: [] });
+      await bitbucketService.getCommitComments(mockProjectKey, mockRepositorySlug, 'abc123', 'src/app.js', 'def456', 5, 50);
+      expect(RepositoryService.getComments).toHaveBeenCalledWith(
+        mockProjectKey,
+        'abc123',
+        mockRepositorySlug,
+        'src/app.js',
+        'def456',
+        5,
+        50
+      );
+    });
+
+    it('should handle API errors gracefully', async () => {
+      (RepositoryService.getComments as jest.Mock).mockRejectedValue(new Error('API Error'));
+      const result = await bitbucketService.getCommitComments(mockProjectKey, mockRepositorySlug, 'abc123', 'src/app.js');
+      expect(result.success).toBe(false);
+      expect(result.error).toBe('API Error');
+    });
+  });
+
+  describe('addCommitComment', () => {
+    it('should add a general commit comment', async () => {
+      const mockComment = { id: 99, text: 'nice' };
+      (RepositoryService.createComment as jest.Mock).mockResolvedValue(mockComment);
+
+      const result = await bitbucketService.addCommitComment(mockProjectKey, mockRepositorySlug, 'abc123', 'nice');
+
+      expect(result.success).toBe(true);
+      expect(result.data).toBe(mockComment);
+      expect(RepositoryService.createComment).toHaveBeenCalledWith(
+        mockProjectKey,
+        'abc123',
+        mockRepositorySlug,
+        undefined,
+        { text: 'nice' }
+      );
+    });
+
+    it('should anchor the comment to a file and line', async () => {
+      (RepositoryService.createComment as jest.Mock).mockResolvedValue({ id: 100 });
+      await bitbucketService.addCommitComment(
+        mockProjectKey,
+        mockRepositorySlug,
+        'abc123',
+        'fix this',
+        'src/app.js',
+        12,
+        'ADDED'
+      );
+      expect(RepositoryService.createComment).toHaveBeenCalledWith(
+        mockProjectKey,
+        'abc123',
+        mockRepositorySlug,
+        undefined,
+        { text: 'fix this', anchor: { path: 'src/app.js', line: 12, lineType: 'ADDED', fileType: 'TO' } }
+      );
+    });
+
+    it('should default lineType to CONTEXT when a line is given without one', async () => {
+      (RepositoryService.createComment as jest.Mock).mockResolvedValue({ id: 101 });
+      await bitbucketService.addCommitComment(
+        mockProjectKey,
+        mockRepositorySlug,
+        'abc123',
+        'note',
+        'src/app.js',
+        3
+      );
+      expect(RepositoryService.createComment).toHaveBeenCalledWith(
+        mockProjectKey,
+        'abc123',
+        mockRepositorySlug,
+        undefined,
+        { text: 'note', anchor: { path: 'src/app.js', line: 3, lineType: 'CONTEXT', fileType: 'TO' } }
+      );
+    });
+
+    it('should handle API errors gracefully', async () => {
+      (RepositoryService.createComment as jest.Mock).mockRejectedValue(new Error('API Error'));
+      const result = await bitbucketService.addCommitComment(mockProjectKey, mockRepositorySlug, 'abc123', 'x');
       expect(result.success).toBe(false);
       expect(result.error).toBe('API Error');
     });
