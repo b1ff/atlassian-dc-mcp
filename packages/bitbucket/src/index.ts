@@ -218,4 +218,44 @@ server.tool(
   }
 );
 
+server.tool(
+  "bitbucket_getBranchRestrictions",
+  "List the branch (ref) restrictions configured for a Bitbucket repository. Requires REPO_ADMIN. Optionally filter by matcher type/id and restriction type.",
+  bitbucketToolSchemas.getBranchRestrictions,
+  async ({ projectKey, repositorySlug, matcherType, matcherId, type, start, limit }) => {
+    const result = await bitbucketService.getBranchRestrictions(projectKey, repositorySlug, matcherType, matcherId, type, start, limit);
+    return formatToolResponse(result);
+  }
+);
+
+server.tool(
+  "bitbucket_createBranchRestriction",
+  "Create a branch (ref) restriction (branch permission) on a Bitbucket repository. Requires REPO_ADMIN. The matcher is specified by type (ANY_REF/BRANCH/PATTERN/MODEL_CATEGORY/MODEL_BRANCH) and value; optionally exempt users, groups, or access keys.",
+  bitbucketToolSchemas.createBranchRestriction,
+  async ({ projectKey, repositorySlug, type, matcherType, matcherValue, matcherDisplayId, exemptUserSlugs, exemptGroupNames, exemptAccessKeyIds }) => {
+    const result = await bitbucketService.createBranchRestriction(projectKey, repositorySlug, type, matcherType, matcherValue, matcherDisplayId, exemptUserSlugs, exemptGroupNames, exemptAccessKeyIds);
+    return formatToolResponse(result);
+  }
+);
+
+server.tool(
+  "bitbucket_getBranchRestriction",
+  "Get a single branch (ref) restriction from a Bitbucket repository by its ID. Requires REPO_ADMIN.",
+  bitbucketToolSchemas.getBranchRestriction,
+  async ({ projectKey, repositorySlug, id }) => {
+    const result = await bitbucketService.getBranchRestriction(projectKey, repositorySlug, id);
+    return formatToolResponse(result);
+  }
+);
+
+server.tool(
+  "bitbucket_deleteBranchRestriction",
+  "Delete a branch (ref) restriction from a Bitbucket repository by its ID. Requires REPO_ADMIN.",
+  bitbucketToolSchemas.deleteBranchRestriction,
+  async ({ projectKey, repositorySlug, id }) => {
+    const result = await bitbucketService.deleteBranchRestriction(projectKey, repositorySlug, id);
+    return formatToolResponse(result);
+  }
+);
+
 await connectServer(server);
