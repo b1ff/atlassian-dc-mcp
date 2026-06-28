@@ -23,7 +23,9 @@ jest.mock('../bitbucket-client/index.js', () => ({
     updateStatus: jest.fn(),
     getPage: jest.fn(),
     getReviewers: jest.fn(),
-    get3: jest.fn()
+    get3: jest.fn(),
+    assignParticipantRole: jest.fn(),
+    unassignParticipantRole: jest.fn()
   },
   OpenAPI: {
     BASE: '',
@@ -135,6 +137,75 @@ describe('BitbucketService', () => {
         mockPullRequestId
       );
 
+      expect(result.success).toBe(false);
+      expect(result.error).toBe('API Error');
+    });
+  });
+
+  describe('addPullRequestReviewer', () => {
+    it('should add a reviewer to a pull request', async () => {
+      const mockParticipant = { user: { name: 'reviewer1' }, role: 'REVIEWER' };
+      (PullRequestsService.assignParticipantRole as jest.Mock).mockResolvedValue(mockParticipant);
+
+      const result = await bitbucketService.addPullRequestReviewer(
+        mockProjectKey,
+        mockRepositorySlug,
+        mockPullRequestId,
+        'reviewer1'
+      );
+
+      expect(result.success).toBe(true);
+      expect(result.data).toBe(mockParticipant);
+      expect(PullRequestsService.assignParticipantRole).toHaveBeenCalledWith(
+        mockProjectKey,
+        mockPullRequestId,
+        mockRepositorySlug,
+        { user: { name: 'reviewer1' }, role: 'REVIEWER' }
+      );
+    });
+
+    it('should handle API errors gracefully', async () => {
+      (PullRequestsService.assignParticipantRole as jest.Mock).mockRejectedValue(new Error('API Error'));
+      const result = await bitbucketService.addPullRequestReviewer(
+        mockProjectKey,
+        mockRepositorySlug,
+        mockPullRequestId,
+        'reviewer1'
+      );
+      expect(result.success).toBe(false);
+      expect(result.error).toBe('API Error');
+    });
+  });
+
+  describe('removePullRequestReviewer', () => {
+    it('should remove a reviewer from a pull request', async () => {
+      (PullRequestsService.unassignParticipantRole as jest.Mock).mockResolvedValue(undefined);
+
+      const result = await bitbucketService.removePullRequestReviewer(
+        mockProjectKey,
+        mockRepositorySlug,
+        mockPullRequestId,
+        'reviewer1'
+      );
+
+      expect(result.success).toBe(true);
+      expect(result.data).toEqual({ removed: true, userSlug: 'reviewer1' });
+      expect(PullRequestsService.unassignParticipantRole).toHaveBeenCalledWith(
+        mockProjectKey,
+        'reviewer1',
+        mockPullRequestId,
+        mockRepositorySlug
+      );
+    });
+
+    it('should handle API errors gracefully', async () => {
+      (PullRequestsService.unassignParticipantRole as jest.Mock).mockRejectedValue(new Error('API Error'));
+      const result = await bitbucketService.removePullRequestReviewer(
+        mockProjectKey,
+        mockRepositorySlug,
+        mockPullRequestId,
+        'reviewer1'
+      );
       expect(result.success).toBe(false);
       expect(result.error).toBe('API Error');
     });
