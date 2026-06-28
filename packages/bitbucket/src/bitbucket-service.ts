@@ -824,6 +824,142 @@ export class BitbucketService {
     return result;
   }
 
+  /**
+   * Get the default reviewer conditions configured for a repository
+   * @param projectKey The project key
+   * @param repositorySlug The repository slug
+   * @returns Promise with the list of default reviewer conditions
+   */
+  async getDefaultReviewerConditions(projectKey: string, repositorySlug: string) {
+    projectKey = projectKey.toUpperCase();
+    repositorySlug = repositorySlug.toLowerCase();
+    return handleApiOperation(
+      () => PullRequestsService.getPullRequestConditions1(projectKey, repositorySlug),
+      'Error fetching default reviewer conditions'
+    );
+  }
+
+  /**
+   * Create a default reviewer condition for a repository
+   * @param projectKey The project key
+   * @param repositorySlug The repository slug
+   * @param sourceMatcherType Matcher type for the source ref (ANY_REF, BRANCH, PATTERN, MODEL_CATEGORY, MODEL_BRANCH)
+   * @param sourceMatcherValue Matcher value for the source ref (e.g. 'ANY_REF', 'refs/heads/main', a pattern, or a model id)
+   * @param targetMatcherType Matcher type for the target ref
+   * @param targetMatcherValue Matcher value for the target ref
+   * @param reviewerIds Numeric user IDs of the default reviewers
+   * @param requiredApprovals Optional number of required approvals
+   * @param sourceMatcherDisplayId Optional display value for the source matcher (defaults to the value)
+   * @param targetMatcherDisplayId Optional display value for the target matcher (defaults to the value)
+   * @returns Promise with the created condition
+   */
+  async createDefaultReviewerCondition(
+    projectKey: string,
+    repositorySlug: string,
+    sourceMatcherType: string,
+    sourceMatcherValue: string,
+    targetMatcherType: string,
+    targetMatcherValue: string,
+    reviewerIds: number[],
+    requiredApprovals?: number,
+    sourceMatcherDisplayId?: string,
+    targetMatcherDisplayId?: string
+  ) {
+    projectKey = projectKey.toUpperCase();
+    repositorySlug = repositorySlug.toLowerCase();
+    const requestBody = this.buildDefaultReviewerBody(
+      sourceMatcherType, sourceMatcherValue, targetMatcherType, targetMatcherValue,
+      reviewerIds, requiredApprovals, sourceMatcherDisplayId, targetMatcherDisplayId
+    );
+    return handleApiOperation(
+      () => PullRequestsService.createPullRequestCondition1(projectKey, repositorySlug, requestBody),
+      'Error creating default reviewer condition'
+    );
+  }
+
+  /**
+   * Update an existing default reviewer condition (replaces the condition)
+   * @param projectKey The project key
+   * @param repositorySlug The repository slug
+   * @param id The ID of the condition to update
+   * @param sourceMatcherType Matcher type for the source ref
+   * @param sourceMatcherValue Matcher value for the source ref
+   * @param targetMatcherType Matcher type for the target ref
+   * @param targetMatcherValue Matcher value for the target ref
+   * @param reviewerIds Numeric user IDs of the default reviewers
+   * @param requiredApprovals Optional number of required approvals
+   * @param sourceMatcherDisplayId Optional display value for the source matcher
+   * @param targetMatcherDisplayId Optional display value for the target matcher
+   * @returns Promise with the updated condition
+   */
+  async updateDefaultReviewerCondition(
+    projectKey: string,
+    repositorySlug: string,
+    id: string,
+    sourceMatcherType: string,
+    sourceMatcherValue: string,
+    targetMatcherType: string,
+    targetMatcherValue: string,
+    reviewerIds: number[],
+    requiredApprovals?: number,
+    sourceMatcherDisplayId?: string,
+    targetMatcherDisplayId?: string
+  ) {
+    projectKey = projectKey.toUpperCase();
+    repositorySlug = repositorySlug.toLowerCase();
+    const requestBody = this.buildDefaultReviewerBody(
+      sourceMatcherType, sourceMatcherValue, targetMatcherType, targetMatcherValue,
+      reviewerIds, requiredApprovals, sourceMatcherDisplayId, targetMatcherDisplayId
+    );
+    return handleApiOperation(
+      () => PullRequestsService.updatePullRequestCondition1(projectKey, id, repositorySlug, requestBody),
+      'Error updating default reviewer condition'
+    );
+  }
+
+  /**
+   * Delete a default reviewer condition
+   * @param projectKey The project key
+   * @param repositorySlug The repository slug
+   * @param id The ID of the condition to delete
+   * @returns Promise with a delete acknowledgement
+   */
+  async deleteDefaultReviewerCondition(projectKey: string, repositorySlug: string, id: string) {
+    projectKey = projectKey.toUpperCase();
+    repositorySlug = repositorySlug.toLowerCase();
+    const result = await handleApiOperation(
+      () => PullRequestsService.deletePullRequestCondition1(projectKey, Number(id), repositorySlug),
+      'Error deleting default reviewer condition'
+    );
+    return { ...result, data: { deleted: true, id } };
+  }
+
+  private buildDefaultReviewerBody(
+    sourceMatcherType: string,
+    sourceMatcherValue: string,
+    targetMatcherType: string,
+    targetMatcherValue: string,
+    reviewerIds: number[],
+    requiredApprovals?: number,
+    sourceMatcherDisplayId?: string,
+    targetMatcherDisplayId?: string
+  ): any {
+    return {
+      reviewers: reviewerIds.map(id => ({ id })),
+      sourceMatcher: {
+        id: sourceMatcherValue,
+        displayId: sourceMatcherDisplayId ?? sourceMatcherValue,
+        type: { id: sourceMatcherType },
+      },
+      targetMatcher: {
+        id: targetMatcherValue,
+        displayId: targetMatcherDisplayId ?? targetMatcherValue,
+        type: { id: targetMatcherType },
+      },
+      ...(requiredApprovals !== undefined ? { requiredApprovals } : {}),
+    };
+  }
+
   async validateSetup(): Promise<void> {
     await __request(OpenAPI, {
       method: 'GET',
@@ -995,5 +1131,39 @@ export const bitbucketToolSchemas = {
   getInboxPullRequests: {
     start: z.number().optional().describe("Start number for the page (inclusive). If not passed, first page is assumed"),
     limit: z.number().optional().describe("Number of items to return. If not passed, the package default page size is used.")
+  },
+  getDefaultReviewerConditions: {
+    projectKey: z.string().describe("The project key"),
+    repositorySlug: z.string().describe("The repository slug")
+  },
+  createDefaultReviewerCondition: {
+    projectKey: z.string().describe("The project key"),
+    repositorySlug: z.string().describe("The repository slug"),
+    sourceMatcherType: z.enum(['ANY_REF', 'BRANCH', 'PATTERN', 'MODEL_CATEGORY', 'MODEL_BRANCH']).describe("Matcher type for the source ref"),
+    sourceMatcherValue: z.string().describe("Matcher value for the source ref. For ANY_REF use 'ANY_REF'; for BRANCH use a ref id like 'refs/heads/main'; for PATTERN use the pattern; for MODEL_* use the model id."),
+    targetMatcherType: z.enum(['ANY_REF', 'BRANCH', 'PATTERN', 'MODEL_CATEGORY', 'MODEL_BRANCH']).describe("Matcher type for the target ref"),
+    targetMatcherValue: z.string().describe("Matcher value for the target ref (see sourceMatcherValue)"),
+    reviewerIds: z.array(z.number()).describe("Numeric user IDs of the default reviewers. Resolve a username to its numeric id via bitbucket_getUser."),
+    requiredApprovals: z.number().optional().describe("Number of approvals required from the default reviewers"),
+    sourceMatcherDisplayId: z.string().optional().describe("Display value for the source matcher (defaults to the matcher value, e.g. 'main' for 'refs/heads/main')"),
+    targetMatcherDisplayId: z.string().optional().describe("Display value for the target matcher (defaults to the matcher value)")
+  },
+  updateDefaultReviewerCondition: {
+    projectKey: z.string().describe("The project key"),
+    repositorySlug: z.string().describe("The repository slug"),
+    id: z.string().describe("The ID of the condition to update"),
+    sourceMatcherType: z.enum(['ANY_REF', 'BRANCH', 'PATTERN', 'MODEL_CATEGORY', 'MODEL_BRANCH']).describe("Matcher type for the source ref"),
+    sourceMatcherValue: z.string().describe("Matcher value for the source ref"),
+    targetMatcherType: z.enum(['ANY_REF', 'BRANCH', 'PATTERN', 'MODEL_CATEGORY', 'MODEL_BRANCH']).describe("Matcher type for the target ref"),
+    targetMatcherValue: z.string().describe("Matcher value for the target ref"),
+    reviewerIds: z.array(z.number()).describe("Numeric user IDs of the default reviewers. The update replaces the full condition, so pass the complete desired set."),
+    requiredApprovals: z.number().optional().describe("Number of approvals required from the default reviewers"),
+    sourceMatcherDisplayId: z.string().optional().describe("Display value for the source matcher (defaults to the matcher value)"),
+    targetMatcherDisplayId: z.string().optional().describe("Display value for the target matcher (defaults to the matcher value)")
+  },
+  deleteDefaultReviewerCondition: {
+    projectKey: z.string().describe("The project key"),
+    repositorySlug: z.string().describe("The repository slug"),
+    id: z.string().describe("The ID of the condition to delete")
   }
 };

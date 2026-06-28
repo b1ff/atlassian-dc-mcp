@@ -23,7 +23,11 @@ jest.mock('../bitbucket-client/index.js', () => ({
     updateStatus: jest.fn(),
     getPage: jest.fn(),
     getReviewers: jest.fn(),
-    get3: jest.fn()
+    get3: jest.fn(),
+    getPullRequestConditions1: jest.fn(),
+    createPullRequestCondition1: jest.fn(),
+    updatePullRequestCondition1: jest.fn(),
+    deletePullRequestCondition1: jest.fn()
   },
   OpenAPI: {
     BASE: '',
@@ -2471,6 +2475,99 @@ describe('BitbucketService', () => {
         'TEST', 'test-repo', undefined, undefined,
         'refs/heads/feature', 'refs/heads/main'
       );
+    });
+  });
+
+  describe('default reviewer conditions', () => {
+    it('should get default reviewer conditions with normalized keys', async () => {
+      const mockData = [{ id: 1 }];
+      (PullRequestsService.getPullRequestConditions1 as jest.Mock).mockResolvedValue(mockData);
+
+      const result = await bitbucketService.getDefaultReviewerConditions('test', 'Test-Repo');
+
+      expect(result.success).toBe(true);
+      expect(result.data).toBe(mockData);
+      expect(PullRequestsService.getPullRequestConditions1).toHaveBeenCalledWith('TEST', 'test-repo');
+    });
+
+    it('should create a condition mapping reviewer ids and matchers', async () => {
+      const mockData = { id: 1 };
+      (PullRequestsService.createPullRequestCondition1 as jest.Mock).mockResolvedValue(mockData);
+
+      const result = await bitbucketService.createDefaultReviewerCondition(
+        'test', 'Test-Repo', 'ANY_REF', 'ANY_REF', 'BRANCH', 'refs/heads/main', [52], 1, undefined, 'main'
+      );
+
+      expect(result.success).toBe(true);
+      expect(result.data).toBe(mockData);
+      expect(PullRequestsService.createPullRequestCondition1).toHaveBeenCalledWith('TEST', 'test-repo', {
+        reviewers: [{ id: 52 }],
+        sourceMatcher: { id: 'ANY_REF', displayId: 'ANY_REF', type: { id: 'ANY_REF' } },
+        targetMatcher: { id: 'refs/heads/main', displayId: 'main', type: { id: 'BRANCH' } },
+        requiredApprovals: 1
+      });
+    });
+
+    it('should omit requiredApprovals when not provided', async () => {
+      (PullRequestsService.createPullRequestCondition1 as jest.Mock).mockResolvedValue({});
+
+      await bitbucketService.createDefaultReviewerCondition(
+        'TEST', 'test-repo', 'ANY_REF', 'ANY_REF', 'ANY_REF', 'ANY_REF', [52]
+      );
+
+      expect(PullRequestsService.createPullRequestCondition1).toHaveBeenCalledWith('TEST', 'test-repo', {
+        reviewers: [{ id: 52 }],
+        sourceMatcher: { id: 'ANY_REF', displayId: 'ANY_REF', type: { id: 'ANY_REF' } },
+        targetMatcher: { id: 'ANY_REF', displayId: 'ANY_REF', type: { id: 'ANY_REF' } }
+      });
+    });
+
+    it('should handle errors when creating a condition', async () => {
+      (PullRequestsService.createPullRequestCondition1 as jest.Mock).mockRejectedValue(new Error('API Error'));
+
+      const result = await bitbucketService.createDefaultReviewerCondition(
+        'TEST', 'test-repo', 'ANY_REF', 'ANY_REF', 'ANY_REF', 'ANY_REF', [52]
+      );
+
+      expect(result.success).toBe(false);
+      expect(result.error).toBeDefined();
+    });
+
+    it('should update a condition passing the id as a string', async () => {
+      const mockData = { id: 1, requiredApprovals: 2 };
+      (PullRequestsService.updatePullRequestCondition1 as jest.Mock).mockResolvedValue(mockData);
+
+      const result = await bitbucketService.updateDefaultReviewerCondition(
+        'test', 'Test-Repo', '1', 'ANY_REF', 'ANY_REF', 'BRANCH', 'refs/heads/main', [52], 2, undefined, 'main'
+      );
+
+      expect(result.success).toBe(true);
+      expect(result.data).toBe(mockData);
+      expect(PullRequestsService.updatePullRequestCondition1).toHaveBeenCalledWith('TEST', '1', 'test-repo', {
+        reviewers: [{ id: 52 }],
+        sourceMatcher: { id: 'ANY_REF', displayId: 'ANY_REF', type: { id: 'ANY_REF' } },
+        targetMatcher: { id: 'refs/heads/main', displayId: 'main', type: { id: 'BRANCH' } },
+        requiredApprovals: 2
+      });
+    });
+
+    it('should delete a condition coercing the id to a number and return an ack', async () => {
+      (PullRequestsService.deletePullRequestCondition1 as jest.Mock).mockResolvedValue(undefined);
+
+      const result = await bitbucketService.deleteDefaultReviewerCondition('test', 'Test-Repo', '1');
+
+      expect(result.success).toBe(true);
+      expect(result.data).toEqual({ deleted: true, id: '1' });
+      expect(PullRequestsService.deletePullRequestCondition1).toHaveBeenCalledWith('TEST', 1, 'test-repo');
+    });
+
+    it('should preserve the error field when delete fails', async () => {
+      (PullRequestsService.deletePullRequestCondition1 as jest.Mock).mockRejectedValue(new Error('API Error'));
+
+      const result = await bitbucketService.deleteDefaultReviewerCondition('TEST', 'test-repo', '1');
+
+      expect(result.success).toBe(false);
+      expect(result.error).toBeDefined();
     });
   });
 });
