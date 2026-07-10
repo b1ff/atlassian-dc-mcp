@@ -58,6 +58,16 @@ server.tool(
   });
 
 server.tool(
+  "jira_getIssueAttachments",
+  `Get attachment metadata for a JIRA issue in the ${jiraInstanceType}`,
+  jiraToolSchemas.getIssueAttachments,
+  async ({ issueKey }) => {
+    const result = await jiraService.getIssueAttachments(issueKey);
+    return formatToolResponse(result);
+  }
+);
+
+server.tool(
   "jira_createIssue",
   `Create a new JIRA issue in the ${jiraInstanceType}`,
   jiraToolSchemas.createIssue,

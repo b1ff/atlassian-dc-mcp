@@ -11,6 +11,20 @@ const DEFAULT_ISSUE_FIELDS = [...DEFAULT_SEARCH_FIELDS, 'parent', 'subtasks'];
 type DevelopmentDataType = 'pullrequest' | 'repository' | 'branch';
 type DevelopmentApplicationType = 'stash' | 'bitbucket' | 'github' | 'githube';
 
+export interface JiraAttachmentMetadata {
+  id: string;
+  filename: string;
+  mimeType?: string;
+  size?: number;
+  created?: string;
+  author?: { name?: string; displayName?: string };
+  hasThumbnail?: boolean;
+}
+export interface JiraIssueAttachmentsResult {
+  issueKey: string;
+  attachments: JiraAttachmentMetadata[];
+}
+
 function toIssueFieldSelection(fields: string[]): Array<StringList> {
   // The generated client types this query param as StringList[], but the API expects repeated string field names.
   return fields as unknown as Array<StringList>;
@@ -70,6 +84,13 @@ export class JiraService {
       () => IssueService.getComments(issueKey, expand, (maxResults ?? this.getPageSize()).toString(), undefined, startAt?.toString()),
       'Error getting issue comments'
     );
+  }
+
+  async getIssueAttachments(issueKey: string) {
+    return handleApiOperation(async (): Promise<JiraIssueAttachmentsResult> => {
+      const attachments = await this.fetchIssueAttachments(issueKey);
+      return { issueKey, attachments };
+    }, 'Error getting issue attachments');
   }
 
   async postIssueComment(issueKey: string, comment: string) {
@@ -157,6 +178,40 @@ export class JiraService {
     return issue.id;
   }
 
+  private async fetchIssueAttachments(issueKey: string): Promise<JiraAttachmentMetadata[]> {
+    const issue = await IssueService.getIssue(issueKey, undefined, toIssueFieldSelection(['attachment']));
+    const rawAttachments = (issue.fields?.attachment ?? []) as unknown as Array<Record<string, any>>;
+
+    const attachments: JiraAttachmentMetadata[] = [];
+    for (const attachment of rawAttachments) {
+      if (attachment?.id === undefined || attachment?.id === null) {
+        continue;
+      }
+
+      const metadata: JiraAttachmentMetadata = {
+        id: String(attachment.id),
+        filename: attachment.filename ?? '',
+        hasThumbnail: Boolean(attachment.thumbnail)
+      };
+      if (attachment.mimeType !== undefined) {
+        metadata.mimeType = attachment.mimeType;
+      }
+      if (attachment.size !== undefined) {
+        metadata.size = attachment.size;
+      }
+      if (attachment.created !== undefined) {
+        metadata.created = attachment.created;
+      }
+      if (attachment.author) {
+        metadata.author = { name: attachment.author.name, displayName: attachment.author.displayName };
+      }
+
+      attachments.push(metadata);
+    }
+
+    return attachments;
+  }
+
   async transitionIssue(params: {
     issueKey: string;
     transitionId: string;
@@ -204,6 +259,9 @@ export const jiraToolSchemas = {
     expand: z.string().optional().describe("Comma-separated comment expansions, such as renderedBody"),
     maxResults: z.number().optional().describe("Maximum number of comments to return"),
     startAt: z.number().optional().describe("Index of the first comment to return")
+  },
+  getIssueAttachments: {
+    issueKey: z.string().describe("JIRA issue key (e.g., PROJ-123)")
   },
   postIssueComment: {
     issueKey: z.string().describe("JIRA issue key (e.g., PROJ-123)"),
