@@ -566,6 +566,7 @@ describe('JiraService', () => {
       ok?: boolean;
       status?: number;
       statusText?: string;
+      headers?: Headers;
       arrayBuffer?: () => Promise<ArrayBuffer>;
       text?: () => Promise<string>;
     }) {
@@ -573,6 +574,7 @@ describe('JiraService', () => {
         ok: true,
         status: 200,
         statusText: 'OK',
+        headers: new Headers(),
         arrayBuffer: async () => new ArrayBuffer(0),
         text: async () => '',
         ...overrides,
@@ -739,6 +741,43 @@ describe('JiraService', () => {
       expect(result.success).toBe(true);
       expect(result.data?.size).toBe(small.byteLength);
       expect(global.fetch).toHaveBeenCalledTimes(1);
+    });
+
+    it('rejects a download from the Content-Length header before buffering the body', async () => {
+      process.env.JIRA_MAX_ATTACHMENT_DOWNLOAD_BYTES = '16';
+      mockAttachmentsList([{ id: 10001, filename: 'big.bin' }]); // size absent from metadata
+      const arrayBufferSpy = jest.fn(async () => toArrayBuffer(Buffer.alloc(32, 0x41)));
+      mockFetchResponse({
+        headers: new Headers({ 'content-length': '32' }),
+        arrayBuffer: arrayBufferSpy
+      });
+
+      const result = await jiraService.downloadIssueAttachment(mockIssueKey, mockAttachmentId);
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('32');
+      expect(result.error).toContain('JIRA_MAX_ATTACHMENT_DOWNLOAD_BYTES');
+      expect(arrayBufferSpy).not.toHaveBeenCalled();
+    });
+
+    it('refuses to download when metadata dot segments would escape the attachment path', async () => {
+      mockAttachmentsList([{ id: '..', filename: 'evil.bin' }]);
+
+      const result = await jiraService.downloadIssueAttachment(mockIssueKey, '..');
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('escapes the configured Jira base');
+      expect(global.fetch).not.toHaveBeenCalled();
+    });
+
+    it('refuses to download an attachment whose metadata has no filename', async () => {
+      mockAttachmentsList([{ id: 10001 }]); // filename absent from metadata
+
+      const result = await jiraService.downloadIssueAttachment(mockIssueKey, mockAttachmentId);
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('no filename');
+      expect(global.fetch).not.toHaveBeenCalled();
     });
   });
 

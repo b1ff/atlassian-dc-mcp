@@ -47,6 +47,19 @@ function getMaxAttachmentBytes(): number {
   return Number.isFinite(parsed) && parsed > 0 ? parsed : DEFAULT_MAX_ATTACHMENT_DOWNLOAD_BYTES;
 }
 
+function assertUrlWithinConfiguredBase(url: string, webBase: string, attachmentId: string): void {
+  // encodeURIComponent leaves dots unencoded, so metadata values made of dot segments (e.g. '..')
+  // would otherwise normalize the path upward. The WHATWG URL parser performs that normalization,
+  // so parsing the final URL and re-checking origin + path prefix rejects anything that escapes
+  // the /secure/attachment/ subtree of the configured Jira base.
+  const base = new URL(webBase);
+  const parsed = new URL(url);
+  const expectedPrefix = `${base.pathname.replace(/\/$/, '')}/secure/attachment/`;
+  if (parsed.origin !== base.origin || !parsed.pathname.startsWith(expectedPrefix)) {
+    throw new Error(`Refusing to download attachment ${attachmentId}: the constructed URL escapes the configured Jira base`);
+  }
+}
+
 function getRequestTimeoutMs(): number {
   // Mirrors the request timeout convention of jira-client/core/request.ts, which does not export its helper.
   const raw = process.env.ATLASSIAN_DC_MCP_REQUEST_TIMEOUT_MS;
@@ -133,9 +146,14 @@ export class JiraService {
         throw new Error(`Attachment ${attachment.id} is ${attachment.size} bytes, which exceeds the ${maxBytes} byte limit; set JIRA_MAX_ATTACHMENT_DOWNLOAD_BYTES to allow larger downloads`);
       }
 
+      if (!attachment.filename) {
+        throw new Error(`Attachment ${attachment.id} has no filename in its metadata; cannot construct a download URL`);
+      }
+
       // The DC REST API has no attachment content endpoint; the canonical web path is /secure/attachment/<id>/<filename>.
       const webBase = OpenAPI.BASE.replace(/\/rest\/?$/, '');
       const url = `${webBase}/secure/attachment/${encodeURIComponent(attachment.id)}/${encodeURIComponent(attachment.filename)}`;
+      assertUrlWithinConfiguredBase(url, webBase, attachment.id);
 
       const token = typeof OpenAPI.TOKEN === 'function' ? await OpenAPI.TOKEN({ method: 'GET', url }) : OpenAPI.TOKEN;
       if (!token) {
@@ -156,6 +174,14 @@ export class JiraService {
           body: (await response.text()).slice(0, 500)
         });
         throw error;
+      }
+
+      // Reject from the response header before buffering the body, covering attachments whose
+      // metadata omits or understates size. The post-buffer re-check below stays as the last line
+      // of defense for responses without a Content-Length header.
+      const contentLength = Number.parseInt(response.headers.get('content-length') ?? '', 10);
+      if (Number.isFinite(contentLength) && contentLength > maxBytes) {
+        throw new Error(`Attachment ${attachment.id} is ${contentLength} bytes, which exceeds the ${maxBytes} byte limit; set JIRA_MAX_ATTACHMENT_DOWNLOAD_BYTES to allow larger downloads`);
       }
 
       const bytes = Buffer.from(await response.arrayBuffer());
