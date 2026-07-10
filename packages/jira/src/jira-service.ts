@@ -60,6 +60,44 @@ function assertUrlWithinConfiguredBase(url: string, webBase: string, attachmentI
   }
 }
 
+function oversizedAttachmentError(attachmentId: string, byteCount: number, maxBytes: number): Error {
+  return new Error(`Attachment ${attachmentId} is ${byteCount} bytes, which exceeds the ${maxBytes} byte limit; set JIRA_MAX_ATTACHMENT_DOWNLOAD_BYTES to allow larger downloads`);
+}
+
+async function readBodyWithLimit(response: Response, maxBytes: number, attachmentId: string): Promise<Buffer> {
+  if (!response.body) {
+    // Real fetch responses always carry a body stream for a 200 GET; this fallback covers
+    // exotic environments and test doubles, still bounded by the same byte-count check.
+    const buffered = Buffer.from(await response.arrayBuffer());
+    if (buffered.byteLength > maxBytes) {
+      throw oversizedAttachmentError(attachmentId, buffered.byteLength, maxBytes);
+    }
+    return buffered;
+  }
+
+  // Stream the body and abort the download as soon as the accumulated bytes exceed the limit,
+  // so an oversized response is never fully buffered even when it carries no Content-Length
+  // header and its metadata omitted the size.
+  const reader = response.body.getReader();
+  const chunks: Buffer[] = [];
+  let total = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) {
+      break;
+    }
+    if (value) {
+      total += value.byteLength;
+      if (total > maxBytes) {
+        await reader.cancel();
+        throw new Error(`Attachment ${attachmentId} exceeds the ${maxBytes} byte limit (download aborted after ${total} bytes); set JIRA_MAX_ATTACHMENT_DOWNLOAD_BYTES to allow larger downloads`);
+      }
+      chunks.push(Buffer.from(value));
+    }
+  }
+  return Buffer.concat(chunks, total);
+}
+
 function getRequestTimeoutMs(): number {
   // Mirrors the request timeout convention of jira-client/core/request.ts, which does not export its helper.
   const raw = process.env.ATLASSIAN_DC_MCP_REQUEST_TIMEOUT_MS;
@@ -143,7 +181,7 @@ export class JiraService {
 
       const maxBytes = getMaxAttachmentBytes();
       if (typeof attachment.size === 'number' && attachment.size > maxBytes) {
-        throw new Error(`Attachment ${attachment.id} is ${attachment.size} bytes, which exceeds the ${maxBytes} byte limit; set JIRA_MAX_ATTACHMENT_DOWNLOAD_BYTES to allow larger downloads`);
+        throw oversizedAttachmentError(attachment.id, attachment.size, maxBytes);
       }
 
       if (!attachment.filename) {
@@ -176,18 +214,15 @@ export class JiraService {
         throw error;
       }
 
-      // Reject from the response header before buffering the body, covering attachments whose
-      // metadata omits or understates size. The post-buffer re-check below stays as the last line
-      // of defense for responses without a Content-Length header.
+      // Reject from the response header before reading the body, covering attachments whose
+      // metadata omits or understates size; readBodyWithLimit then streams the body and aborts
+      // at the cap, so even a header-less oversized response is never fully buffered.
       const contentLength = Number.parseInt(response.headers.get('content-length') ?? '', 10);
       if (Number.isFinite(contentLength) && contentLength > maxBytes) {
-        throw new Error(`Attachment ${attachment.id} is ${contentLength} bytes, which exceeds the ${maxBytes} byte limit; set JIRA_MAX_ATTACHMENT_DOWNLOAD_BYTES to allow larger downloads`);
+        throw oversizedAttachmentError(attachment.id, contentLength, maxBytes);
       }
 
-      const bytes = Buffer.from(await response.arrayBuffer());
-      if (bytes.byteLength > maxBytes) {
-        throw new Error(`Attachment ${attachment.id} is ${bytes.byteLength} bytes, which exceeds the ${maxBytes} byte limit; set JIRA_MAX_ATTACHMENT_DOWNLOAD_BYTES to allow larger downloads`);
-      }
+      const bytes = await readBodyWithLimit(response, maxBytes, attachment.id);
 
       const result: JiraAttachmentDownloadResult = {
         issueKey,

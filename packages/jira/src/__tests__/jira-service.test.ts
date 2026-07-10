@@ -567,6 +567,7 @@ describe('JiraService', () => {
       status?: number;
       statusText?: string;
       headers?: Headers;
+      body?: unknown;
       arrayBuffer?: () => Promise<ArrayBuffer>;
       text?: () => Promise<string>;
     }) {
@@ -741,6 +742,45 @@ describe('JiraService', () => {
       expect(result.success).toBe(true);
       expect(result.data?.size).toBe(small.byteLength);
       expect(global.fetch).toHaveBeenCalledTimes(1);
+    });
+
+    it('streams the body and preserves bytes across multiple chunks', async () => {
+      mockAttachmentsList([{ id: 10001, filename: 'chunked.bin', mimeType: 'application/octet-stream' }]);
+      const chunk1 = Buffer.from([0x00, 0xff, 0x89, 0x50]);
+      const chunk2 = Buffer.from('päyload², chunk two', 'utf8');
+      const original = Buffer.concat([chunk1, chunk2]);
+      mockFetchResponse({
+        body: new ReadableStream<Uint8Array>({
+          start(controller) {
+            controller.enqueue(new Uint8Array(chunk1));
+            controller.enqueue(new Uint8Array(chunk2));
+            controller.close();
+          }
+        })
+      });
+
+      const result = await jiraService.downloadIssueAttachment(mockIssueKey, mockAttachmentId);
+
+      expect(result.success).toBe(true);
+      expect(Buffer.from(result.data?.data ?? '', 'base64').equals(original)).toBe(true);
+      expect(result.data?.size).toBe(original.byteLength);
+    });
+
+    it('aborts a streaming download as soon as the cap is exceeded, without buffering the rest', async () => {
+      process.env.JIRA_MAX_ATTACHMENT_DOWNLOAD_BYTES = '16';
+      mockAttachmentsList([{ id: 10001, filename: 'endless.bin' }]); // size absent from metadata
+      const cancel = jest.fn(async () => undefined);
+      // An endless stream of 8-byte chunks: the third read pushes the total past the 16-byte cap.
+      const read = jest.fn(async () => ({ done: false, value: new Uint8Array(8) }));
+      mockFetchResponse({ body: { getReader: () => ({ read, cancel }) } });
+
+      const result = await jiraService.downloadIssueAttachment(mockIssueKey, mockAttachmentId);
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('download aborted after');
+      expect(result.error).toContain('JIRA_MAX_ATTACHMENT_DOWNLOAD_BYTES');
+      expect(cancel).toHaveBeenCalledTimes(1);
+      expect(read).toHaveBeenCalledTimes(3);
     });
 
     it('rejects a download from the Content-Length header before buffering the body', async () => {
