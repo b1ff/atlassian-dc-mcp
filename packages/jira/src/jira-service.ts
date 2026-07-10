@@ -8,6 +8,9 @@ import { getDefaultPageSize, getMissingConfig, JIRA_PRODUCT } from './config.js'
 const DEFAULT_SEARCH_FIELDS = ['summary', 'description', 'status', 'assignee', 'reporter', 'priority', 'issuetype', 'labels', 'updated'];
 const DEFAULT_ISSUE_FIELDS = [...DEFAULT_SEARCH_FIELDS, 'parent', 'subtasks'];
 
+const DEFAULT_MAX_ATTACHMENT_DOWNLOAD_BYTES = 10 * 1024 * 1024;
+const DEFAULT_REQUEST_TIMEOUT_MS = 30_000;
+
 type DevelopmentDataType = 'pullrequest' | 'repository' | 'branch';
 type DevelopmentApplicationType = 'stash' | 'bitbucket' | 'github' | 'githube';
 
@@ -24,10 +27,34 @@ export interface JiraIssueAttachmentsResult {
   issueKey: string;
   attachments: JiraAttachmentMetadata[];
 }
+export interface JiraAttachmentDownloadResult {
+  issueKey: string;
+  attachmentId: string;
+  filename: string;
+  mimeType?: string;
+  size: number;
+  encoding: 'base64';
+  data: string;
+}
 
 function toIssueFieldSelection(fields: string[]): Array<StringList> {
   // The generated client types this query param as StringList[], but the API expects repeated string field names.
   return fields as unknown as Array<StringList>;
+}
+
+function getMaxAttachmentBytes(): number {
+  const parsed = Number.parseInt(process.env.JIRA_MAX_ATTACHMENT_DOWNLOAD_BYTES ?? '', 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : DEFAULT_MAX_ATTACHMENT_DOWNLOAD_BYTES;
+}
+
+function getRequestTimeoutMs(): number {
+  // Mirrors the request timeout convention of jira-client/core/request.ts, which does not export its helper.
+  const raw = process.env.ATLASSIAN_DC_MCP_REQUEST_TIMEOUT_MS;
+  if (!raw) {
+    return DEFAULT_REQUEST_TIMEOUT_MS;
+  }
+  const parsed = Number.parseInt(raw.trim(), 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : DEFAULT_REQUEST_TIMEOUT_MS;
 }
 
 function resolveToken(token: string | (() => string | undefined), missingTokenMessage: string) {
@@ -91,6 +118,64 @@ export class JiraService {
       const attachments = await this.fetchIssueAttachments(issueKey);
       return { issueKey, attachments };
     }, 'Error getting issue attachments');
+  }
+
+  async downloadIssueAttachment(issueKey: string, attachmentId: string) {
+    return handleApiOperation(async (): Promise<JiraAttachmentDownloadResult> => {
+      const attachments = await this.fetchIssueAttachments(issueKey);
+      const attachment = attachments.find(a => a.id === attachmentId);
+      if (!attachment) {
+        throw new Error(`Attachment ${attachmentId} is not attached to issue ${issueKey}; the issue has ${attachments.length} attachment(s)`);
+      }
+
+      const maxBytes = getMaxAttachmentBytes();
+      if (typeof attachment.size === 'number' && attachment.size > maxBytes) {
+        throw new Error(`Attachment ${attachment.id} is ${attachment.size} bytes, which exceeds the ${maxBytes} byte limit; set JIRA_MAX_ATTACHMENT_DOWNLOAD_BYTES to allow larger downloads`);
+      }
+
+      // The DC REST API has no attachment content endpoint; the canonical web path is /secure/attachment/<id>/<filename>.
+      const webBase = OpenAPI.BASE.replace(/\/rest\/?$/, '');
+      const url = `${webBase}/secure/attachment/${encodeURIComponent(attachment.id)}/${encodeURIComponent(attachment.filename)}`;
+
+      const token = typeof OpenAPI.TOKEN === 'function' ? await OpenAPI.TOKEN({ method: 'GET', url }) : OpenAPI.TOKEN;
+      if (!token) {
+        throw new Error('Missing required environment variable: JIRA_API_TOKEN');
+      }
+
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: { Authorization: `Bearer ${token}` },
+        redirect: 'error',
+        signal: AbortSignal.timeout(getRequestTimeoutMs())
+      });
+      if (!response.ok) {
+        const error = new Error(`Failed to download attachment ${attachment.id}: ${response.status} ${response.statusText}`);
+        Object.assign(error, {
+          status: response.status,
+          statusText: response.statusText,
+          body: (await response.text()).slice(0, 500)
+        });
+        throw error;
+      }
+
+      const bytes = Buffer.from(await response.arrayBuffer());
+      if (bytes.byteLength > maxBytes) {
+        throw new Error(`Attachment ${attachment.id} is ${bytes.byteLength} bytes, which exceeds the ${maxBytes} byte limit; set JIRA_MAX_ATTACHMENT_DOWNLOAD_BYTES to allow larger downloads`);
+      }
+
+      const result: JiraAttachmentDownloadResult = {
+        issueKey,
+        attachmentId: attachment.id,
+        filename: attachment.filename,
+        size: bytes.byteLength,
+        encoding: 'base64',
+        data: bytes.toString('base64')
+      };
+      if (attachment.mimeType !== undefined) {
+        result.mimeType = attachment.mimeType;
+      }
+      return result;
+    }, 'Error downloading issue attachment');
   }
 
   async postIssueComment(issueKey: string, comment: string) {
@@ -262,6 +347,10 @@ export const jiraToolSchemas = {
   },
   getIssueAttachments: {
     issueKey: z.string().describe("JIRA issue key (e.g., PROJ-123)")
+  },
+  downloadIssueAttachment: {
+    issueKey: z.string().describe("JIRA issue key (e.g., PROJ-123)"),
+    attachmentId: z.string().describe("Numeric attachment ID as returned by jira_getIssueAttachments")
   },
   postIssueComment: {
     issueKey: z.string().describe("JIRA issue key (e.g., PROJ-123)"),

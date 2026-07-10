@@ -68,6 +68,16 @@ server.tool(
 );
 
 server.tool(
+  "jira_downloadIssueAttachment",
+  `Download an attachment from a JIRA issue in the ${jiraInstanceType}. Returns base64-encoded content; the attachment must belong to the issue.`,
+  jiraToolSchemas.downloadIssueAttachment,
+  async ({ issueKey, attachmentId }) => {
+    const result = await jiraService.downloadIssueAttachment(issueKey, attachmentId);
+    return formatToolResponse(result);
+  }
+);
+
+server.tool(
   "jira_createIssue",
   `Create a new JIRA issue in the ${jiraInstanceType}`,
   jiraToolSchemas.createIssue,
