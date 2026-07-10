@@ -247,3 +247,30 @@ Parameters:
 - `issueKey` (string, required): The issue key (e.g., "PROJECT-123")
 - `transitionId` (string, required): Transition ID returned by `jira_getTransitions`
 - `fields` (object, optional): Additional fields required by the transition screen
+
+#### 9. jira_getIssueAttachments
+
+Get attachment metadata for a JIRA issue in the JIRA Data Center edition instance. Read-only.
+
+Parameters:
+- `issueKey` (string, required): The issue key (e.g., "PROJECT-123")
+
+Example: `{ "issueKey": "PROJ-123" }`
+
+Returns `{ issueKey, attachments: [...] }` where each attachment carries `id`, `filename`, `mimeType`, `size` (bytes), `created`, a minimal `author` (`name`, `displayName`), and `hasThumbnail`. An issue with no attachments returns an empty `attachments` list. The issue is fetched with an attachment-only field selection, so the response stays compact regardless of issue size.
+
+#### 10. jira_downloadIssueAttachment
+
+Download an attachment from a JIRA issue in the JIRA Data Center edition instance. Read-only.
+
+Parameters:
+- `issueKey` (string, required): The issue key (e.g., "PROJECT-123")
+- `attachmentId` (string, required): Numeric attachment ID as returned by `jira_getIssueAttachments`
+
+Example: `{ "issueKey": "PROJ-123", "attachmentId": "10042" }`
+
+Returns `{ issueKey, attachmentId, filename, mimeType, size, encoding: "base64", data }` where `data` is the attachment's raw bytes base64-encoded (byte-for-byte; decode with any standard base64 decoder). The attachment must belong to the specified issue: the tool first lists the issue's own attachments and refuses to download an ID that is not on that list.
+
+Size limit: downloads are capped at 10 MiB by default to bound memory use (base64 inflates payloads by ~33%). Override with the `JIRA_MAX_ATTACHMENT_DOWNLOAD_BYTES` environment variable (plain process environment variable, read directly like `ATLASSIAN_DC_MCP_REQUEST_TIMEOUT_MS`; it does not participate in the config-file/keychain resolution chain). Oversized attachments are rejected from metadata before any download when Jira reports a size, and re-checked against the actual bytes after download.
+
+Security note: attachment access is limited by the permissions of the configured `JIRA_API_TOKEN` — the tool can only list and download attachments on issues that token can read. The download URL is always constructed from the configured Jira host, never from URLs embedded in API responses, and redirects are refused.
