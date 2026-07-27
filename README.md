@@ -4,6 +4,8 @@
 
 # Atlassian Data Center MCP
 
+[![MCP Toplist](https://mcptoplist.com/badge/io.github.b1ff%2Fatlassian-dc-mcp-jira.svg)](https://mcptoplist.com/server/io.github.b1ff%2Fatlassian-dc-mcp-jira)
+
 > **Note:** This is a community-maintained project and is **not affiliated with, endorsed by, or supported by Atlassian**.
 > Use at your own discretion.
 
