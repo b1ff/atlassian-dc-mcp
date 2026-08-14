@@ -1,3 +1,5 @@
+
+
 [![MSeeP.ai Security Assessment Badge](https://mseep.net/pr/b1ff-atlassian-dc-mcp-badge.png)](https://mseep.ai/app/b1ff-atlassian-dc-mcp)
 
 [![Verified on MseeP](https://mseep.ai/badge.svg)](https://mseep.ai/app/2a87ecc6-e53a-4a21-b63e-ede9b6a2bc4a)
@@ -414,23 +416,23 @@ For local development, create a `.env` file in the root directory, or a shared d
 
 ```
 # Jira configuration - choose one of these options:
-JIRA_HOST=your-instance.atlassian.net
+JIRA_HOST=your-jira-host
 # OR
-JIRA_API_BASE_PATH=https://your-instance.atlassian.net/rest
+JIRA_API_BASE_PATH=https://your-jira-host/rest
 # Note: part /api/2/search/ is added automatically, do not include it
 JIRA_API_TOKEN=your-api-token
 
 # Confluence configuration - choose one of these options:
-CONFLUENCE_HOST=your-instance.atlassian.net
+CONFLUENCE_HOST=your-confluence-host
 # OR
-CONFLUENCE_API_BASE_PATH=https://your-instance.atlassian.net/confluence
+CONFLUENCE_API_BASE_PATH=https://your-confluence-host/rest
 # Note: part /rest/api is added automatically, do not include it
 CONFLUENCE_API_TOKEN=your-api-token
 
 # Bitbucket configuration - choose one of these options:
-BITBUCKET_HOST=your-instance.atlassian.net
+BITBUCKET_HOST=your-bitbucket-host
 # OR
-BITBUCKET_API_BASE_PATH=https://your-instance.atlassian.net/rest
+BITBUCKET_API_BASE_PATH=https://your-bitbucket-host/rest
 # Note: part /api/latest/ is added automatically, do not include it
 BITBUCKET_API_TOKEN=your-api-token
 ```
