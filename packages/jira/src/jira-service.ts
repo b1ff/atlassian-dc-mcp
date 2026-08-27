@@ -90,6 +90,13 @@ export class JiraService {
     return handleApiOperation(() => IssueService.addComment(issueKey, undefined, { body: comment }), 'Error posting issue comment');
   }
 
+  async updateIssueComment(issueKey: string, commentId: string, comment: string) {
+    return handleApiOperation(
+      () => IssueService.updateComment(issueKey, commentId, undefined, { body: comment }),
+      'Error updating issue comment'
+    );
+  }
+
   async createIssue(params: {
     projectId: string;
     summary: string;
@@ -197,7 +204,7 @@ export class JiraService {
       const buffer = await readFile(absolutePath);
       const name = filename || basename(absolutePath);
       const file = new File([buffer], name);
-      // IssueService types formData as Blob, but the API expects { file } â€” getFormData handles File via isBlob()
+      // IssueService types formData as Blob, but the API expects { file } — getFormData handles File via isBlob()
       return IssueService.addAttachment(issueKey, { file } as any);
     }, 'Error uploading attachment');
   }
@@ -350,6 +357,11 @@ export const jiraToolSchemas = {
   postIssueComment: {
     issueKey: z.string().describe("JIRA issue key (e.g., PROJ-123)"),
     comment: z.string().describe("Comment text in the format suitable for JIRA DATA CENTER edition (JIRA Wiki Markup).")
+  },
+  updateIssueComment: {
+    issueKey: z.string().describe("JIRA issue key (e.g., PROJ-123)"),
+    commentId: z.string().describe("The id of the comment to update. Comment ids can be found via jira_getIssueComments."),
+    comment: z.string().describe("New comment text that replaces the existing body, in the format suitable for JIRA DATA CENTER edition (JIRA Wiki Markup).")
   },
   createIssue: {
     projectId: z.string().describe("Project key (despite the parameter name, e.g. TEST)"),
