@@ -74,7 +74,7 @@ export class JiraService {
 
   async getIssue(issueKey: string, expand?: string, fields?: string[]) {
     return handleApiOperation(
-      () => IssueService.getIssue(issueKey, expand, toIssueFieldSelection(fields ?? DEFAULT_ISSUE_FIELDS)),
+      () => IssueService.getIssue1(issueKey, expand, (fields ?? DEFAULT_ISSUE_FIELDS).join(',')),
       'Error getting issue'
     );
   }
@@ -88,13 +88,6 @@ export class JiraService {
 
   async postIssueComment(issueKey: string, comment: string) {
     return handleApiOperation(() => IssueService.addComment(issueKey, undefined, { body: comment }), 'Error posting issue comment');
-  }
-
-  async updateIssueComment(issueKey: string, commentId: string, comment: string) {
-    return handleApiOperation(
-      () => IssueService.updateComment(issueKey, commentId, undefined, { body: comment }),
-      'Error updating issue comment'
-    );
   }
 
   async createIssue(params: {
@@ -171,7 +164,7 @@ export class JiraService {
 
   private async resolveIssueId(issueKey: string): Promise<string> {
     // The dev-status API is keyed by the numeric issue id, not the issue key.
-    const issue = await IssueService.getIssue(issueKey, undefined, toIssueFieldSelection(['id']));
+    const issue = await IssueService.getIssue1(issueKey, undefined, 'id');
     if (!issue?.id) {
       throw new Error(`Could not resolve numeric id for issue ${issueKey}`);
     }
@@ -204,7 +197,7 @@ export class JiraService {
       const buffer = await readFile(absolutePath);
       const name = filename || basename(absolutePath);
       const file = new File([buffer], name);
-      // IssueService types formData as Blob, but the API expects { file } — getFormData handles File via isBlob()
+      // IssueService types formData as Blob, but the API expects { file } â€” getFormData handles File via isBlob()
       return IssueService.addAttachment(issueKey, { file } as any);
     }, 'Error uploading attachment');
   }
@@ -283,7 +276,7 @@ export class JiraService {
     if (!params.issueKey) {
       throw new Error('Either attachmentId or issueKey must be provided');
     }
-    const issue = await IssueService.getIssue(params.issueKey, undefined, toIssueFieldSelection(['attachment']));
+    const issue = await IssueService.getIssue1(params.issueKey, undefined, 'attachment');
     const all = (((issue as any)?.fields?.attachment) ?? []) as Array<Record<string, any>>;
     const filtered = params.filename ? all.filter((a) => a?.filename === params.filename) : all;
     if (filtered.length === 0) {
@@ -357,11 +350,6 @@ export const jiraToolSchemas = {
   postIssueComment: {
     issueKey: z.string().describe("JIRA issue key (e.g., PROJ-123)"),
     comment: z.string().describe("Comment text in the format suitable for JIRA DATA CENTER edition (JIRA Wiki Markup).")
-  },
-  updateIssueComment: {
-    issueKey: z.string().describe("JIRA issue key (e.g., PROJ-123)"),
-    commentId: z.string().describe("The id of the comment to update. Comment ids can be found via jira_getIssueComments."),
-    comment: z.string().describe("New comment text that replaces the existing body, in the format suitable for JIRA DATA CENTER edition (JIRA Wiki Markup).")
   },
   createIssue: {
     projectId: z.string().describe("Project key (despite the parameter name, e.g. TEST)"),
