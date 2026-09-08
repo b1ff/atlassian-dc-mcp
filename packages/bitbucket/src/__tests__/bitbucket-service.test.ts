@@ -3027,8 +3027,7 @@ describe('BitbucketService', () => {
           url: '/search/latest/search',
           body: {
             query: 'app',
-            entities: { code: {} },
-            limits: { primary: 25 }
+            entities: { code: { limit: 25 } }
           },
           mediaType: 'application/json',
           errors: {
@@ -3051,9 +3050,40 @@ describe('BitbucketService', () => {
           url: '/search/latest/search',
           body: {
             query: 'repo:demo TODO',
-            entities: { code: {} },
-            limits: { primary: 10, secondary: 5 }
+            entities: { code: { limit: 10 } },
+            limits: { secondary: 5 }
           },
+        })
+      );
+    });
+
+    it('should send the pagination offset when start is given', async () => {
+      mockRequest.mockResolvedValue({ code: { count: 0, values: [] } });
+
+      await bitbucketService.searchCode('TODO', 10, undefined, 30);
+
+      expect(mockRequest).toHaveBeenCalledWith(
+        expect.any(Object),
+        expect.objectContaining({
+          body: {
+            query: 'TODO',
+            entities: { code: { limit: 10, start: 30 } }
+          },
+        })
+      );
+    });
+
+    it('should send start=0 rather than omitting it', async () => {
+      mockRequest.mockResolvedValue({ code: { count: 0, values: [] } });
+
+      await bitbucketService.searchCode('TODO', 10, undefined, 0);
+
+      expect(mockRequest).toHaveBeenCalledWith(
+        expect.any(Object),
+        expect.objectContaining({
+          body: expect.objectContaining({
+            entities: { code: { limit: 10, start: 0 } }
+          }),
         })
       );
     });

@@ -1084,22 +1084,25 @@ export class BitbucketService {
    * the dashboard/inbox endpoints).
    *
    * @param query The search query (may include modifiers like `repo:`, `project:`, `ext:`)
-   * @param limit Optional primary result limit (defaults to the package page size)
+   * @param limit Optional maximum number of matching files to return (defaults to the package page size)
    * @param secondaryLimit Optional secondary limit (number of hit contexts per match)
+   * @param start Optional pagination offset, taken from `code.nextStart` of a previous response
    * @returns Promise with the code search results
    */
-  async searchCode(query: string, limit?: number, secondaryLimit?: number) {
+  async searchCode(query: string, limit?: number, secondaryLimit?: number, start?: number) {
     return handleApiOperation(
       () => __request(OpenAPI, {
         method: 'POST',
         url: '/search/latest/search',
         body: {
           query,
-          entities: { code: {} },
-          limits: {
-            primary: limit ?? this.getPageSize(),
-            ...(secondaryLimit !== undefined ? { secondary: secondaryLimit } : {}),
+          entities: {
+            code: {
+              limit: limit ?? this.getPageSize(),
+              ...(start !== undefined ? { start } : {}),
+            },
           },
+          ...(secondaryLimit !== undefined ? { limits: { secondary: secondaryLimit } } : {}),
         },
         mediaType: 'application/json',
         errors: {
@@ -1341,6 +1344,7 @@ export const bitbucketToolSchemas = {
   searchCode: {
     query: z.string().describe("The search query. Supports Bitbucket search modifiers, e.g. 'project:TEST authenticate', 'repo:TEST/demo TODO' (the repo modifier must be 'repo:projectkey/repositoryslug'), 'ext:ts useState'. Scope to a project or repository inside the query text."),
     limit: z.number().optional().describe("Maximum number of matching files to return. If not passed, the package default page size is used."),
+    start: z.number().optional().describe("Pagination offset. Omit for the first page, then pass the 'code.nextStart' value from the previous response to fetch the next one. The response reports 'code.isLastPage' and the total match count in 'code.count'. Prefer narrowing the query with modifiers over paging deep into a large result set."),
     secondaryLimit: z.number().optional().describe("Maximum number of hit contexts (matching code snippets) to return per file")
   }
 };
