@@ -20,7 +20,7 @@ jest.mock('../confluence-client/index.js', () => ({
 describe('ConfluenceService.uploadAttachment', () => {
   let service: ConfluenceService;
   let root: string;
-  const uploadSide = (): AttachmentGatewaySide => ({ enabled: true, roots: [fs.realpathSync(root)], maxBytes: 1024 });
+  const uploadSide = (): AttachmentGatewaySide => ({ enabled: true, roots: [fs.realpathSync.native(root)], maxBytes: 1024 });
 
   beforeEach(() => {
     service = new ConfluenceService('test-host', 'test-token');

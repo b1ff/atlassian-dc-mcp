@@ -18,7 +18,7 @@ jest.mock('../jira-client/index.js', () => ({
 describe('JiraService.uploadAttachment', () => {
   let service: JiraService;
   let root: string;
-  const uploadSide = (): AttachmentGatewaySide => ({ enabled: true, roots: [fs.realpathSync(root)], maxBytes: 1024 });
+  const uploadSide = (): AttachmentGatewaySide => ({ enabled: true, roots: [fs.realpathSync.native(root)], maxBytes: 1024 });
 
   beforeEach(() => {
     service = new JiraService('test-host', 'test-token', undefined, () => 25);
