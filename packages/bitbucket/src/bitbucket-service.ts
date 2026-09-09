@@ -3,6 +3,7 @@ import { OpenAPI, ProjectService, PullRequestsService, RepositoryService } from 
 import { request as __request } from './bitbucket-client/core/request.js';
 import { type ApiErrorResponse, handleApiOperation, resolveOpenApiBase } from '@atlassian-dc-mcp/common';
 import { simplifyInboxPullRequests } from './inbox-pr-mapper.js';
+import { cleanCodeSearchSnippets } from './code-search-mapper.js';
 import { CompareDiffResponse, formatCompareDiffAsUnified } from './compare-diff-mapper.js';
 import { BITBUCKET_PRODUCT, getDefaultPageSize, getMissingConfig } from './config.js';
 import { fetchPullRequestBuilds } from './pr-builds.js';
@@ -1158,7 +1159,7 @@ export class BitbucketService {
    * @returns Promise with the code search results
    */
   async searchCode(query: string, limit?: number, start?: number) {
-    return handleApiOperation(
+    const result = await handleApiOperation(
       () => __request(OpenAPI, {
         method: 'POST',
         url: '/search/latest/search',
@@ -1179,6 +1180,15 @@ export class BitbucketService {
       }),
       'Error searching code'
     );
+
+    if (result.success && result.data) {
+      return {
+        success: true,
+        data: cleanCodeSearchSnippets(result.data),
+      };
+    }
+
+    return result;
   }
 
   async validateSetup(): Promise<void> {
