@@ -9,6 +9,7 @@ interface CodeSearchHit {
 }
 
 interface CodeSearchResponse {
+  query?: { substituted?: boolean } | null;
   code?: {
     values?: CodeSearchHit[];
   };
@@ -61,6 +62,38 @@ function decodeHtmlEntities(text: string): string {
 
 function stripEmphasis(text: string): string {
   return text.replace(/<\/?em>/g, '');
+}
+
+/**
+ * Bitbucket does not reject a query it cannot parse: it silently runs a different one and
+ * only reports that in the response. Detect it so callers never act on results for a query
+ * they did not ask for.
+ */
+export function describeUnhonoredQuery(response: unknown): string | undefined {
+  if (typeof response !== 'object' || response === null || !('query' in response)) {
+    return undefined;
+  }
+
+  const { query } = response as CodeSearchResponse;
+
+  if (query === null) {
+    return (
+      'Bitbucket could not interpret the search query, so no results were returned. This ' +
+      'usually means a modifier named a project or repository that does not exist or is not ' +
+      'visible to you. Check the project key and repository slug, then retry.'
+    );
+  }
+
+  if (query?.substituted) {
+    return (
+      'Bitbucket could not parse the search query as written and silently ran a different ' +
+      'one, so the results would answer a different question. The usual cause is an explicit ' +
+      'AND between a search term and a modifier: write "foo project:KEY" instead of ' +
+      '"foo AND project:KEY". Reserve AND, OR and NOT for combining search terms.'
+    );
+  }
+
+  return undefined;
 }
 
 /**
