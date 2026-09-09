@@ -3019,7 +3019,7 @@ describe('BitbucketService', () => {
       const result = await bitbucketService.searchCode('app');
 
       expect(result.success).toBe(true);
-      expect(result.data).toBe(mockData);
+      expect(result.data).toEqual(mockData);
       expect(mockRequest).toHaveBeenCalledWith(
         expect.any(Object),
         {
@@ -3094,6 +3094,25 @@ describe('BitbucketService', () => {
 
       expect(result.success).toBe(false);
       expect(result.error).toBeDefined();
+    });
+
+    it('should return snippets as plain source text', async () => {
+      mockRequest.mockResolvedValue({
+        code: {
+          count: 1,
+          values: [
+            {
+              file: 'a.cs',
+              hitContexts: [[{ line: 3, text: 'a &lt; b &amp;&amp; c&#x2F;<em>d</em>' }]],
+            },
+          ],
+        },
+      });
+
+      const result = await bitbucketService.searchCode('d');
+
+      expect(result.success).toBe(true);
+      expect((result.data as any).code.values[0].hitContexts[0][0].text).toBe('a < b && c/d');
     });
   });
 });
