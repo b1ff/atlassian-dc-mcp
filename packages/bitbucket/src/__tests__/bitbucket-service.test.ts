@@ -3190,10 +3190,10 @@ describe('BitbucketService', () => {
       );
     });
 
-    it('should pass explicit primary and secondary limits', async () => {
+    it('should pass an explicit limit', async () => {
       mockRequest.mockResolvedValue({ code: { count: 0, values: [] } });
 
-      await bitbucketService.searchCode('repo:demo TODO', 10, 5);
+      await bitbucketService.searchCode('repo:demo TODO', 10);
 
       expect(mockRequest).toHaveBeenCalledWith(
         expect.any(Object),
@@ -3202,8 +3202,7 @@ describe('BitbucketService', () => {
           url: '/search/latest/search',
           body: {
             query: 'repo:demo TODO',
-            entities: { code: { limit: 10 } },
-            limits: { secondary: 5 }
+            entities: { code: { limit: 10 } }
           },
         })
       );
@@ -3212,7 +3211,7 @@ describe('BitbucketService', () => {
     it('should send the pagination offset when start is given', async () => {
       mockRequest.mockResolvedValue({ code: { count: 0, values: [] } });
 
-      await bitbucketService.searchCode('TODO', 10, undefined, 30);
+      await bitbucketService.searchCode('TODO', 10, 30);
 
       expect(mockRequest).toHaveBeenCalledWith(
         expect.any(Object),
@@ -3228,7 +3227,7 @@ describe('BitbucketService', () => {
     it('should send start=0 rather than omitting it', async () => {
       mockRequest.mockResolvedValue({ code: { count: 0, values: [] } });
 
-      await bitbucketService.searchCode('TODO', 10, undefined, 0);
+      await bitbucketService.searchCode('TODO', 10, 0);
 
       expect(mockRequest).toHaveBeenCalledWith(
         expect.any(Object),
