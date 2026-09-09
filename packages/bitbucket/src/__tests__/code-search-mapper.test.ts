@@ -1,4 +1,4 @@
-import { cleanCodeSearchSnippets } from '../code-search-mapper.js';
+import { cleanCodeSearchSnippets, describeUnhonoredQuery } from '../code-search-mapper.js';
 
 describe('cleanCodeSearchSnippets', () => {
   const makeResponse = (text: string) => ({
@@ -108,5 +108,36 @@ describe('cleanCodeSearchSnippets', () => {
   it('returns unrecognized payloads as-is', () => {
     expect(cleanCodeSearchSnippets(undefined)).toBeUndefined();
     expect(cleanCodeSearchSnippets({ error: 'nope' })).toEqual({ error: 'nope' });
+  });
+});
+
+describe('describeUnhonoredQuery', () => {
+  it('reports a substituted query and names the explicit AND as the cause', () => {
+    const message = describeUnhonoredQuery({
+      query: { substituted: true },
+      code: { count: 10000, values: [] },
+    });
+
+    expect(message).toContain('silently ran a different');
+    expect(message).toContain('"foo project:KEY"');
+  });
+
+  it('reports a query Bitbucket could not interpret at all', () => {
+    const message = describeUnhonoredQuery({ query: null, code: { count: 0, values: [] } });
+
+    expect(message).toContain('could not interpret');
+    expect(message).toContain('project key');
+  });
+
+  it('accepts a query Bitbucket honored', () => {
+    expect(
+      describeUnhonoredQuery({ query: { substituted: false }, code: { values: [] } })
+    ).toBeUndefined();
+  });
+
+  it('accepts responses that carry no query field', () => {
+    expect(describeUnhonoredQuery({ code: { values: [] } })).toBeUndefined();
+    expect(describeUnhonoredQuery(undefined)).toBeUndefined();
+    expect(describeUnhonoredQuery('nonsense')).toBeUndefined();
   });
 });

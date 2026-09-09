@@ -330,7 +330,7 @@ server.tool(
 
 server.tool(
   "bitbucket_searchCode",
-  "Search code across Bitbucket. The query supports search modifiers like 'project:<key>', 'repo:<key>/<slug>', and 'ext:<extension>' to scope or filter results (e.g. 'project:TEST authenticate', 'repo:TEST/demo ext:js TODO'). NOTE: the 'repo:' modifier requires the project key — 'repo:projectkey/repositoryslug', not a bare slug. Returns matching files with hit contexts (snippets), plus 'code.count', 'code.isLastPage' and 'code.nextStart' for paging via the 'start' parameter.",
+  "Search code across Bitbucket. Scope and filter inside the query text with modifiers like 'project:<key>', 'repo:<key>/<slug>', 'path:<glob>', 'lang:<language>' and 'ext:<extension>', separated from the search term by a space (e.g. 'authenticate project:TEST', 'TODO repo:TEST/demo ext:js'). NOTE: the 'repo:' modifier requires the project key — 'repo:projectkey/repositoryslug', not a bare slug. Returns matching files with hit contexts (snippets), plus 'code.count', 'code.isLastPage' and 'code.nextStart' for paging via the 'start' parameter. Fails with an explanatory error when Bitbucket cannot parse the query as written, rather than returning results for a query you did not ask for.",
   bitbucketToolSchemas.searchCode,
   async ({ query, limit, start }) => {
     const result = await bitbucketService.searchCode(query, limit, start);

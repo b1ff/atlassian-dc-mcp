@@ -3114,5 +3114,28 @@ describe('BitbucketService', () => {
       expect(result.success).toBe(true);
       expect((result.data as any).code.values[0].hitContexts[0][0].text).toBe('a < b && c/d');
     });
+
+    it('should fail when Bitbucket substituted the query', async () => {
+      mockRequest.mockResolvedValue({
+        query: { substituted: true },
+        code: { count: 10000, values: [{ file: 'a.cs', hitContexts: [] }] },
+      });
+
+      const result = await bitbucketService.searchCode('TODO AND project:EAS');
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('silently ran a different');
+      expect(result.data).toBeUndefined();
+    });
+
+    it('should fail when Bitbucket could not interpret the query', async () => {
+      mockRequest.mockResolvedValue({ query: null, code: { count: 0, values: [] } });
+
+      const result = await bitbucketService.searchCode('TODO project:NOSUCHPROJECT');
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('could not interpret');
+      expect(result.data).toBeUndefined();
+    });
   });
 });
