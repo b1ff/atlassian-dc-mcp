@@ -243,6 +243,35 @@ export class BitbucketService {
     );
   }
 
+  async browseRepository(
+    projectKey: string,
+    repositorySlug: string,
+    path = '',
+    at?: string,
+    start?: number,
+    limit?: number
+  ) {
+    projectKey = projectKey.toUpperCase();
+    repositorySlug = repositorySlug.toLowerCase();
+    const browsePath = path.replace(/^\/+/, '');
+    const encodedBrowsePath = browsePath.split('/').map(encodeURIComponent).join('/');
+    return handleApiOperation(
+      () => __request(OpenAPI, {
+        method: 'GET',
+        url: browsePath
+          ? `/api/latest/projects/{projectKey}/repos/{repositorySlug}/browse/${encodedBrowsePath}`
+          : '/api/latest/projects/{projectKey}/repos/{repositorySlug}/browse',
+        path: { projectKey, repositorySlug },
+        query: { at, start, limit: limit ?? this.getPageSize() },
+        errors: {
+          401: 'The currently authenticated user has insufficient permissions to view the repository.',
+          404: 'The repository or requested path does not exist.',
+        },
+      }),
+      'Error browsing repository content'
+    );
+  }
+
   /**
    * Create a branch in a repository
    * @param projectKey The project key
@@ -1167,6 +1196,14 @@ export const bitbucketToolSchemas = {
     repositorySlug: z.string().describe("The repository slug"),
     path: z.string().describe("Path to the file in the repository (e.g. 'src/index.ts')"),
     at: z.string().optional().describe("A branch, tag or commit to read the file at (e.g. 'refs/heads/main', 'feature/x', or a commit id). Defaults to the repository's default branch")
+  },
+  browseRepository: {
+    projectKey: z.string().describe("The project key"),
+    repositorySlug: z.string().describe("The repository slug"),
+    path: z.string().optional().describe("Directory or file path to browse. Omit for the repository root."),
+    at: z.string().optional().describe("A branch, tag or commit to browse at. Defaults to the repository's default branch."),
+    start: z.number().optional().describe("Pagination start value. Use the corresponding nextPageStart from the previous response."),
+    limit: z.number().optional().describe("Maximum directory entries or file lines to return. Defaults to the package page size.")
   },
   createBranch: {
     projectKey: z.string().describe("The project key"),
