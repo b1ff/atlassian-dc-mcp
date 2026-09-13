@@ -157,6 +157,26 @@ server.tool(
   }
 );
 
+server.tool(
+  "jira_watchIssue",
+  `Add yourself (the authenticated user) as a watcher on a JIRA issue in the ${jiraInstanceType}. Only the calling user can be added; there is no way to watch on behalf of someone else.`,
+  jiraToolSchemas.watchIssue,
+  async ({ issueKey }) => {
+    const result = await jiraService.watchIssue(issueKey);
+    return formatToolResponse(result);
+  }
+);
+
+server.tool(
+  "jira_unwatchIssue",
+  `Remove yourself (the authenticated user) as a watcher from a JIRA issue in the ${jiraInstanceType}. Only the calling user can be removed; there is no way to unwatch on behalf of someone else.`,
+  jiraToolSchemas.unwatchIssue,
+  async ({ issueKey }) => {
+    const result = await jiraService.unwatchIssue(issueKey);
+    return formatToolResponse(result);
+  }
+);
+
 const attachmentGateway = resolveAttachmentGateway(JIRA_PRODUCT);
 
 // Filesystem-reading upload is only registered when the operator explicitly enables it.

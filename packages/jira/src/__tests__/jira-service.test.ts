@@ -3,7 +3,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { initializeRuntimeConfig } from '@atlassian-dc-mcp/common';
 import { JiraService } from '../jira-service.js';
-import { IssueLinkService, IssueLinkTypeService, IssueService, OpenAPI, SearchService } from '../jira-client/index.js';
+import { IssueLinkService, IssueLinkTypeService, IssueService, MyselfService, OpenAPI, SearchService } from '../jira-client/index.js';
 import { request as __request } from '../jira-client/core/request.js';
 
 jest.mock('../jira-client/core/request.js', () => ({
@@ -20,6 +20,8 @@ jest.mock('../jira-client/index.js', () => ({
     getComments: jest.fn(),
     addComment: jest.fn(),
     updateComment: jest.fn(),
+    addWatcher1: jest.fn(),
+    removeWatcher1: jest.fn(),
   },
   SearchService: {
     searchUsingSearchRequest: jest.fn(),
@@ -30,6 +32,9 @@ jest.mock('../jira-client/index.js', () => ({
   },
   IssueLinkTypeService: {
     getIssueLinkTypes: jest.fn(),
+  },
+  MyselfService: {
+    getUser: jest.fn(),
   },
   OpenAPI: {
     BASE: '',
@@ -544,6 +549,58 @@ describe('JiraService', () => {
 
       expect(result.success).toBe(false);
       expect(result.error).toBe('Invalid issue link id');
+    });
+  });
+
+  describe('watchIssue', () => {
+    it('should add the calling user as a watcher', async () => {
+      (IssueService.addWatcher1 as jest.Mock).mockResolvedValue(undefined);
+
+      const result = await jiraService.watchIssue(mockIssueKey);
+
+      expect(result.success).toBe(true);
+      // No userName is passed — the API defaults to the authenticated caller.
+      expect(IssueService.addWatcher1).toHaveBeenCalledWith(mockIssueKey);
+    });
+
+    it('should handle API errors gracefully', async () => {
+      (IssueService.addWatcher1 as jest.Mock).mockRejectedValue(new Error('Issue does not exist'));
+
+      const result = await jiraService.watchIssue(mockIssueKey);
+
+      expect(result.success).toBe(false);
+      expect(result.error).toBe('Issue does not exist');
+    });
+  });
+
+  describe('unwatchIssue', () => {
+    it('should remove the calling user as a watcher', async () => {
+      (MyselfService.getUser as jest.Mock).mockResolvedValue({ name: 'jdoe' });
+      (IssueService.removeWatcher1 as jest.Mock).mockResolvedValue(undefined);
+
+      const result = await jiraService.unwatchIssue(mockIssueKey);
+
+      expect(result.success).toBe(true);
+      expect(IssueService.removeWatcher1).toHaveBeenCalledWith(mockIssueKey, 'jdoe');
+    });
+
+    it('should fail if the current user name cannot be resolved', async () => {
+      (MyselfService.getUser as jest.Mock).mockResolvedValue({});
+
+      const result = await jiraService.unwatchIssue(mockIssueKey);
+
+      expect(result.success).toBe(false);
+      expect(IssueService.removeWatcher1).not.toHaveBeenCalled();
+    });
+
+    it('should handle API errors gracefully', async () => {
+      (MyselfService.getUser as jest.Mock).mockResolvedValue({ name: 'jdoe' });
+      (IssueService.removeWatcher1 as jest.Mock).mockRejectedValue(new Error('Issue does not exist'));
+
+      const result = await jiraService.unwatchIssue(mockIssueKey);
+
+      expect(result.success).toBe(false);
+      expect(result.error).toBe('Issue does not exist');
     });
   });
 });
