@@ -183,6 +183,16 @@ describe('formatAttachmentToolResponse', () => {
       const label = format(wrap(attachment({ filename: `${'a'.repeat(400)}.png` }))).content[1] as { text: string };
       expect(label.text).toBe(`attachments[0] ${'a'.repeat(120)}… (image/png, 64 bytes)`);
     });
+
+    it('caps by code point, so an astral character is never cut in half', () => {
+      // The emoji straddles the cap: byte-wise slicing would keep its lead surrogate.
+      const filename = `${'a'.repeat(119)}\u{1f5bc}${'b'.repeat(20)}.png`;
+      const label = format(wrap(attachment({ filename }))).content[1] as { text: string };
+
+      expect(label.text).toBe(`attachments[0] ${'a'.repeat(119)}\u{1f5bc}… (image/png, 64 bytes)`);
+      expect(label.text).not.toMatch(/[\ud800-\udfff]/u); // with /u, only a *lone* surrogate matches
+      expect(label.text).toBe(Buffer.from(label.text, 'utf8').toString('utf8'));
+    });
   });
 
   it('never emits an empty image block', () => {

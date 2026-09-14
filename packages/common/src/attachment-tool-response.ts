@@ -23,7 +23,7 @@ export const MAX_IMAGE_BYTES = 3_750_000;
 /** Past 20 images a result approaches the request-size limit and gets downscaled. */
 const MAX_IMAGE_BLOCKS = 20;
 
-/** Longest filename we will echo into a label, before an ellipsis. */
+/** Longest filename we will echo into a label, in code points, before an ellipsis. */
 const MAX_LABEL_FILENAME_CHARS = 120;
 
 /**
@@ -37,8 +37,12 @@ const MAX_LABEL_FILENAME_CHARS = 120;
  */
 function labelFilename(filename: string): string {
   const flattened = filename.replace(/[\p{Cc}\p{Cf}\p{Zl}\p{Zp}]/gu, ' ').replace(/\s+/g, ' ').trim();
-  return flattened.length > MAX_LABEL_FILENAME_CHARS
-    ? `${flattened.slice(0, MAX_LABEL_FILENAME_CHARS)}…`
+  // Cap by code point, not UTF-16 unit: cutting an astral character (an emoji in a
+  // filename) in half leaves a lone surrogate, which UTF-8 encoding downstream
+  // turns into U+FFFD or rejects outright.
+  const codePoints = [...flattened];
+  return codePoints.length > MAX_LABEL_FILENAME_CHARS
+    ? `${codePoints.slice(0, MAX_LABEL_FILENAME_CHARS).join('')}…`
     : flattened;
 }
 
