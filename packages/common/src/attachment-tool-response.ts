@@ -30,13 +30,19 @@ const MAX_LABEL_FILENAME_CHARS = 120;
  * Make an untrusted filename safe to interpolate into a raw text block.
  *
  * Everywhere else a filename reaches the model JSON-escaped inside the serialised
- * result. A label is plain text, so a name carrying a newline could forge a second
- * label and an instruction after it - the exact channel that making rendering
- * opt-in was meant to keep narrow. Strip control and format characters (bidi
- * overrides and zero-width joiners included), collapse whitespace, and cap length.
+ * result. A label is plain text, so an unconstrained name can impersonate the
+ * label syntax around it - the exact channel that making rendering opt-in was
+ * meant to keep narrow. The caller wraps the name in double quotes, so bounding
+ * it takes two things: strip the double quote, so the name cannot close them, and
+ * strip control and format characters (bidi overrides and zero-width joiners
+ * included) and collapse whitespace, so it cannot break the line and start a
+ * fresh label either. Then cap the length.
+ *
+ * Stripping the label's own punctuation instead would mangle ordinary names -
+ * `Screenshot (1).png` is not an attack - which is why the quotes do that work.
  */
 function labelFilename(filename: string): string {
-  const flattened = filename.replace(/[\p{Cc}\p{Cf}\p{Zl}\p{Zp}]/gu, ' ').replace(/\s+/g, ' ').trim();
+  const flattened = filename.replace(/["\p{Cc}\p{Cf}\p{Zl}\p{Zp}]/gu, ' ').replace(/\s+/g, ' ').trim();
   // Cap by code point, not UTF-16 unit: cutting an astral character (an emoji in a
   // filename) in half leaves a lone surrogate, which UTF-8 encoding downstream
   // turns into U+FFFD or rejects outright.
@@ -69,6 +75,9 @@ function sniffImageMediaType(base64: string): string | undefined {
   return hex.startsWith('52494646') && hex.slice(16, 24) === '57454250' ? 'image/webp' : undefined;
 }
 
+/** Where the bytes of an attachment we did not render can be had instead. */
+const BYTES_ELSEWHERE = "re-request it with returnContent: 'base64' for the bytes";
+
 /**
  * Whether an attachment the caller asked to see can be rendered, and as what.
  *
@@ -82,14 +91,14 @@ function classifyImage(
 ): { mimeType: string } | { reason: string } {
   const mimeType = sniffImageMediaType(content);
   if (!mimeType) {
-    return { reason: `Not a PNG, JPEG, GIF or WEBP image (declared ${attachment.mediaType ?? 'no media type'}); the bytes are in this entry as base64` };
+    return { reason: `Not a PNG, JPEG, GIF or WEBP image (declared ${attachment.mediaType ?? 'no media type'}); ${BYTES_ELSEWHERE}` };
   }
   const bytes = Buffer.byteLength(content, 'base64');
   if (bytes > MAX_IMAGE_BYTES) {
-    return { reason: `Image is ${bytes} bytes, over the ${MAX_IMAGE_BYTES} byte render limit; the bytes are in this entry as base64` };
+    return { reason: `Image is ${bytes} bytes, over the ${MAX_IMAGE_BYTES} byte render limit; ${BYTES_ELSEWHERE}` };
   }
   if (blocksLeft <= 0) {
-    return { reason: `Only the first ${MAX_IMAGE_BLOCKS} images are rendered; narrow the request with 'filename'. The bytes are in this entry as base64` };
+    return { reason: `Only the first ${MAX_IMAGE_BLOCKS} images are rendered; narrow the request with 'filename', or ${BYTES_ELSEWHERE}` };
   }
   return { mimeType };
 }
@@ -97,13 +106,15 @@ function classifyImage(
 /**
  * Turn one attachment into its JSON entry plus the blocks that carry its bytes.
  *
- * The bytes go in exactly one place, but only when there are two places to choose
- * between: an image actually delivered as a block loses `content` from its JSON
- * entry, because `formatToolResponse` serialises the whole result and a second
- * base64 copy costs ~60x the tokens of the block itself, which pushes a 300 KB PNG
- * past the host's result-size limit. An attachment that was *not* rendered keeps
- * its bytes - there is no duplicate to avoid, and the caller already paid to
- * download them - so it reads exactly as `returnContent: 'base64'` would.
+ * In this mode the JSON entry never carries bytes, whatever happens to the
+ * attachment. `formatToolResponse` serialises the whole result into one text
+ * block, and base64 sitting in text costs ~60x the tokens of the image block that
+ * shows the same pixels - enough that a single 300 KB PNG pushes the result past
+ * the host's size limit. So a rendered image has its bytes in its block and
+ * nowhere else; an attachment we refused to render gets none at all, because
+ * nothing can look at them and the usual reason for refusing is that they are too
+ * large to travel in text in the first place. `imageOmittedReason` says why, and
+ * `returnContent: 'base64'` stays the mode that returns bytes.
  */
 function renderAttachment(
   attachment: AttachmentDownloadResult,
@@ -115,20 +126,21 @@ function renderAttachment(
     return { entry: attachment, blocks: [] };
   }
 
+  // `encoding` goes with the bytes it describes, so it leaves with them.
+  const { content: _bytes, encoding: _describesBytes, ...entry } = attachment;
+
   const classified = classifyImage(attachment, content, blocksLeft);
   if ('reason' in classified) {
-    return { entry: { ...attachment, imageOmittedReason: classified.reason }, blocks: [] };
+    return { entry: { ...entry, imageOmittedReason: classified.reason }, blocks: [] };
   }
 
-  // `encoding` goes with the bytes it describes; contentDeliveredAs tells the story now.
-  const { content: _delivered, encoding: _describesContent, ...entry } = attachment;
   const { mimeType } = classified;
   return {
     entry: { ...entry, mediaType: mimeType, contentDeliveredAs: 'image' },
     blocks: [
       // Without a label the model cannot map image N back to attachments[i] once an
       // entry is skipped or two attachments share a filename.
-      { type: 'text', text: `attachments[${index}] ${labelFilename(attachment.filename)} (${mimeType}, ${attachment.size} bytes)` },
+      { type: 'text', text: `attachments[${index}] "${labelFilename(attachment.filename)}" (${mimeType}, ${attachment.size} bytes)` },
       { type: 'image', data: content, mimeType },
     ],
   };

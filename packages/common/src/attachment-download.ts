@@ -9,8 +9,10 @@ import { basename } from 'node:path';
  *   files); the bytes stay data and are never rendered for the model to look at
  * - `text`: embed the bytes decoded as UTF-8 text (suitable for text files)
  * - `image`: deliver the bytes as a viewable MCP image block instead of in the
- *   JSON payload. Only for images the model is meant to *look at*; the pixels
- *   become model-visible, so see the prompt-injection note in the READMEs.
+ *   JSON payload, which in this mode carries no bytes at all - an attachment that
+ *   cannot be rendered reports `imageOmittedReason` and nothing else. Only for
+ *   images the model is meant to *look at*; the pixels become model-visible, so
+ *   see the prompt-injection note in the READMEs.
  */
 export type AttachmentContentEncoding = 'none' | 'base64' | 'text' | 'image';
 
@@ -40,7 +42,11 @@ export interface AttachmentDownloadResult {
   size: number;
   /** Absolute path the file was written to, when saving was requested. */
   savedPath?: string;
-  /** Inline content, when returnContent is `base64`, `text` or `image`. */
+  /**
+   * Inline content, when returnContent is `base64` or `text`. Also set for `image`
+   * at this layer, where the bytes are still on their way to a block; the response
+   * formatter takes it back out, so it never reaches the model twice.
+   */
   content?: string;
   encoding?: 'base64' | 'text';
   /** Set when inline content was requested but omitted (e.g. over the size cap). */
@@ -51,8 +57,9 @@ export interface AttachmentDownloadResult {
    */
   contentDeliveredAs?: 'image';
   /**
-   * Why `returnContent: 'image'` did not render this attachment. The bytes are still
-   * in `content`, so this is not a `contentOmittedReason`.
+   * Why `returnContent: 'image'` did not render this attachment. The bytes were
+   * downloaded and then dropped rather than never fetched, which is what separates
+   * this from `contentOmittedReason`; the message names the mode that returns them.
    */
   imageOmittedReason?: string;
 }
