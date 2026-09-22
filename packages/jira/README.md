@@ -116,6 +116,7 @@ Alternatively, you can use `JIRA_API_BASE_PATH` instead of `JIRA_HOST` to specif
 - Create and update issues
 - Add and update comments on issues
 - Link and unlink issues
+- Watch and unwatch issues
 
 ## Setup
 
@@ -314,7 +315,21 @@ Delete an existing link between two JIRA issues in the JIRA Data Center edition 
 Parameters:
 - `linkId` (string, required): The id of the issue link to delete. Link ids are found in the `issuelinks` field of an issue (retrieve it via `jira_getIssue` with the `issuelinks` field).
 
-#### 13. jira_uploadAttachment
+#### 13. jira_watchIssue
+
+Add yourself (the authenticated user) as a watcher on a JIRA issue in the JIRA Data Center edition instance. Only the calling user can be added — there is no way to watch an issue on behalf of someone else.
+
+Parameters:
+- `issueKey` (string, required): The issue key (e.g., "PROJECT-123")
+
+#### 14. jira_unwatchIssue
+
+Remove yourself (the authenticated user) as a watcher from a JIRA issue in the JIRA Data Center edition instance. Only the calling user can be removed — there is no way to unwatch an issue on behalf of someone else.
+
+Parameters:
+- `issueKey` (string, required): The issue key (e.g., "PROJECT-123")
+
+#### 15. jira_uploadAttachment
 
 Upload a local file as an attachment to a JIRA issue. Only registered when filesystem uploads are enabled (see [Attachment filesystem access](#attachment-filesystem-access-opt-in)).
 
@@ -323,7 +338,7 @@ Parameters:
 - `sourcePath` (string, required): Path to the file to upload, **relative to a server-configured upload directory**. Absolute paths and `..` segments are rejected; symlinks and non-regular files are refused.
 - `filename` (string, optional): Override for the attachment filename (defaults to the basename of `sourcePath`)
 
-#### 14. jira_downloadAttachment
+#### 16. jira_downloadAttachment
 
 Download attachment(s) from a JIRA issue, by issue key (optionally filtered by filename) or by a single attachment id. Returns the file content inline (base64 or text) — useful for inspecting a file or moving it elsewhere (e.g. re-uploading to a Confluence page). When filesystem downloads are enabled (see [Attachment filesystem access](#attachment-filesystem-access-opt-in)), it can also save into the server-configured download directory.
 
