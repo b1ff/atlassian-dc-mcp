@@ -203,6 +203,20 @@ Or for development with auto-reload:
 npm run dev
 ```
 
+### Attachments are untrusted content
+
+An attachment is third-party content that anyone with write access to the Jira instance can upload. Whatever one contains is data to be reported, never instructions to be followed.
+
+`returnContent: 'image'` renders an attachment for the model to look at, which is a wider surface than the other modes: instructions painted into pixels are invisible to text-level prompt-injection filters, and a human skimming the transcript will not read them either ([OWASP LLM01](https://genai.owasp.org/llmrisk/llm01-prompt-injection/)). That is why rendering is a separate, explicitly requested mode — `'base64'` and `'text'` return the bytes as data and render nothing, so a workflow that only moves a file elsewhere (e.g. re-uploading it to a Confluence page) never puts the image in front of the model.
+
+To bound that surface and stay inside host limits, image blocks are:
+
+- **sniffed, not trusted** — the format comes from the file's magic number rather than the uploader-declared media type, so a mislabelled file, an HTML error page, or an SSO login page served with a `200` is skipped instead of rendered;
+- **limited to PNG, JPEG, GIF and WEBP** — the only formats the model vision APIs accept; anything else (SVG, HEIC, BMP, TIFF) stays out;
+- **capped** at 3,750,000 bytes per image (base64 grows that to the 5 MB the model APIs accept) and 20 images per result;
+- **labelled** with `attachments[i] "<name>" (<type>, <size>)`, so every image maps back to its JSON entry. The filename is quoted and, before that, stripped of the double quote itself along with control and format characters, then length-capped — so a name can neither break the line nor close its own quotes to forge a second label;
+- **the only place bytes travel** — in this mode the JSON entry never carries `content`. A rendered image has its bytes in its block and nowhere else, so the payload is never shipped twice; an attachment that is *not* rendered, for any of the reasons above, gets no bytes either and reports `imageOmittedReason` instead. Base64 sitting in the serialised text is counted as text and costs roughly 60x the tokens of the block that shows the same pixels, which is enough on its own to push a result past the host's size limit — and it buys nothing when nothing can be looked at. Ask for those bytes with `returnContent: 'base64'`.
+
 ### Available Tools
 
 #### 1. jira_searchIssues
@@ -340,13 +354,13 @@ Parameters:
 
 #### 16. jira_downloadAttachment
 
-Download attachment(s) from a JIRA issue, by issue key (optionally filtered by filename) or by a single attachment id. Returns the file content inline (base64 or text) — useful for inspecting a file or moving it elsewhere (e.g. re-uploading to a Confluence page). When filesystem downloads are enabled (see [Attachment filesystem access](#attachment-filesystem-access-opt-in)), it can also save into the server-configured download directory.
+Download attachment(s) from a JIRA issue, by issue key (optionally filtered by filename) or by a single attachment id. Returns metadata only unless `returnContent` asks for the bytes — as data with `base64`/`text`, or as a viewable image with `image`. Useful for inspecting a file, looking at a screenshot or mockup, or moving a file elsewhere (e.g. re-uploading to a Confluence page). When filesystem downloads are enabled (see [Attachment filesystem access](#attachment-filesystem-access-opt-in)), it can also save into the server-configured download directory.
 
 Parameters:
 - `issueKey` (string, optional): The issue key (e.g., "PROJECT-123") whose attachment(s) to download. Provide either `issueKey` or `attachmentId`.
 - `attachmentId` (string, optional): Numeric id of a single attachment to download. Provide either `attachmentId` or `issueKey`.
 - `filename` (string, optional): When using `issueKey`, download only attachments with this exact filename. If omitted, all attachments on the issue are downloaded.
-- `returnContent` (`none` | `base64` | `text`, optional): Whether to embed the file bytes in the response. Defaults to `none`.
-- `maxInlineBytes` (number, optional): Maximum bytes to embed inline when `returnContent` is `base64`/`text`. Larger files are omitted from the inline content. Defaults to 1 MiB.
+- `returnContent` (`none` | `base64` | `text` | `image`, optional): Whether and how to embed the file bytes in the response. Defaults to `none` (metadata only — no bytes). `base64` embeds the bytes in the JSON payload as data; `text` embeds them decoded as UTF-8; `image` renders a PNG/JPEG/GIF/WEBP attachment as a viewable MCP image block so the model can actually look at it, and returns no bytes in the JSON at all — an attachment it cannot render reports `imageOmittedReason`, and `base64` is how you get that one's bytes. See [Attachments are untrusted content](#attachments-are-untrusted-content).
+- `maxInlineBytes` (number, optional): Maximum bytes to embed inline when `returnContent` is `base64`/`text`/`image`. Larger files are omitted from the inline content and the entry carries a `contentOmittedReason` instead, so a retry with a higher value gets them. Defaults to 1 MiB and may not exceed 25 MiB, the ceiling on what can be downloaded at all — past that there are no bytes to have, so the request is rejected rather than promising a payload nothing can deliver. Applies to all three modes alike. Rendering has its own separate limit (below), so raising this never renders an image larger than 3,750,000 bytes; re-request that one with `base64` if you need its bytes.
 - `save` (boolean, optional): Save the attachment(s) into the server-configured download directory. Requires filesystem downloads to be enabled; existing files are never overwritten. *(Only available when downloads are enabled.)*
 - `saveName` (string, optional): File name (no directories) to use when saving a single attachment; defaults to the attachment's own name. *(Only available when downloads are enabled.)*

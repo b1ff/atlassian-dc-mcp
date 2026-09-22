@@ -106,6 +106,36 @@ describe('downloadAttachment', () => {
     expect(result.encoding).toBe('base64');
   });
 
+  it("base64-encodes the bytes for returnContent 'image'", async () => {
+    const bytes = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+    mockFetchOnce(bytes, { contentType: 'image/png' });
+
+    const result = await downloadAttachment({
+      url: 'https://host/download/x',
+      token: 'tok',
+      filename: 'shot.png',
+      options: { returnContent: 'image' },
+    });
+
+    expect(result.content).toBe(bytes.toString('base64'));
+    expect(result.encoding).toBe('base64');
+  });
+
+  it('honours a maxInlineBytes above the image render limit, for text too', async () => {
+    const bigLog = Buffer.alloc(5_000_000, 0x41);
+    mockFetchOnce(bigLog, { contentType: 'text/plain' });
+
+    const result = await downloadAttachment({
+      url: 'https://host/download/x',
+      token: 'tok',
+      filename: 'big.log',
+      options: { returnContent: 'text', maxInlineBytes: 5_000_000 },
+    });
+
+    expect(result.contentOmittedReason).toBeUndefined();
+    expect(result.content).toHaveLength(5_000_000);
+  });
+
   it('omits inline content when the file exceeds maxInlineBytes', async () => {
     mockFetchOnce(Buffer.from('123456'));
 
