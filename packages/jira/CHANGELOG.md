@@ -3,6 +3,22 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [0.35.0](https://github.com/b1ff/atlassian-dc-mcp/compare/v0.34.0...v0.35.0) (2026-09-22)
+
+
+### Bug Fixes
+
+* **common:** match root canonicalization to promises.realpath on Windows ([9418742](https://github.com/b1ff/atlassian-dc-mcp/commit/94187426d6cc37daa5f81338e8f50253589cf073))
+
+
+### Features
+
+* **jira:** add watch/unwatch issue tools ([e3c72f9](https://github.com/b1ff/atlassian-dc-mcp/commit/e3c72f9fa7763598233c88f73ac712361c9b72f4))
+
+
+
+
+
 # [0.34.0](https://github.com/b1ff/atlassian-dc-mcp/compare/v0.33.0...v0.34.0) (2026-09-02)
 
 **Note:** Version bump only for package @atlassian-dc-mcp/jira
