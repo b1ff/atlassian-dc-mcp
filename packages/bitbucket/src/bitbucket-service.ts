@@ -3,6 +3,7 @@ import { OpenAPI, ProjectService, PullRequestsService, RepositoryService } from 
 import { request as __request } from './bitbucket-client/core/request.js';
 import { handleApiOperation, resolveOpenApiBase } from '@atlassian-dc-mcp/common';
 import { simplifyInboxPullRequests } from './inbox-pr-mapper.js';
+import { cleanCodeSearchSnippets, describeUnhonoredQuery } from './code-search-mapper.js';
 import { CompareDiffResponse, formatCompareDiffAsUnified } from './compare-diff-mapper.js';
 import { BITBUCKET_PRODUCT, getDefaultPageSize, getMissingConfig } from './config.js';
 import { fetchMergeability, mergePullRequest, type MergePullRequestParams } from './pr-merge.js';
@@ -1084,21 +1085,22 @@ export class BitbucketService {
    * the dashboard/inbox endpoints).
    *
    * @param query The search query (may include modifiers like `repo:`, `project:`, `ext:`)
-   * @param limit Optional primary result limit (defaults to the package page size)
-   * @param secondaryLimit Optional secondary limit (number of hit contexts per match)
+   * @param limit Optional maximum number of matching files to return (defaults to the package page size)
+   * @param start Optional pagination offset, taken from `code.nextStart` of a previous response
    * @returns Promise with the code search results
    */
-  async searchCode(query: string, limit?: number, secondaryLimit?: number) {
-    return handleApiOperation(
+  async searchCode(query: string, limit?: number, start?: number) {
+    const result = await handleApiOperation(
       () => __request(OpenAPI, {
         method: 'POST',
         url: '/search/latest/search',
         body: {
           query,
-          entities: { code: {} },
-          limits: {
-            primary: limit ?? this.getPageSize(),
-            ...(secondaryLimit !== undefined ? { secondary: secondaryLimit } : {}),
+          entities: {
+            code: {
+              limit: limit ?? this.getPageSize(),
+              ...(start !== undefined ? { start } : {}),
+            },
           },
         },
         mediaType: 'application/json',
@@ -1109,6 +1111,20 @@ export class BitbucketService {
       }),
       'Error searching code'
     );
+
+    if (result.success && result.data) {
+      const unhonoredQuery = describeUnhonoredQuery(result.data);
+      if (unhonoredQuery) {
+        return { success: false, error: unhonoredQuery };
+      }
+
+      return {
+        success: true,
+        data: cleanCodeSearchSnippets(result.data),
+      };
+    }
+
+    return result;
   }
 
   async validateSetup(): Promise<void> {
@@ -1339,8 +1355,8 @@ export const bitbucketToolSchemas = {
     limit: z.number().optional().describe("Number of items to return. If not passed, the package default page size is used.")
   },
   searchCode: {
-    query: z.string().describe("The search query. Supports Bitbucket search modifiers, e.g. 'project:TEST authenticate', 'repo:TEST/demo TODO' (the repo modifier must be 'repo:projectkey/repositoryslug'), 'ext:ts useState'. Scope to a project or repository inside the query text."),
+    query: z.string().describe("Bitbucket search expression. Combine a search term with modifiers using a SPACE (implicit AND), e.g. 'authenticate project:TEST'. Do NOT write 'authenticate AND project:TEST' — an explicit AND between a term and a modifier makes Bitbucket silently run a different query, which this tool rejects. Reserve AND, OR, NOT and parentheses for combining search terms. Modifiers: project:<key>, repo:<projectkey>/<repositoryslug> (the project key is required), path:<glob>, lang:<language>, ext:<file-extension>, archived:<true|false|*>, fork:<true|false>. Quote multi-word phrases. Max 250 characters and 9 expressions. Only the default branch of each repository is indexed."),
     limit: z.number().optional().describe("Maximum number of matching files to return. If not passed, the package default page size is used."),
-    secondaryLimit: z.number().optional().describe("Maximum number of hit contexts (matching code snippets) to return per file")
+    start: z.number().optional().describe("Pagination offset. Omit for the first page, then pass the 'code.nextStart' value from the previous response to fetch the next one. The response reports 'code.isLastPage' and the total match count in 'code.count'. Prefer narrowing the query with modifiers over paging deep into a large result set.")
   }
 };

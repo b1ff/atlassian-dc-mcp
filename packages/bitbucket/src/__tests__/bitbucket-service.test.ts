@@ -3019,7 +3019,7 @@ describe('BitbucketService', () => {
       const result = await bitbucketService.searchCode('app');
 
       expect(result.success).toBe(true);
-      expect(result.data).toBe(mockData);
+      expect(result.data).toEqual(mockData);
       expect(mockRequest).toHaveBeenCalledWith(
         expect.any(Object),
         {
@@ -3027,8 +3027,7 @@ describe('BitbucketService', () => {
           url: '/search/latest/search',
           body: {
             query: 'app',
-            entities: { code: {} },
-            limits: { primary: 25 }
+            entities: { code: { limit: 25 } }
           },
           mediaType: 'application/json',
           errors: {
@@ -3039,10 +3038,10 @@ describe('BitbucketService', () => {
       );
     });
 
-    it('should pass explicit primary and secondary limits', async () => {
+    it('should pass an explicit limit', async () => {
       mockRequest.mockResolvedValue({ code: { count: 0, values: [] } });
 
-      await bitbucketService.searchCode('repo:demo TODO', 10, 5);
+      await bitbucketService.searchCode('repo:demo TODO', 10);
 
       expect(mockRequest).toHaveBeenCalledWith(
         expect.any(Object),
@@ -3051,9 +3050,39 @@ describe('BitbucketService', () => {
           url: '/search/latest/search',
           body: {
             query: 'repo:demo TODO',
-            entities: { code: {} },
-            limits: { primary: 10, secondary: 5 }
+            entities: { code: { limit: 10 } }
           },
+        })
+      );
+    });
+
+    it('should send the pagination offset when start is given', async () => {
+      mockRequest.mockResolvedValue({ code: { count: 0, values: [] } });
+
+      await bitbucketService.searchCode('TODO', 10, 30);
+
+      expect(mockRequest).toHaveBeenCalledWith(
+        expect.any(Object),
+        expect.objectContaining({
+          body: {
+            query: 'TODO',
+            entities: { code: { limit: 10, start: 30 } }
+          },
+        })
+      );
+    });
+
+    it('should send start=0 rather than omitting it', async () => {
+      mockRequest.mockResolvedValue({ code: { count: 0, values: [] } });
+
+      await bitbucketService.searchCode('TODO', 10, 0);
+
+      expect(mockRequest).toHaveBeenCalledWith(
+        expect.any(Object),
+        expect.objectContaining({
+          body: expect.objectContaining({
+            entities: { code: { limit: 10, start: 0 } }
+          }),
         })
       );
     });
@@ -3065,6 +3094,48 @@ describe('BitbucketService', () => {
 
       expect(result.success).toBe(false);
       expect(result.error).toBeDefined();
+    });
+
+    it('should return snippets as plain source text', async () => {
+      mockRequest.mockResolvedValue({
+        code: {
+          count: 1,
+          values: [
+            {
+              file: 'a.cs',
+              hitContexts: [[{ line: 3, text: 'a &lt; b &amp;&amp; c&#x2F;<em>d</em>' }]],
+            },
+          ],
+        },
+      });
+
+      const result = await bitbucketService.searchCode('d');
+
+      expect(result.success).toBe(true);
+      expect((result.data as any).code.values[0].hitContexts[0][0].text).toBe('a < b && c/d');
+    });
+
+    it('should fail when Bitbucket substituted the query', async () => {
+      mockRequest.mockResolvedValue({
+        query: { substituted: true },
+        code: { count: 10000, values: [{ file: 'a.cs', hitContexts: [] }] },
+      });
+
+      const result = await bitbucketService.searchCode('TODO AND project:EAS');
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('silently ran a different');
+      expect(result.data).toBeUndefined();
+    });
+
+    it('should fail when Bitbucket could not interpret the query', async () => {
+      mockRequest.mockResolvedValue({ query: null, code: { count: 0, values: [] } });
+
+      const result = await bitbucketService.searchCode('TODO project:NOSUCHPROJECT');
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('could not interpret');
+      expect(result.data).toBeUndefined();
     });
   });
 });

@@ -117,6 +117,10 @@ Alternatively, you can use `BITBUCKET_API_BASE_PATH` instead of `BITBUCKET_HOST`
 - Check pull request mergeability, and merge pull requests when the operator enables it
 - Search and filter repositories
 
+## Reference
+
+- [Bitbucket Data Center Search REST API](docs/bitbucket-dc-search-api.md) — the undocumented endpoint behind `bitbucket_searchCode`, its request/response schema and query syntax pitfalls
+
 ## Setup
 
 1. Install dependencies:
