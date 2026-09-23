@@ -1450,6 +1450,71 @@ describe('BitbucketService', () => {
     });
   });
 
+  describe('browseRepository', () => {
+    it('should browse the normalized repository root with the default page size', async () => {
+      const mockBrowse = { children: { values: [], isLastPage: true } };
+      (mockRequest as jest.Mock).mockResolvedValue(mockBrowse);
+
+      const result = await bitbucketService.browseRepository('test', 'TEST-REPO');
+
+      expect(result).toEqual({ success: true, data: mockBrowse });
+      expect(mockRequest).toHaveBeenCalledWith(expect.anything(), {
+        method: 'GET',
+        url: '/api/latest/projects/{projectKey}/repos/{repositorySlug}/browse',
+        path: { projectKey: 'TEST', repositorySlug: 'test-repo' },
+        query: { at: undefined, start: undefined, limit: 25 },
+        errors: expect.any(Object),
+      });
+    });
+
+    it('should pass a normalized path, ref and pagination parameters', async () => {
+      (mockRequest as jest.Mock).mockResolvedValue({ lines: [], isLastPage: false, nextPageStart: 40 });
+
+      await bitbucketService.browseRepository(
+        mockProjectKey,
+        mockRepositorySlug,
+        '/src/index.ts',
+        'refs/heads/main',
+        20,
+        20
+      );
+
+      expect(mockRequest).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({
+        url: '/api/latest/projects/{projectKey}/repos/{repositorySlug}/browse/src/index.ts',
+        path: { projectKey: mockProjectKey, repositorySlug: mockRepositorySlug },
+        query: { at: 'refs/heads/main', start: 20, limit: 20 },
+      }));
+    });
+
+    it('should encode reserved characters in each path segment', async () => {
+      (mockRequest as jest.Mock).mockResolvedValue({ lines: [], isLastPage: true });
+
+      await bitbucketService.browseRepository(
+        mockProjectKey,
+        mockRepositorySlug,
+        '/docs/design #1?.md'
+      );
+
+      expect(mockRequest).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({
+        url: '/api/latest/projects/{projectKey}/repos/{repositorySlug}/browse/docs/design%20%231%3F.md',
+        path: { projectKey: mockProjectKey, repositorySlug: mockRepositorySlug },
+      }));
+    });
+
+    it('should handle API errors gracefully', async () => {
+      (mockRequest as jest.Mock).mockRejectedValue(new Error('API Error'));
+
+      const result = await bitbucketService.browseRepository(
+        mockProjectKey,
+        mockRepositorySlug,
+        'missing'
+      );
+
+      expect(result.success).toBe(false);
+      expect(result.error).toBe('API Error');
+    });
+  });
+
   describe('createBranch', () => {
     const mockBranch = {
       id: 'refs/heads/feature/my-branch',
