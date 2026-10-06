@@ -12,6 +12,7 @@ jest.mock('../bitbucket-client/index.js', () => ({
     createComment2: jest.fn(),
     create: jest.fn(),
     update: jest.fn(),
+    get3: jest.fn(),
   },
   ProjectService: {},
   RepositoryService: {},
@@ -429,6 +430,7 @@ describe('BitbucketService token optimization paths', () => {
         title: 'Raw update',
         state: 'OPEN',
       };
+      (PullRequestsService.get3 as jest.Mock).mockResolvedValue({ id: 11, reviewers: [] });
       (PullRequestsService.update as jest.Mock).mockResolvedValue(mockPullRequest);
 
       const result = await service.updatePullRequest('TEST', 'repo', '123', 1, 'Raw update', undefined, undefined, undefined, 'full');
