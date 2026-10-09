@@ -3,6 +3,17 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.36.1](https://github.com/b1ff/atlassian-dc-mcp/compare/v0.36.0...v0.36.1) (2026-10-09)
+
+
+### Bug Fixes
+
+* **bitbucket:** keep reviewers when updatePullRequest omits them ([58b9869](https://github.com/b1ff/atlassian-dc-mcp/commit/58b9869ed11468922948bf5950b0e8865e7c18e9))
+
+
+
+
+
 # [0.36.0](https://github.com/b1ff/atlassian-dc-mcp/compare/v0.35.0...v0.36.0) (2026-10-09)
 
 
