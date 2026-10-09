@@ -1,5 +1,7 @@
 import type { AttachmentGatewaySide } from '@atlassian-dc-mcp/common';
-import { JiraService } from '../jira-service.js';
+import { z } from 'zod';
+import { DEFAULT_MAX_ATTACHMENT_BYTES } from '@atlassian-dc-mcp/common';
+import { JiraService, jiraToolSchemas } from '../jira-service.js';
 import { AttachmentService, IssueService } from '../jira-client/index.js';
 
 const DISABLED_DOWNLOAD: AttachmentGatewaySide = { enabled: false, roots: [], maxBytes: 25 * 1024 * 1024 };
@@ -107,5 +109,27 @@ describe('JiraService.downloadAttachments', () => {
 
     expect(result.success).toBe(false);
     expect(result.error).toContain('No attachment named "x.txt"');
+  });
+});
+
+describe('jira_downloadAttachment tool schema', () => {
+  const schema = z.object(jiraToolSchemas.downloadAttachment);
+
+  it("offers 'image' alongside the data modes", () => {
+    for (const mode of ['none', 'base64', 'text', 'image']) {
+      expect(schema.safeParse({ issueKey: 'PROJ-1', returnContent: mode }).success).toBe(true);
+    }
+    expect(schema.safeParse({ issueKey: 'PROJ-1', returnContent: 'jpeg' }).success).toBe(false);
+  });
+
+  it('bounds maxInlineBytes by what can be downloaded at all', () => {
+    // A model told "exceeds inline cap" retries with a bigger number; past the
+    // download ceiling there are no bytes to have, so the ask is rejected rather
+    // than silently promising a payload nothing can deliver.
+    expect(schema.safeParse({ issueKey: 'PROJ-1', maxInlineBytes: DEFAULT_MAX_ATTACHMENT_BYTES }).success).toBe(true);
+    expect(schema.safeParse({ issueKey: 'PROJ-1', maxInlineBytes: DEFAULT_MAX_ATTACHMENT_BYTES + 1 }).success).toBe(false);
+    expect(schema.safeParse({ issueKey: 'PROJ-1', maxInlineBytes: 0 }).success).toBe(false);
+    expect(schema.safeParse({ issueKey: 'PROJ-1', maxInlineBytes: 1.5 }).success).toBe(false);
+    expect(schema.safeParse({ issueKey: 'PROJ-1', maxInlineBytes: Number.POSITIVE_INFINITY }).success).toBe(false);
   });
 });
