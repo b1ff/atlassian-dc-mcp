@@ -3,6 +3,17 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [0.36.0](https://github.com/b1ff/atlassian-dc-mcp/compare/v0.35.0...v0.36.0) (2026-10-09)
+
+
+### Features
+
+* **bitbucket:** add bitbucket_getPullRequestBuilds tool ([0381a83](https://github.com/b1ff/atlassian-dc-mcp/commit/0381a83091054b4bc3fcc338432660772695792e))
+
+
+
+
+
 # [0.35.0](https://github.com/b1ff/atlassian-dc-mcp/compare/v0.34.0...v0.35.0) (2026-09-22)
 
 **Note:** Version bump only for package @atlassian-dc-mcp/bitbucket
