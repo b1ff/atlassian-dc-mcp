@@ -3,6 +3,17 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.36.2](https://github.com/b1ff/atlassian-dc-mcp/compare/v0.36.1...v0.36.2) (2026-10-09)
+
+
+### Bug Fixes
+
+* retry MCP publishing during npm propagation ([917b653](https://github.com/b1ff/atlassian-dc-mcp/commit/917b653706e71f7872ee2110377c95eb722319d8))
+
+
+
+
+
 ## [0.36.1](https://github.com/b1ff/atlassian-dc-mcp/compare/v0.36.0...v0.36.1) (2026-10-09)
 
 
