@@ -112,6 +112,7 @@ Alternatively, you can use `BITBUCKET_API_BASE_PATH` instead of `BITBUCKET_HOST`
 
 - Access repository information
 - Get file contents
+- Browse repository directories and paginated file content
 - Browse branches and commits
 - Get pull request information
 - Check pull request mergeability, and merge pull requests when the operator enables it
@@ -251,6 +252,20 @@ Parameters:
 - `at` (string, optional): Branch, tag or commit to read the file at (defaults to the repository's default branch)
 
 Pointing `path` at a directory returns that directory's git tree listing instead of file content.
+
+#### bitbucket_browseRepository
+
+List a repository directory or read a page of lines from a file without cloning the repository.
+
+Parameters:
+- `projectKey` (string, required): The project key
+- `repositorySlug` (string, required): The repository slug
+- `path` (string, optional): Directory or file path. Omit for the repository root
+- `at` (string, optional): Branch, tag or commit to browse at (defaults to the repository's default branch)
+- `start` (number, optional): Pagination start value. Use the corresponding `nextPageStart` from the previous response
+- `limit` (number, optional): Maximum directory entries or file lines to return (defaults to `BITBUCKET_DEFAULT_PAGE_SIZE` or `25`)
+
+Directory responses contain pagination fields under `children`; file responses contain `lines` and pagination fields at the response root. When the corresponding `isLastPage` is false, call the tool again with `start` set to `nextPageStart`.
 
 #### 5. bitbucket_getPullRequests
 

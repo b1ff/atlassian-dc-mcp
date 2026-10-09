@@ -70,10 +70,20 @@ server.tool(
 
 server.tool(
   "bitbucket_getFileContent",
-  "Get the raw content of a file in a Bitbucket repository, at a branch, tag or commit. Use this to read a source file without cloning the repository. 'at' defaults to the repository's default branch. Pointing 'path' at a directory returns that directory's git tree listing instead of file content.",
+  "Get the raw content of a file in a Bitbucket repository, at a branch, tag or commit. Use this to read a complete source file without cloning the repository. 'at' defaults to the repository's default branch. Pointing 'path' at a directory returns that directory's unpaginated git tree listing. For structured, paginated directory listings or file reads, use bitbucket_browseRepository.",
   bitbucketToolSchemas.getFileContent,
   async ({ projectKey, repositorySlug, path, at }) => {
     const result = await bitbucketService.getFileContent(projectKey, repositorySlug, path, at);
+    return formatToolResponse(result);
+  }
+);
+
+server.tool(
+  "bitbucket_browseRepository",
+  "Browse a Bitbucket repository at a branch, tag or commit using structured, paginated responses. Omit 'path' to list the repository root. Directory pagination is under 'children'; file pagination is at the response root. Continue with the corresponding 'nextPageStart' when 'isLastPage' is false. For a complete raw file or compact unpaginated git tree listing, use bitbucket_getFileContent.",
+  bitbucketToolSchemas.browseRepository,
+  async ({ projectKey, repositorySlug, path, at, start, limit }) => {
+    const result = await bitbucketService.browseRepository(projectKey, repositorySlug, path, at, start, limit);
     return formatToolResponse(result);
   }
 );
