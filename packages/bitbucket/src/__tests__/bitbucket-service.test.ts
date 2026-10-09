@@ -3,7 +3,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { initializeRuntimeConfig } from '@atlassian-dc-mcp/common';
 import { BitbucketService } from '../bitbucket-service.js';
-import { PullRequestsService, RepositoryService } from '../bitbucket-client/index.js';
+import { DeprecatedService, PullRequestsService, RepositoryService } from '../bitbucket-client/index.js';
 import { DECLINE_POLICY, type RepoGateway } from '../repo-gateway.js';
 import { request as mockRequest } from '../bitbucket-client/core/request.js';
 
@@ -31,6 +31,9 @@ jest.mock('../bitbucket-client/index.js', () => ({
   RepositoryService: {
     streamRaw: jest.fn(),
     createBranch: jest.fn()
+  },
+  DeprecatedService: {
+    getBuildStatus: jest.fn()
   },
   OpenAPI: {
     BASE: '',
@@ -3006,6 +3009,15 @@ describe('BitbucketService', () => {
       });
 
       expect(PullRequestsService.reopen).toHaveBeenCalledWith('TEST', '1', 'test-repo', '2', { version: 2 });
+    });
+
+    it('should uppercase projectKey and lowercase repositorySlug for getPullRequestBuilds', async () => {
+      (PullRequestsService.get3 as jest.Mock).mockResolvedValue({ id: 1, fromRef: { latestCommit: 'abc123' } });
+      (DeprecatedService.getBuildStatus as jest.Mock).mockResolvedValue({ values: [] });
+
+      await bitbucketService.getPullRequestBuilds('test', 'Test-Repo', '1');
+
+      expect(PullRequestsService.get3).toHaveBeenCalledWith('TEST', '1', 'test-repo');
     });
   });
 
