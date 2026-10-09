@@ -211,7 +211,7 @@ server.tool(
 
 server.tool(
   "bitbucket_updatePullRequest",
-  "Update the title, description, reviewers, destination branch or draft status of an existing pull request. IMPORTANT: You MUST first call bitbucket_getPullRequest to get the current 'version' number — this is required for optimistic locking and the call will fail without it. The reviewers parameter replaces ALL existing reviewers. If you want to preserve existing reviewers, include those from the current PR details along with any new ones you want to add.",
+  "Update the title, description, reviewers, destination branch or draft status of an existing pull request. IMPORTANT: You MUST first call bitbucket_getPullRequest to get the current 'version' number — this is required for optimistic locking and the call will fail without it. Omit reviewers to keep the current ones. When passed, reviewers replaces ALL existing reviewers: to add someone, include the current reviewers from the PR details along with the new ones.",
   bitbucketToolSchemas.updatePullRequest,
   async ({ projectKey, repositorySlug, pullRequestId, version, title, description, reviewers, draft, output }) => {
     const result = await bitbucketService.updatePullRequest(projectKey, repositorySlug, pullRequestId, version, title, description, reviewers, draft, output);

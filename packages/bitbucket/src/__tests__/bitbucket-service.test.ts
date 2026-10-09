@@ -1755,6 +1755,22 @@ describe('BitbucketService', () => {
   });
 
   describe('updatePullRequest', () => {
+    const currentReviewers = [
+      { user: { name: 'keeper1' } },
+      { user: { name: 'keeper2' } }
+    ];
+
+    beforeEach(() => {
+      (PullRequestsService.get3 as jest.Mock).mockResolvedValue({
+        id: 1,
+        version: 0,
+        reviewers: [
+          { user: { name: 'keeper1', slug: 'keeper1' }, role: 'REVIEWER', approved: true },
+          { user: { name: 'keeper2', slug: 'keeper2' }, role: 'REVIEWER', approved: false }
+        ]
+      });
+    });
+
     it('should successfully update PR with only title', async () => {
       const mockUpdatedPR = {
         id: 1,
@@ -1787,7 +1803,8 @@ describe('BitbucketService', () => {
         mockRepositorySlug,
         {
           version: 0,
-          title: 'Updated Title'
+          title: 'Updated Title',
+          reviewers: currentReviewers
         }
       );
     });
@@ -1825,7 +1842,8 @@ describe('BitbucketService', () => {
         mockRepositorySlug,
         {
           version: 0,
-          description: 'Updated description'
+          description: 'Updated description',
+          reviewers: currentReviewers
         }
       );
     });
@@ -1864,7 +1882,8 @@ describe('BitbucketService', () => {
         {
           version: 0,
           title: 'Updated Title',
-          description: 'Updated description'
+          description: 'Updated description',
+          reviewers: currentReviewers
         }
       );
     });
@@ -1995,12 +2014,66 @@ describe('BitbucketService', () => {
         mockPullRequestId,
         mockRepositorySlug,
         {
-          version: 0
+          version: 0,
+          reviewers: currentReviewers
         }
       );
     });
 
-    it('should successfully update PR with empty reviewers array', async () => {
+    it('should keep the current reviewers when reviewers are omitted', async () => {
+      (PullRequestsService.update as jest.Mock).mockResolvedValue({ id: 1, version: 1, state: 'OPEN' });
+
+      await bitbucketService.updatePullRequest(
+        mockProjectKey,
+        mockRepositorySlug,
+        mockPullRequestId,
+        0,
+        undefined,
+        'Updated description'
+      );
+
+      expect(PullRequestsService.get3).toHaveBeenCalledWith(mockProjectKey, mockPullRequestId, mockRepositorySlug);
+      expect(PullRequestsService.update).toHaveBeenCalledWith(
+        mockProjectKey,
+        mockPullRequestId,
+        mockRepositorySlug,
+        expect.objectContaining({ reviewers: currentReviewers })
+      );
+    });
+
+    it('should not read the PR when reviewers are passed', async () => {
+      (PullRequestsService.update as jest.Mock).mockResolvedValue({ id: 1, version: 1, state: 'OPEN' });
+
+      await bitbucketService.updatePullRequest(
+        mockProjectKey,
+        mockRepositorySlug,
+        mockPullRequestId,
+        0,
+        undefined,
+        undefined,
+        ['reviewer1']
+      );
+
+      expect(PullRequestsService.get3).not.toHaveBeenCalled();
+    });
+
+    it('should not update the PR when its current reviewers cannot be read', async () => {
+      (PullRequestsService.get3 as jest.Mock).mockRejectedValue(new Error('PR not readable'));
+
+      const result = await bitbucketService.updatePullRequest(
+        mockProjectKey,
+        mockRepositorySlug,
+        mockPullRequestId,
+        0,
+        'Updated Title'
+      );
+
+      expect(result.success).toBe(false);
+      expect(result.error).toBe('Could not read the current reviewers: PR not readable');
+      expect(PullRequestsService.update).not.toHaveBeenCalled();
+    });
+
+    it('should remove all reviewers with an empty reviewers array', async () => {
       const mockUpdatedPR = {
         id: 1,
         version: 1,
@@ -2026,10 +2099,12 @@ describe('BitbucketService', () => {
         mockProjectKey,
         mockPullRequestId,
         mockRepositorySlug,
-        expect.not.objectContaining({
-          reviewers: expect.anything()
-        })
+        {
+          version: 0,
+          reviewers: []
+        }
       );
+      expect(PullRequestsService.get3).not.toHaveBeenCalled();
     });
 
     it('should handle API errors gracefully', async () => {
