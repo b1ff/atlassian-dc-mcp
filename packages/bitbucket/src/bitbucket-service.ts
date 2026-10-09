@@ -5,6 +5,7 @@ import { handleApiOperation, resolveOpenApiBase } from '@atlassian-dc-mcp/common
 import { simplifyInboxPullRequests } from './inbox-pr-mapper.js';
 import { CompareDiffResponse, formatCompareDiffAsUnified } from './compare-diff-mapper.js';
 import { BITBUCKET_PRODUCT, getDefaultPageSize, getMissingConfig } from './config.js';
+import { fetchPullRequestBuilds } from './pr-builds.js';
 import { fetchMergeability, mergePullRequest, type MergePullRequestParams } from './pr-merge.js';
 import {
   declinePullRequest,
@@ -585,6 +586,17 @@ export class BitbucketService {
    */
   async getPullRequestMergeability(projectKey: string, repositorySlug: string, pullRequestId: string) {
     return fetchMergeability(projectKey.toUpperCase(), repositorySlug.toLowerCase(), pullRequestId);
+  }
+
+  /**
+   * Get the CI build statuses reported on a pull request's latest source commit. Read-only.
+   * @param projectKey The project key
+   * @param repositorySlug The repository slug
+   * @param pullRequestId The pull request ID
+   * @returns Promise with the commit id, per-state counts and the build statuses
+   */
+  async getPullRequestBuilds(projectKey: string, repositorySlug: string, pullRequestId: string) {
+    return fetchPullRequestBuilds(projectKey.toUpperCase(), repositorySlug.toLowerCase(), pullRequestId);
   }
 
   /**
@@ -1290,6 +1302,11 @@ export const bitbucketToolSchemas = {
     output: z.enum(['ack', 'full']).optional().describe("Return a compact acknowledgement or the full API response. Defaults to ack.")
   },
   canMergePullRequest: {
+    projectKey: z.string().describe("The project key"),
+    repositorySlug: z.string().describe("The repository slug"),
+    pullRequestId: z.string().describe("The pull request ID")
+  },
+  getPullRequestBuilds: {
     projectKey: z.string().describe("The project key"),
     repositorySlug: z.string().describe("The repository slug"),
     pullRequestId: z.string().describe("The pull request ID")

@@ -229,6 +229,16 @@ server.tool(
   }
 );
 
+server.tool(
+  "bitbucket_getPullRequestBuilds",
+  "Get the CI/CD build statuses of a pull request — the builds, jobs or pipelines that any CI server integrated with Bitbucket (Jenkins, Bamboo, TeamCity or any other tool posting build statuses) reported on the latest commit of its source branch, as shown in the pull request's Builds panel. Use it to check whether a pull request's checks passed, failed or are still running, e.g. after a push. Read-only. Returns the commit id, counts per state, and for each build its state (SUCCESSFUL, FAILED, INPROGRESS, CANCELLED, UNKNOWN), name, url of the run in the CI server and description.",
+  bitbucketToolSchemas.getPullRequestBuilds,
+  async ({ projectKey, repositorySlug, pullRequestId }) => {
+    const result = await bitbucketService.getPullRequestBuilds(projectKey, repositorySlug, pullRequestId);
+    return formatToolResponse(result);
+  }
+);
+
 const mergeGateway = resolveMergeGateway();
 
 // Merging lands code on a shared branch and cannot be undone through the API, so the tool is

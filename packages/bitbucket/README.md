@@ -286,7 +286,18 @@ Parameters:
 
 Returns `canMerge`, `conflicted`, `outcome`, and `vetoes` (each with a `summary` and `detail`) so you can see what is blocking a merge.
 
-#### 8. bitbucket_mergePullRequest
+#### 8. bitbucket_getPullRequestBuilds
+
+Get the CI/CD build statuses of a pull request — the builds, jobs or pipelines that any CI server integrated with Bitbucket (Jenkins, Bamboo, TeamCity, …) reported on the latest commit of its source branch, as shown in the pull request's Builds panel. Read-only — always available.
+
+Parameters:
+- `projectKey` (string, required): The project key
+- `repositorySlug` (string, required): The repository slug
+- `pullRequestId` (string, required): The pull request ID
+
+Returns the `commitId` the builds belong to, `counts` per state (`successful`, `failed`, `inProgress`, `cancelled`, `unknown`), and `builds`, each with its `state`, `key`, `name`, `url` of the run in the CI server, `description` and `dateAdded`. Statuses are read from the commit-level build-status resource, which keeps the 100 most recent statuses per commit; the repository-scoped builds resource only returns a single status by key and cannot list them.
+
+#### 9. bitbucket_mergePullRequest
 
 Merge a pull request. Only registered when merging is enabled for the server — see [Merging pull requests (opt-in)](#merging-pull-requests-opt-in).
 
@@ -299,7 +310,7 @@ Parameters:
 - `message` (string, optional): Merge commit message. Defaults to Bitbucket's generated message.
 - `output` (string, optional): `ack` (default) or `full`
 
-#### 9. bitbucket_declinePullRequest
+#### 10. bitbucket_declinePullRequest
 
 Decline (close without merging) a pull request. Only registered when declining is enabled for the server — see [Declining pull requests (opt-in)](#declining-pull-requests-opt-in).
 
@@ -313,7 +324,7 @@ Parameters:
 
 The acknowledgement carries the new `version`, which is exactly what `bitbucket_reopenPullRequest` needs if the decline has to be undone.
 
-#### 10. bitbucket_reopenPullRequest
+#### 11. bitbucket_reopenPullRequest
 
 Reopen a declined pull request, restoring it to `OPEN`. Always available — no configuration required.
 
@@ -324,7 +335,7 @@ Parameters:
 - `version` (number, required): The current pull request version, from `bitbucket_getPullRequest`. A stale version — or a pull request that is not `DECLINED` — is rejected with a `409`.
 - `output` (string, optional): `ack` (default) or `full`
 
-#### 11. bitbucket_getBranchDiff
+#### 12. bitbucket_getBranchDiff
 
 Get the diff between two branches, tags or commits — including branches that have **no pull request yet**. Returns the same comparison as the Bitbucket "compare" view: changes reachable from `sourceBranch` but not from `targetBranch`, rendered as a unified diff.
 
