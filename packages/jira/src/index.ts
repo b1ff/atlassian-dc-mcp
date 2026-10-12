@@ -1,4 +1,4 @@
-import { connectServer, createMcpServer, formatToolResponse, initializeRuntimeConfig, resolveAttachmentGateway } from '@atlassian-dc-mcp/common';
+import { connectServer, createMcpServer, formatToolResponse, initializeRuntimeConfig, readOnlyToolAnnotations, resolveAttachmentGateway } from '@atlassian-dc-mcp/common';
 import { JiraService, jiraToolSchemas } from './jira-service.js';
 import { getDefaultPageSize, getJiraRuntimeConfig, JIRA_PRODUCT } from './config.js';
 import { createRequire } from 'node:module';
@@ -32,6 +32,7 @@ server.tool(
   "jira_searchIssues",
   `Search for JIRA issues using JQL in the ${jiraInstanceType}`,
   jiraToolSchemas.searchIssues,
+  readOnlyToolAnnotations,
   async ({ jql, expand, startAt, maxResults, fields }) => {
     const result = await jiraService.searchIssues(jql, startAt, expand, maxResults, fields);
     return formatToolResponse(result);
@@ -42,6 +43,7 @@ server.tool(
   "jira_getIssue",
   `Get details of a JIRA issue by its key from the ${jiraInstanceType}`,
   jiraToolSchemas.getIssue,
+  readOnlyToolAnnotations,
   async ({ issueKey, expand, fields }) => {
     const result = await jiraService.getIssue(issueKey, expand, fields);
     return formatToolResponse(result);
@@ -52,6 +54,7 @@ server.tool(
   'jira_getIssueComments',
   `Get comments of a JIRA issue by its key from the ${jiraInstanceType}`,
   jiraToolSchemas.getIssueComments,
+  readOnlyToolAnnotations,
   async ({ issueKey, expand, maxResults, startAt }) => {
     const result = await jiraService.getIssueComments(issueKey, expand, maxResults, startAt);
     return formatToolResponse(result);
@@ -101,6 +104,7 @@ server.tool(
   "jira_getTransitions",
   `Get available status transitions for a JIRA issue in the ${jiraInstanceType}. Returns a list of transitions with their IDs, names, and target statuses.`,
   jiraToolSchemas.getTransitions,
+  readOnlyToolAnnotations,
   async ({ issueKey }) => {
     const result = await jiraService.getTransitions(issueKey);
     return formatToolResponse(result);
@@ -111,6 +115,7 @@ server.tool(
   "jira_getIssueDevelopmentInfo",
   `Get linked development information (pull requests, commits, or branches) shown in the Development panel of a JIRA issue in the ${jiraInstanceType}. Defaults to pull requests from Bitbucket.`,
   jiraToolSchemas.getIssueDevelopmentInfo,
+  readOnlyToolAnnotations,
   async ({ issueKey, dataType, applicationType }) => {
     const result = await jiraService.getIssueDevelopmentInfo(issueKey, dataType, applicationType);
     return formatToolResponse(result);
@@ -131,6 +136,7 @@ server.tool(
   "jira_getIssueLinkTypes",
   `Get the list of available issue link types (e.g. Blocks, Relates, Duplicate) in the ${jiraInstanceType}. Use this to discover valid link type names before calling jira_linkIssues.`,
   jiraToolSchemas.getIssueLinkTypes,
+  readOnlyToolAnnotations,
   async () => {
     const result = await jiraService.getIssueLinkTypes();
     return formatToolResponse(result);
