@@ -3,6 +3,17 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [0.38.0](https://github.com/b1ff/atlassian-dc-mcp/compare/v0.37.0...v0.38.0) (2026-10-12)
+
+
+### Features
+
+* declare read-only tools with readOnlyHint ([5f2125b](https://github.com/b1ff/atlassian-dc-mcp/commit/5f2125b253ae6de111924875cadeac95952d3756))
+
+
+
+
+
 # [0.37.0](https://github.com/b1ff/atlassian-dc-mcp/compare/v0.36.2...v0.37.0) (2026-10-09)
 
 **Note:** Version bump only for package @atlassian-dc-mcp/common
