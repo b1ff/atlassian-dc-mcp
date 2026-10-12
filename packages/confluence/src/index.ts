@@ -1,4 +1,4 @@
-import { connectServer, createMcpServer, formatToolResponse, initializeRuntimeConfig, resolveAttachmentGateway } from '@atlassian-dc-mcp/common';
+import { connectServer, createMcpServer, formatToolResponse, initializeRuntimeConfig, readOnlyToolAnnotations, resolveAttachmentGateway } from '@atlassian-dc-mcp/common';
 import { ConfluenceService, ConfluenceContent, confluenceToolSchemas } from './confluence-service.js';
 import { shapeConfluenceMutationAck } from './confluence-response-mapper.js';
 import { CONFLUENCE_PRODUCT, getConfluenceRuntimeConfig, getDefaultPageSize } from './config.js';
@@ -38,6 +38,7 @@ server.tool(
   "confluence_getContent",
   `Get Confluence content by ID from the ${confluenceInstanceType}`,
   confluenceToolSchemas.getContent,
+  readOnlyToolAnnotations,
   async ({ contentId, expand, bodyMode, maxBodyChars, bodyStart }) => {
     const result = await confluenceService.getContent(contentId, expand, bodyMode, maxBodyChars, bodyStart);
     return formatToolResponse(result);
@@ -48,6 +49,7 @@ server.tool(
   "confluence_searchContent",
   `Search for content in ${confluenceInstanceType} using CQL`,
   confluenceToolSchemas.searchContent,
+  readOnlyToolAnnotations,
   async ({ cql, limit, start, expand, excerpt }) => {
     const result = await confluenceService.searchContent(cql, limit, start, expand, excerpt);
     return formatToolResponse(result);
@@ -210,6 +212,7 @@ server.tool(
 server.tool('confluence_searchSpace',
   `Search for spaces in ${confluenceInstanceType}`,
   confluenceToolSchemas.searchSpaces,
+  readOnlyToolAnnotations,
   async ({
            searchText,
            limit,
