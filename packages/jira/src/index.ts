@@ -1,5 +1,6 @@
 import { connectServer, createMcpServer, formatToolResponse, initializeRuntimeConfig, readOnlyToolAnnotations, resolveAttachmentGateway } from '@atlassian-dc-mcp/common';
 import { JiraService, jiraToolSchemas } from './jira-service.js';
+import { isVersionDeleteEnabled } from './jira-versions.js';
 import { getDefaultPageSize, getJiraRuntimeConfig, JIRA_PRODUCT } from './config.js';
 import { createRequire } from 'node:module';
 
@@ -182,6 +183,61 @@ server.tool(
     return formatToolResponse(result);
   }
 );
+
+server.tool(
+  "jira_getProjectVersions",
+  `List the versions (releases) of a JIRA project in the ${jiraInstanceType}, optionally filtered by name, released and archived state. Returns ids, names, dates and release state.`,
+  jiraToolSchemas.getProjectVersions,
+  readOnlyToolAnnotations,
+  async (params) => {
+    const result = await jiraService.getProjectVersions(params);
+    return formatToolResponse(result);
+  }
+);
+
+server.tool(
+  "jira_getVersion",
+  `Get a JIRA project version (release) by its id from the ${jiraInstanceType}. To list its issues, use jira_searchIssues with JQL such as 'fixVersion = <id> AND resolution = Unresolved'.`,
+  jiraToolSchemas.getVersion,
+  readOnlyToolAnnotations,
+  async ({ versionId }) => {
+    const result = await jiraService.getVersion(versionId);
+    return formatToolResponse(result);
+  }
+);
+
+server.tool(
+  "jira_createVersion",
+  `Create a new version (release) in a JIRA project in the ${jiraInstanceType}. Use jira_getProjectVersions first to avoid duplicate names.`,
+  jiraToolSchemas.createVersion,
+  async (params) => {
+    const result = await jiraService.createVersion(params);
+    return formatToolResponse(result);
+  }
+);
+
+server.tool(
+  "jira_updateVersion",
+  `Update a JIRA project version in the ${jiraInstanceType}: rename it, change its description or dates, release it (released=true, usually with releaseDate), or archive it. Only the given fields are changed.`,
+  jiraToolSchemas.updateVersion,
+  async (params) => {
+    const result = await jiraService.updateVersion(params);
+    return formatToolResponse(result);
+  }
+);
+
+// Deleting a version cannot be undone, so the tool is only registered when the operator enables it.
+if (isVersionDeleteEnabled()) {
+  server.tool(
+    "jira_deleteVersion",
+    `Delete a JIRA project version in the ${jiraInstanceType}. This cannot be undone: the version is removed from every issue that uses it, unless moveFixIssuesTo / moveAffectedIssuesTo name another version of the same project to receive those issues. Returns how many issues used the version. Check its issues first with jira_searchIssues (JQL 'fixVersion = <id> OR affectedVersion = <id>').`,
+    jiraToolSchemas.deleteVersion,
+    async (params) => {
+      const result = await jiraService.deleteVersion(params);
+      return formatToolResponse(result);
+    }
+  );
+}
 
 const attachmentGateway = resolveAttachmentGateway(JIRA_PRODUCT);
 

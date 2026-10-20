@@ -117,6 +117,7 @@ Alternatively, you can use `JIRA_API_BASE_PATH` instead of `JIRA_HOST` to specif
 - Add and update comments on issues
 - Link and unlink issues
 - Watch and unwatch issues
+- List, create, update and release project versions, and delete them (opt-in)
 
 ## Setup
 
@@ -169,6 +170,15 @@ Alternatively, you can use `JIRA_API_BASE_PATH` instead of `JIRA_HOST` to specif
    - Uploads reject symlinks and non-regular files (FIFOs, devices, directories).
    - Downloads never overwrite an existing file (including a symlink) — they use an exclusive write.
    - Both directions enforce the configured hard size limit.
+
+   ### Version deletion (opt-in)
+
+   Deleting a project version cannot be undone, so `jira_deleteVersion` is **not registered** unless the operator enables it. Listing, creating, updating, releasing and archiving versions need no flag.
+
+   ```
+   # Register jira_deleteVersion (default: false)
+   JIRA_VERSION_DELETE_ENABLED=true
+   ```
 
    To create a personal access token:
   - In Jira, select your profile picture at the top right
@@ -329,7 +339,62 @@ Remove yourself (the authenticated user) as a watcher from a JIRA issue in the J
 Parameters:
 - `issueKey` (string, required): The issue key (e.g., "PROJECT-123")
 
-#### 15. jira_uploadAttachment
+#### 15. jira_getProjectVersions
+
+List the versions (releases) of a JIRA project in the JIRA Data Center edition instance. Jira Data Center ignores name and status filters on its version endpoint, so the server fetches the project's versions once and filters, sorts and pages them itself. The self link and the locale-formatted dates (`userReleaseDate`, `userStartDate`) are left out of the response.
+
+Parameters:
+- `projectKey` (string, required): Project key (e.g., "PROJECT")
+- `query` (string, optional): Only return versions whose name contains this text (case-insensitive)
+- `released` (boolean, optional): Only return released (`true`) or unreleased (`false`) versions
+- `archived` (boolean, optional): Only return archived (`true`) or unarchived (`false`) versions
+- `orderBy` (string, optional): `sequence` (default, the order shown in Jira), `name`, `startDate` or `releaseDate`; prefix with `-` for descending
+- `startAt` (number, optional): Index of the first matching version to return
+- `maxResults` (number, optional): Maximum number of versions to return. Defaults to `JIRA_DEFAULT_PAGE_SIZE` or `25`.
+
+#### 16. jira_getVersion
+
+Get a single project version by its id from the JIRA Data Center edition instance. To list the issues of a version, use `jira_searchIssues` with JQL such as `fixVersion = 10100 AND resolution = Unresolved`.
+
+Parameters:
+- `versionId` (string, required): Numeric version id (found via `jira_getProjectVersions`)
+
+#### 17. jira_createVersion
+
+Create a new version in a JIRA project in the JIRA Data Center edition instance.
+
+Parameters:
+- `projectKey` (string, required): Project key (e.g., "PROJECT")
+- `name` (string, required): Version name, unique within the project
+- `description` (string, optional): Version description
+- `startDate` (string, optional): Start date in `YYYY-MM-DD` format
+- `releaseDate` (string, optional): Release date in `YYYY-MM-DD` format
+- `released` (boolean, optional): Whether the version is released
+- `archived` (boolean, optional): Whether the version is archived
+
+#### 18. jira_updateVersion
+
+Update a project version in the JIRA Data Center edition instance: rename it, change its description or dates, release it, or archive it. Only the given fields are changed; at least one is required. To release a version, pass `released: true` together with its `releaseDate`.
+
+Parameters:
+- `versionId` (string, required): Numeric version id (found via `jira_getProjectVersions`)
+- `name` (string, optional): New version name, unique within the project
+- `description` (string, optional): Version description
+- `startDate` (string, optional): Start date in `YYYY-MM-DD` format
+- `releaseDate` (string, optional): Release date in `YYYY-MM-DD` format
+- `released` (boolean, optional): Whether the version is released
+- `archived` (boolean, optional): Whether the version is archived
+
+#### 19. jira_deleteVersion
+
+Delete a project version in the JIRA Data Center edition instance. Only registered when version deletion is enabled (see [Version deletion](#version-deletion-opt-in)). The deletion cannot be undone: the version is removed from every issue that uses it, unless its issues are moved to another version of the same project. The response reports how many issues had the version as Fix Version and Affects Version.
+
+Parameters:
+- `versionId` (string, required): Numeric id of the version to delete (found via `jira_getProjectVersions`)
+- `moveFixIssuesTo` (string, optional): Numeric id of a version in the same project that receives this version's Fix Version issues. If omitted, the version is just removed from those issues.
+- `moveAffectedIssuesTo` (string, optional): Numeric id of a version in the same project that receives this version's Affects Version issues. If omitted, the version is just removed from those issues.
+
+#### 20. jira_uploadAttachment
 
 Upload a local file as an attachment to a JIRA issue. Only registered when filesystem uploads are enabled (see [Attachment filesystem access](#attachment-filesystem-access-opt-in)).
 
@@ -338,7 +403,7 @@ Parameters:
 - `sourcePath` (string, required): Path to the file to upload, **relative to a server-configured upload directory**. Absolute paths and `..` segments are rejected; symlinks and non-regular files are refused.
 - `filename` (string, optional): Override for the attachment filename (defaults to the basename of `sourcePath`)
 
-#### 16. jira_downloadAttachment
+#### 21. jira_downloadAttachment
 
 Download attachment(s) from a JIRA issue, by issue key (optionally filtered by filename) or by a single attachment id. Returns the file content inline (base64 or text) — useful for inspecting a file or moving it elsewhere (e.g. re-uploading to a Confluence page). When filesystem downloads are enabled (see [Attachment filesystem access](#attachment-filesystem-access-opt-in)), it can also save into the server-configured download directory.
 

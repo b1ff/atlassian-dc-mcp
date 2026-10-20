@@ -3,7 +3,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { initializeRuntimeConfig } from '@atlassian-dc-mcp/common';
 import { JiraService } from '../jira-service.js';
-import { IssueLinkService, IssueLinkTypeService, IssueService, MyselfService, OpenAPI, SearchService } from '../jira-client/index.js';
+import { IssueLinkService, IssueLinkTypeService, IssueService, MyselfService, OpenAPI, ProjectService, SearchService } from '../jira-client/index.js';
 import { request as __request } from '../jira-client/core/request.js';
 
 jest.mock('../jira-client/core/request.js', () => ({
@@ -35,6 +35,9 @@ jest.mock('../jira-client/index.js', () => ({
   },
   MyselfService: {
     getUser: jest.fn(),
+  },
+  ProjectService: {
+    getProjectVersions: jest.fn(),
   },
   OpenAPI: {
     BASE: '',
@@ -192,6 +195,16 @@ describe('JiraService', () => {
       await jiraService.getIssueComments(mockIssueKey, 'renderedBody', 10, 20);
 
       expect(IssueService.getComments).toHaveBeenCalledWith(mockIssueKey, 'renderedBody', '10', undefined, '20');
+    });
+
+    it('uses the package default page size for project versions', async () => {
+      const versions = Array.from({ length: 30 }, (_, i) => ({ id: String(i), name: `v${i}` }));
+      (ProjectService.getProjectVersions as jest.Mock).mockResolvedValue(versions);
+
+      const result = await jiraService.getProjectVersions({ projectKey: 'PROJ' });
+
+      expect(result.data).toMatchObject({ total: 30, maxResults: 25, isLast: false });
+      expect(result.data?.values).toHaveLength(25);
     });
   });
 
