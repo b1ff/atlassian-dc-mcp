@@ -15,6 +15,7 @@ import { AttachmentService, IssueLinkService, IssueLinkTypeService, IssueService
 import { request as __request } from './jira-client/core/request.js';
 import type { StringList } from './jira-client/models/StringList.js';
 import { getDefaultPageSize, getMissingConfig, JIRA_PRODUCT } from './config.js';
+import { CommentDraftStore } from './jira-draft-store.js';
 
 const DEFAULT_SEARCH_FIELDS = ['summary', 'description', 'status', 'assignee', 'reporter', 'priority', 'issuetype', 'labels', 'updated'];
 const DEFAULT_ISSUE_FIELDS = [...DEFAULT_SEARCH_FIELDS, 'parent', 'subtasks'];
@@ -38,6 +39,7 @@ function resolveToken(token: string | (() => string | undefined), missingTokenMe
 }
 
 export class JiraService {
+  private readonly drafts: CommentDraftStore = new CommentDraftStore();
   private readonly getPageSize: () => number;
   private readonly tokenProvider: string | (() => string | undefined);
 
@@ -346,12 +348,44 @@ export class JiraService {
     await MyselfService.getUser();
   }
 
+  // ----- local comment drafts (never sent to Jira until posted manually) -----
+
+  async saveCommentDraft(issueKey: string, comment: string, id?: string) {
+    return handleApiOperation(() => this.drafts.save(issueKey, comment, id), 'Error saving comment draft');
+  }
+
+  async listCommentDrafts(issueKey?: string) {
+    return handleApiOperation(() => this.drafts.list(issueKey), 'Error listing comment drafts');
+  }
+
+  async getCommentDraft(id: string) {
+    return handleApiOperation(() => this.drafts.get(id), 'Error getting comment draft');
+  }
+
+  async deleteCommentDraft(id: string) {
+    return handleApiOperation(() => this.drafts.delete(id), 'Error deleting comment draft');
+  }
+
   static validateConfig(): string[] {
     return getMissingConfig();
   }
 }
 
 export const jiraToolSchemas = {
+  saveCommentDraft: {
+    issueKey: z.string().describe("JIRA issue key the draft comment is prepared for (e.g., PROJ-123)"),
+    comment: z.string().describe("Draft comment text in JIRA Wiki Markup. Stored locally only — nothing is posted to Jira."),
+    id: z.string().optional().describe("Draft id to update an existing draft; omit to create a new one")
+  },
+  listCommentDrafts: {
+    issueKey: z.string().optional().describe("Filter drafts by issue key; omit to list all")
+  },
+  getCommentDraft: {
+    id: z.string().describe("Draft id")
+  },
+  deleteCommentDraft: {
+    id: z.string().describe("Draft id")
+  },
   searchIssues: {
     jql: z.string().describe("JQL query string"),
     maxResults: z.number().optional().describe("Maximum number of results to return"),
