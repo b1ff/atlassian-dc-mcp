@@ -228,4 +228,44 @@ server.tool(
   }
 );
 
+server.tool(
+  "jira_saveCommentDraft",
+  `Save a LOCAL draft comment for a JIRA issue (nothing is posted to the ${jiraInstanceType}). Publish drafts manually with jira_postIssueComment when ready.`,
+  jiraToolSchemas.saveCommentDraft,
+  async ({ issueKey, comment, id }) => {
+    const result = await jiraService.saveCommentDraft(issueKey, comment, id);
+    return formatToolResponse(result);
+  }
+)
+
+server.tool(
+  "jira_listCommentDrafts",
+  `List LOCAL draft comments (optionally for one issue). These drafts are not visible in JIRA until posted manually.`,
+  jiraToolSchemas.listCommentDrafts,
+  async ({ issueKey }) => {
+    const result = await jiraService.listCommentDrafts(issueKey);
+    return formatToolResponse(result);
+  }
+)
+
+server.tool(
+  "jira_getCommentDraft",
+  `Read one LOCAL draft comment by id.`,
+  jiraToolSchemas.getCommentDraft,
+  async ({ id }) => {
+    const result = await jiraService.getCommentDraft(id);
+    return formatToolResponse(result);
+  }
+)
+
+server.tool(
+  "jira_deleteCommentDraft",
+  `Delete one LOCAL draft comment by id.`,
+  jiraToolSchemas.deleteCommentDraft,
+  async ({ id }) => {
+    const result = await jiraService.deleteCommentDraft(id);
+    return formatToolResponse(result);
+  }
+)
+
 await connectServer(server);
