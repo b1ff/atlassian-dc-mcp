@@ -164,7 +164,7 @@ if (attachmentGateway.upload.enabled) {
     "confluence_uploadAttachment",
     `Upload a local file as an attachment to a Confluence content (page) in the ${confluenceInstanceType}. The file must live under the server-configured upload directory; the path is given relative to that directory.`,
     confluenceToolSchemas.uploadAttachment,
-    async ({ contentId, sourcePath, filename, comment, minorEdit, hidden, allowDuplicated, versionIfExists }) => {
+    async ({ contentId, sourcePath, filename, comment, minorEdit, hidden, allowDuplicated, versionIfExists, contentType }) => {
       const result = await confluenceService.uploadAttachment(
         contentId,
         sourcePath,
@@ -175,6 +175,7 @@ if (attachmentGateway.upload.enabled) {
         hidden,
         allowDuplicated,
         versionIfExists,
+        contentType,
       );
       return formatToolResponse(result);
     }
