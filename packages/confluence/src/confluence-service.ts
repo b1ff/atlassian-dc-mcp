@@ -24,6 +24,33 @@ export function escapeSearchTextForCql(searchText: string): string {
   return searchText.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
 }
 
+export interface StorageEdit {
+  oldStr: string;
+  newStr: string;
+}
+
+/**
+ * Applies exact-match edits to a storage-format body, in order. Each oldStr must occur exactly once
+ * in the body as it stands after the previous edits; otherwise nothing is applied and an error is thrown.
+ * Splicing by index (not String.replace) keeps `$` sequences in newStr literal.
+ */
+export function applyStorageEdits(body: string, edits: StorageEdit[]): string {
+  return edits.reduce((current, edit, index) => {
+    if (!edit.oldStr) {
+      throw new Error(`edits[${index}].oldStr must not be empty`);
+    }
+    const count = current.split(edit.oldStr).length - 1;
+    if (count !== 1) {
+      const hint = count === 0
+        ? ' Copy it from the storage body exactly: storage keeps non-breaking spaces (U+00A0) and XML entities such as &amp;.'
+        : ' Include more surrounding text to make it unique.';
+      throw new Error(`edits[${index}].oldStr must occur exactly once in the page body, found ${count}.${hint}`);
+    }
+    const at = current.indexOf(edit.oldStr);
+    return current.slice(0, at) + edit.newStr + current.slice(at + edit.oldStr.length);
+  }, body);
+}
+
 export interface ConfluenceContent {
   id?: string;
   type: string;
@@ -352,6 +379,10 @@ export const confluenceToolSchemas = {
     contentId: z.string().describe("ID of the content to update"),
     title: z.string().optional().describe("New title of the content"),
     content: z.string().optional().describe("New content body in Confluence Data Center storage format (XML-based)"),
+    edits: z.array(z.object({
+      oldStr: z.string().describe("Text copied exactly from the current storage body; must occur exactly once"),
+      newStr: z.string().describe("Replacement text; empty deletes oldStr"),
+    })).min(1).optional().describe("Exact find/replace edits applied in order to the current storage body, instead of sending the whole body in content. All or none: if any oldStr is missing or not unique, nothing is saved. Requires version to be the current version + 1. Cannot be combined with content."),
     version: z.number().describe("New version number (must be incremented)"),
     versionComment: z.string().optional().describe("Comment for this version"),
     parentId: z.string().optional().describe("ID of the new parent page (moves the page under this parent; must be different from contentId; same mechanism as createContent parentId)"),
