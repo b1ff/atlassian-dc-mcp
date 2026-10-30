@@ -1,4 +1,4 @@
-import { ConfluenceService, escapeSearchTextForCql } from '../confluence-service.js';
+import { ConfluenceService, applyStorageEdits, escapeSearchTextForCql } from '../confluence-service.js';
 import { ContentResourceService, SearchService } from '../confluence-client/index.js';
 
 jest.mock('../confluence-client/index.js', () => ({
@@ -57,6 +57,61 @@ describe('escapeSearchTextForCql', () => {
 
   it('handles empty string', () => {
     expect(escapeSearchTextForCql('')).toBe('');
+  });
+});
+
+describe('applyStorageEdits', () => {
+  const body = '<p>Host</p><table><tr><td>a b</td><td>old</td></tr></table>';
+
+  it('replaces each oldStr in order', () => {
+    const result = applyStorageEdits(body, [
+      { oldStr: '<td>old</td>', newStr: '<td>new</td>' },
+      { oldStr: '<p>Host</p>', newStr: '<p>Hosts</p>' },
+    ]);
+    expect(result).toBe('<p>Hosts</p><table><tr><td>a b</td><td>new</td></tr></table>');
+  });
+
+  it('sees the result of earlier edits', () => {
+    const result = applyStorageEdits(body, [
+      { oldStr: 'old', newStr: 'mid' },
+      { oldStr: 'mid', newStr: 'new' },
+    ]);
+    expect(result).toContain('<td>new</td>');
+  });
+
+  it('deletes oldStr when newStr is empty', () => {
+    expect(applyStorageEdits(body, [{ oldStr: '<p>Host</p>', newStr: '' }])).toBe(body.slice('<p>Host</p>'.length));
+  });
+
+  it('keeps $ sequences in newStr literal', () => {
+    expect(applyStorageEdits(body, [{ oldStr: 'old', newStr: "$& $' $1" }])).toContain("<td>$& $' $1</td>");
+  });
+
+  it('keeps non-breaking spaces outside the edited text', () => {
+    expect(applyStorageEdits(body, [{ oldStr: 'old', newStr: 'new' }])).toContain('a b');
+  });
+
+  it('rejects oldStr typed with a plain space where storage has U+00A0', () => {
+    expect(() => applyStorageEdits(body, [{ oldStr: '<td>a b</td>', newStr: 'x' }]))
+      .toThrow(/edits\[0\].*found 0.*U\+00A0/);
+  });
+
+  it('rejects an oldStr that occurs more than once', () => {
+    expect(() => applyStorageEdits(body, [{ oldStr: '<td>', newStr: 'x' }]))
+      .toThrow(/edits\[0\].*found 2.*more surrounding text/);
+  });
+
+  it('rejects an empty oldStr', () => {
+    expect(() => applyStorageEdits(body, [{ oldStr: '', newStr: 'x' }])).toThrow(/edits\[0\]\.oldStr must not be empty/);
+  });
+
+  it('applies nothing when a later edit fails', () => {
+    const input = body;
+    expect(() => applyStorageEdits(input, [
+      { oldStr: 'old', newStr: 'new' },
+      { oldStr: 'missing', newStr: 'x' },
+    ])).toThrow(/edits\[1\]/);
+    expect(input).toBe(body);
   });
 });
 
