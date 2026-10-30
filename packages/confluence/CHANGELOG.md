@@ -3,6 +3,17 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [0.39.0](https://github.com/b1ff/atlassian-dc-mcp/compare/v0.38.0...v0.39.0) (2026-10-30)
+
+
+### Features
+
+* **confluence:** add exact find/replace edits to confluence_updateContent ([5608277](https://github.com/b1ff/atlassian-dc-mcp/commit/5608277b6d2bcaee837ef284003d17e9578f6406)), closes [#102](https://github.com/b1ff/atlassian-dc-mcp/issues/102)
+
+
+
+
+
 # [0.38.0](https://github.com/b1ff/atlassian-dc-mcp/compare/v0.37.0...v0.38.0) (2026-10-12)
 
 
