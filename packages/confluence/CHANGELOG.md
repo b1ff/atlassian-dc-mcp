@@ -3,6 +3,17 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [0.40.0](https://github.com/b1ff/atlassian-dc-mcp/compare/v0.39.0...v0.40.0) (2026-10-31)
+
+
+### Features
+
+* **confluence:** add contentType to confluence_uploadAttachment ([f7e7874](https://github.com/b1ff/atlassian-dc-mcp/commit/f7e7874e3821d038a334360d74061a8cc7277365))
+
+
+
+
+
 # [0.39.0](https://github.com/b1ff/atlassian-dc-mcp/compare/v0.38.0...v0.39.0) (2026-10-30)
 
 
