@@ -256,6 +256,7 @@ Parameters:
 - `hidden` (boolean, optional): If true, no notification email or activity stream entry is generated
 - `allowDuplicated` (boolean, optional): Allow upload even if an attachment with the same filename already exists
 - `versionIfExists` (boolean, optional): If true and an attachment with the same filename already exists, upload as a new version instead of failing
+- `contentType` (string, optional): MIME type recorded as the attachment media type, e.g. `application/vnd.jgraph.mxfile` for a draw.io diagram or `image/png`. If omitted, the file is sent as `application/octet-stream`.
 
 #### 7. confluence_downloadAttachment
 

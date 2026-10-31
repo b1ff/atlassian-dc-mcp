@@ -197,6 +197,8 @@ export class ConfluenceService {
    * @param minorEdit If true, no notification email will be generated
    * @param hidden If true, no notification email or activity stream entry will be generated
    * @param allowDuplicated Allow upload even if an attachment with the same filename exists
+   * @param versionIfExists Upload as a new version when an attachment with the same filename exists
+   * @param contentType MIME type sent with the file part; Confluence records it as the attachment media type
    */
   async uploadAttachment(
     contentId: string,
@@ -208,12 +210,13 @@ export class ConfluenceService {
     hidden?: boolean,
     allowDuplicated?: boolean,
     versionIfExists?: boolean,
+    contentType?: string,
   ) {
     return handleApiOperation(async () => {
       const { absolutePath } = await resolveUploadSource({ requestedPath: sourcePath, side: uploadSide });
       const buffer = await readFile(absolutePath);
       const name = filename || basename(absolutePath);
-      const file = new File([buffer], name);
+      const file = new File([buffer], name, { type: contentType });
       // X-Atlassian-Token: nocheck is required for multipart attachment POSTs (XSRF bypass).
       // Set it only for the duration of this call; restore afterwards.
       const prevHeaders = OpenAPI.HEADERS;
@@ -224,7 +227,7 @@ export class ConfluenceService {
           const existingId = (existing as any)?.results?.[0]?.id;
           if (existingId) {
             // MockAttachmentRequest types file as string, but getFormData handles Blob/File via isBlob()
-            return await AttachmentsService.updateData(existingId, contentId, { file } as any);
+            return await AttachmentsService.updateData(existingId, contentId, { file, comment, minorEdit } as any);
           }
         }
         // MockAttachmentRequest types file as string, but getFormData in request.ts handles Blob/File via isBlob()
@@ -403,7 +406,8 @@ export const confluenceToolSchemas = {
     minorEdit: z.boolean().optional().describe("If true, no notification email is sent to watchers"),
     hidden: z.boolean().optional().describe("If true, no notification email or activity stream entry is generated"),
     allowDuplicated: z.boolean().optional().describe("Allow upload even if an attachment with the same filename already exists"),
-    versionIfExists: z.boolean().optional().describe("If true and an attachment with the same filename already exists, upload as a new version instead of failing")
+    versionIfExists: z.boolean().optional().describe("If true and an attachment with the same filename already exists, upload as a new version instead of failing"),
+    contentType: z.string().optional().describe("MIME type recorded as the attachment media type, e.g. 'application/vnd.jgraph.mxfile' for a draw.io diagram or 'image/png'. If omitted, the file is sent as application/octet-stream.")
   },
   downloadAttachment: {
     contentId: z.string().describe("ID of the Confluence content (page) whose attachment(s) to download"),
