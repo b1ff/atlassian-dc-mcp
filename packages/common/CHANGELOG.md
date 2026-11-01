@@ -3,6 +3,25 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [0.43.0](https://github.com/b1ff/atlassian-dc-mcp/compare/v0.42.0...v0.43.0) (2026-11-01)
+
+
+### Bug Fixes
+
+* **attachments:** cap image labels by code point ([c1c1169](https://github.com/b1ff/atlassian-dc-mcp/commit/c1c1169f68838351e7855e4c6591835fffdfa2ad))
+* **attachments:** gate image rendering behind returnContent 'image' ([dbbdde6](https://github.com/b1ff/atlassian-dc-mcp/commit/dbbdde651de2f2572b715ffd09cb0800b7cc15bd)), closes [#83](https://github.com/b1ff/atlassian-dc-mcp/issues/83)
+* **attachments:** keep base64 out of the JSON in image mode ([1e2b3ab](https://github.com/b1ff/atlassian-dc-mcp/commit/1e2b3abd240c4f06a79c119d3a905fd36039a7f1))
+* **attachments:** sanitise image labels, un-share the render limit ([512ea7c](https://github.com/b1ff/atlassian-dc-mcp/commit/512ea7c317d4a2587eb1523499d6ba4f7f6d7dac)), closes [#83](https://github.com/b1ff/atlassian-dc-mcp/issues/83)
+
+
+### Features
+
+* **attachments:** return downloaded images as viewable image blocks ([b6935e4](https://github.com/b1ff/atlassian-dc-mcp/commit/b6935e411dc26de5e8c34c2553e2794475282319))
+
+
+
+
+
 # [0.42.0](https://github.com/b1ff/atlassian-dc-mcp/compare/v0.41.0...v0.42.0) (2026-11-01)
 
 **Note:** Version bump only for package @atlassian-dc-mcp/common
