@@ -1044,8 +1044,8 @@ export class BitbucketService {
    * @param repositorySlug The repository slug
    * @param sourceRefId The ID of the source ref (e.g., 'refs/heads/feature-branch')
    * @param targetRefId The ID of the target ref (e.g., 'refs/heads/main')
-   * @param sourceRepoId Optional ID of the repository in which the source ref exists
-   * @param targetRepoId Optional ID of the repository in which the target ref exists
+   * @param sourceRepoId Optional source repository ID. Defaults to the repository identified by projectKey/repositorySlug. Supply this explicitly for a source fork
+   * @param targetRepoId Optional target repository ID. Defaults to the repository identified by projectKey/repositorySlug
    * @returns Promise with required reviewers data
    */
   async getRequiredReviewers(
@@ -1059,14 +1059,24 @@ export class BitbucketService {
     projectKey = projectKey.toUpperCase();
     repositorySlug = repositorySlug.toLowerCase();
     return handleApiOperation(
-      () => PullRequestsService.getReviewers(
-        projectKey,
-        repositorySlug,
-        targetRepoId,
-        sourceRepoId,
-        sourceRefId,
-        targetRefId
-      ),
+      async () => {
+        let defaultRepoId: string | undefined;
+        if (sourceRepoId === undefined || targetRepoId === undefined) {
+          const repository = await ProjectService.getRepository(projectKey, repositorySlug);
+          if (!('id' in repository) || typeof repository.id !== 'number') {
+            throw new Error(`Repository lookup for ${projectKey}/${repositorySlug} did not return an ID`);
+          }
+          defaultRepoId = String(repository.id);
+        }
+        return PullRequestsService.getReviewers(
+          projectKey,
+          repositorySlug,
+          targetRepoId ?? defaultRepoId,
+          sourceRepoId ?? defaultRepoId,
+          sourceRefId,
+          targetRefId
+        );
+      },
       'Error fetching required reviewers'
     );
   }
@@ -1421,8 +1431,8 @@ export const bitbucketToolSchemas = {
     repositorySlug: z.string().describe("The repository slug"),
     sourceRefId: z.string().describe("The ID of the source ref (e.g., 'refs/heads/feature-branch')"),
     targetRefId: z.string().describe("The ID of the target ref (e.g., 'refs/heads/main')"),
-    sourceRepoId: z.string().optional().describe("Optional ID of the repository in which the source ref exists"),
-    targetRepoId: z.string().optional().describe("Optional ID of the repository in which the target ref exists")
+    sourceRepoId: z.string().optional().describe("Optional source repository ID. Defaults to the repository identified by projectKey/repositorySlug. Supply this explicitly for a source fork"),
+    targetRepoId: z.string().optional().describe("Optional target repository ID. Defaults to the repository identified by projectKey/repositorySlug")
   },
   getDashboardPullRequests: {
     role: z.enum(['AUTHOR', 'REVIEWER', 'PARTICIPANT']).optional().default('AUTHOR').describe("Filter by the user's role in the PR: AUTHOR (default), REVIEWER, or PARTICIPANT"),

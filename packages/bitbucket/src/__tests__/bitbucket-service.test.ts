@@ -3,7 +3,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { initializeRuntimeConfig } from '@atlassian-dc-mcp/common';
 import { BitbucketService } from '../bitbucket-service.js';
-import { DeprecatedService, PullRequestsService, RepositoryService } from '../bitbucket-client/index.js';
+import { DeprecatedService, ProjectService, PullRequestsService, RepositoryService } from '../bitbucket-client/index.js';
 import { DECLINE_POLICY, type RepoGateway } from '../repo-gateway.js';
 import { request as mockRequest } from '../bitbucket-client/core/request.js';
 
@@ -27,6 +27,9 @@ jest.mock('../bitbucket-client/index.js', () => ({
     get3: jest.fn(),
     decline: jest.fn(),
     reopen: jest.fn()
+  },
+  ProjectService: {
+    getRepository: jest.fn()
   },
   RepositoryService: {
     streamRaw: jest.fn(),
@@ -58,6 +61,7 @@ describe('BitbucketService', () => {
     initializeRuntimeConfig();
     bitbucketService = new BitbucketService('test-host', 'test-token');
     jest.clearAllMocks();
+    (ProjectService.getRepository as jest.Mock).mockResolvedValue({ id: 55 });
   });
 
   afterEach(() => {
@@ -2230,8 +2234,8 @@ describe('BitbucketService', () => {
       expect(PullRequestsService.getReviewers).toHaveBeenCalledWith(
         mockProjectKey,
         mockRepositorySlug,
-        undefined, // targetRepoId
-        undefined, // sourceRepoId
+        '55', // targetRepoId
+        '55', // sourceRepoId
         'refs/heads/feature',
         'refs/heads/main'
       );
@@ -2267,6 +2271,52 @@ describe('BitbucketService', () => {
         'refs/heads/feature',
         'refs/heads/main'
       );
+    });
+
+    it.each([
+      [undefined, undefined, '55', '55'],
+      ['123', undefined, '55', '123'],
+      [undefined, '456', '456', '55'],
+      ['123', '456', '456', '123'],
+    ])('resolves missing repository IDs for source=%s target=%s', async (source, target, expectedTarget, expectedSource) => {
+      (PullRequestsService.getReviewers as jest.Mock).mockResolvedValue([]);
+
+      const result = await bitbucketService.getRequiredReviewers(
+        'test', 'Test-Repo', 'refs/heads/feature', 'refs/heads/main', source, target
+      );
+
+      expect(result.success).toBe(true);
+      expect(PullRequestsService.getReviewers).toHaveBeenCalledWith(
+        'TEST', 'test-repo', expectedTarget, expectedSource, 'refs/heads/feature', 'refs/heads/main'
+      );
+      if (source !== undefined && target !== undefined) {
+        expect(ProjectService.getRepository).not.toHaveBeenCalled();
+        return;
+      }
+      expect(ProjectService.getRepository).toHaveBeenCalledTimes(1);
+      expect(ProjectService.getRepository).toHaveBeenCalledWith('TEST', 'test-repo');
+    });
+
+    it('stops before fetching reviewers when repository lookup fails', async () => {
+      (ProjectService.getRepository as jest.Mock).mockRejectedValueOnce(new Error('Repository unavailable'));
+
+      const result = await bitbucketService.getRequiredReviewers(
+        mockProjectKey, mockRepositorySlug, 'refs/heads/feature', 'refs/heads/main'
+      );
+
+      expect(result).toEqual(expect.objectContaining({ success: false, error: 'Repository unavailable' }));
+      expect(PullRequestsService.getReviewers).not.toHaveBeenCalled();
+    });
+
+    it('rejects a repository response without an ID', async () => {
+      (ProjectService.getRepository as jest.Mock).mockResolvedValueOnce({});
+
+      const result = await bitbucketService.getRequiredReviewers(
+        mockProjectKey, mockRepositorySlug, 'refs/heads/feature', 'refs/heads/main'
+      );
+
+      expect(result).toEqual(expect.objectContaining({ success: false, error: 'Repository lookup for TEST/test-repo did not return an ID' }));
+      expect(PullRequestsService.getReviewers).not.toHaveBeenCalled();
     });
 
     it('should handle errors when getting required reviewers', async () => {
@@ -3113,7 +3163,7 @@ describe('BitbucketService', () => {
       );
 
       expect(PullRequestsService.getReviewers).toHaveBeenCalledWith(
-        'TEST', 'test-repo', undefined, undefined,
+        'TEST', 'test-repo', '55', '55',
         'refs/heads/feature', 'refs/heads/main'
       );
     });

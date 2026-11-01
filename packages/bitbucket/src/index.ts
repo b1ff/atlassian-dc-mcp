@@ -3,6 +3,7 @@ import { BitbucketService, bitbucketToolSchemas } from './bitbucket-service.js';
 import { getBitbucketRuntimeConfig, getDefaultPageSize } from './config.js';
 import { resolveDeclineGateway, resolveMergeGateway } from './repo-gateway.js';
 import { createRequire } from 'node:module';
+import { registerPullRequestCommentsTool } from './register-pr-comments-tool.js';
 
 const require = createRequire(import.meta.url);
 const { version } = require('../package.json');
@@ -137,16 +138,7 @@ server.tool(
   }
 );
 
-server.tool(
-  "bitbucket_getPR_CommentsAndAction",
-  "Get comments for a Bitbucket pull request and other actions, like approvals",
-  bitbucketToolSchemas.getPullRequestComments,
-  readOnlyToolAnnotations,
-  async ({ projectKey, repositorySlug, pullRequestId, start, limit, output }) => {
-    const result = await bitbucketService.getPullRequestCommentsAndActions(projectKey, repositorySlug, pullRequestId, start, limit, output);
-    return formatToolResponse(result);
-  }
-);
+registerPullRequestCommentsTool(server, bitbucketService);
 
 server.tool(
   "bitbucket_getPullRequestChanges",
