@@ -48,7 +48,7 @@ class NodemonManager {
       '--quiet',
       '--watch', 'src',
       '-e', 'ts',
-      '--exec', `npx tsc ${this.verbose ? '' : '--quiet'} && node ./build/index.js`
+      '--exec', 'tsx src/index.ts'
     ], {
       shell: true,
       stdio: 'inherit',

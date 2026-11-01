@@ -417,14 +417,14 @@ export const jiraToolSchemas = {
     summary: z.string().describe("Issue summary"),
     description: z.string().describe("Issue description in the format suitable for JIRA DATA CENTER edition (JIRA Wiki Markup)."),
     issueTypeId: z.string().describe("Issue type id (e.g. id of Task, Bug, Story). Should be found first a correct number for specific JIRA installation."),
-    customFields: z.record(z.any()).optional().describe("Optional fields merged into the JIRA create payload. Can be used for custom fields and standard fields such as labels. Examples: {'customfield_10001': 'Custom Value', 'priority': {'id': '1'}, 'assignee': {'name': 'john.doe'}, 'labels': ['urgent', 'bug']}")
+    customFields: z.record(z.string(), z.any()).optional().describe("Optional fields merged into the JIRA create payload. Can be used for custom fields and standard fields such as labels. Examples: {'customfield_10001': 'Custom Value', 'priority': {'id': '1'}, 'assignee': {'name': 'john.doe'}, 'labels': ['urgent', 'bug']}")
   },
   updateIssue: {
     issueKey: z.string().describe("JIRA issue key (e.g., PROJ-123)"),
     summary: z.string().optional().describe("New summary (optional)"),
     description: z.string().optional().describe("New description in JIRA Wiki Markup (optional)"),
     issueTypeId: z.string().optional().describe("New issue type id (optional)"),
-    customFields: z.record(z.any()).optional().describe("Optional fields merged into the JIRA update payload. Can be used for custom fields and standard fields such as labels. Examples: {'customfield_10001': 'Custom Value', 'priority': {'id': '1'}, 'assignee': {'name': 'john.doe'}, 'labels': ['urgent', 'bug']}")
+    customFields: z.record(z.string(), z.any()).optional().describe("Optional fields merged into the JIRA update payload. Can be used for custom fields and standard fields such as labels. Examples: {'customfield_10001': 'Custom Value', 'priority': {'id': '1'}, 'assignee': {'name': 'john.doe'}, 'labels': ['urgent', 'bug']}")
   },
   getTransitions: {
     issueKey: z.string().describe("JIRA issue key (e.g., PROJ-123)")
@@ -437,8 +437,8 @@ export const jiraToolSchemas = {
   transitionIssue: {
     issueKey: z.string().describe("JIRA issue key (e.g., PROJ-123)"),
     transitionId: z.string().describe("The ID of the transition to perform. Use jira_getTransitions to find available transitions and their IDs."),
-    fields: z.record(z.any()).optional().describe("Optional fields required by the transition screen. Use jira_getTransitions to see which fields are available for each transition."),
-    customFields: z.record(z.any()).optional().describe("Optional fields merged into the JIRA transition payload. Can be used for update operations such as comments. Example: {'update': {'comment': [{'add': {'body': 'text'}}]}}")
+    fields: z.record(z.string(), z.any()).optional().describe("Optional fields required by the transition screen. Use jira_getTransitions to see which fields are available for each transition."),
+    customFields: z.record(z.string(), z.any()).optional().describe("Optional fields merged into the JIRA transition payload. Can be used for update operations such as comments. Example: {'update': {'comment': [{'add': {'body': 'text'}}]}}")
   },
   uploadAttachment: {
     issueKey: z.string().describe("JIRA issue key (e.g., PROJ-123)"),
