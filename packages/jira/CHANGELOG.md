@@ -3,6 +3,17 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [0.42.0](https://github.com/b1ff/atlassian-dc-mcp/compare/v0.41.0...v0.42.0) (2026-11-01)
+
+
+### Features
+
+* **jira:** add project version tools ([c3b76d9](https://github.com/b1ff/atlassian-dc-mcp/commit/c3b76d90f1c87338eb5516937d591bbbc8bc37ca))
+
+
+
+
+
 # [0.41.0](https://github.com/b1ff/atlassian-dc-mcp/compare/v0.40.0...v0.41.0) (2026-11-01)
 
 **Note:** Version bump only for package @atlassian-dc-mcp/jira
