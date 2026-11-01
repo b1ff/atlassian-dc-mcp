@@ -105,7 +105,7 @@ describe('resolveUploadSource', () => {
   it('rejects a path that escapes via a symlinked directory', async () => {
     const outside = fs.mkdtempSync(path.join(os.tmpdir(), 'dc-mcp-out-'));
     fs.writeFileSync(path.join(outside, 'secret.txt'), 'x');
-    fs.symlinkSync(outside, path.join(root, 'escape'));
+    fs.symlinkSync(outside, path.join(root, 'escape'), 'junction');
     await expect(resolveUploadSource({ requestedPath: 'escape/secret.txt', side: side() })).rejects.toThrow('outside');
     fs.rmSync(outside, { recursive: true, force: true });
   });

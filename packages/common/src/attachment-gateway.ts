@@ -1,7 +1,7 @@
-import { realpathSync } from 'node:fs';
-import { lstat, realpath } from 'node:fs/promises';
+import { lstat } from 'node:fs/promises';
 import { basename, delimiter, dirname, isAbsolute, join, normalize, relative, resolve, sep } from 'node:path';
 import type { ProductDefinition } from './config/source.js';
+import { canonicalizePath } from './canonicalize-path.js';
 
 /**
  * Operator-controlled gateway that lets the attachment tools read from / write to
@@ -72,8 +72,7 @@ function canonicalizeRoots(rawRoots: string[], warn: Warn): string[] {
       continue;
     }
     try {
-      // .native matches fs/promises.realpath; plain realpathSync yields 8.3 short paths on Windows.
-      const real = realpathSync.native(root);
+      const real = canonicalizePath(root, 'sync');
       if (!canonical.includes(real)) {
         canonical.push(real);
       }
@@ -158,7 +157,8 @@ function normalizeRelative(requested: string): string {
 }
 
 function withinRoot(candidate: string, root: string): boolean {
-  return candidate === root || candidate.startsWith(root + sep);
+  const prefix = root.endsWith(sep) ? root : root + sep;
+  return candidate === root || candidate.startsWith(prefix);
 }
 
 /**
@@ -170,7 +170,7 @@ async function canonicalizeDeepestExisting(target: string): Promise<string> {
   let current = target;
   while (true) {
     try {
-      const real = await realpath(current);
+      const real = await canonicalizePath(current);
       const tail = relative(current, target);
       return tail ? join(real, tail) : real;
     } catch {
