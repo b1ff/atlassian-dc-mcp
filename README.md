@@ -338,8 +338,8 @@ The Atlassian DC MCP allows AI assistants to interact with Atlassian products th
 
 ## Prerequisites
 
-- Node.js 22.22.2 or higher
-- npm 11.10.0 or higher (11.21.1 is used in CI)
+- Node.js 18 or higher
+- npm 7 or higher (for workspaces support)
 - Atlassian Data Center instance or Cloud instance
 - API tokens for the Atlassian products you want to use
 
@@ -356,13 +356,12 @@ cd atlassian-dc-mcp
 
 This project is structured as an npm monorepo using workspaces. The workspaces are organized in the `packages/` directory, with separate packages for each Atlassian product integration.
 
-Development tooling supports Node.js 22.22.2+, 24.15.0+, and 26+. Builds use
-TypeScript 7 and check both source files and tests. Jest uses SWC to transform
-TypeScript tests. Development and inspector commands use `tsx` to run TypeScript.
+CI uses Node.js 22 for development tooling. Builds use TypeScript 7 and check
+both source files and tests. Jest uses SWC to transform TypeScript tests.
+Development and inspector commands use `tsx` to run TypeScript.
 
 Dependency versions are pinned in every `package.json`. The project `.npmrc`
-uses `save-exact=true` for future additions and `min-release-age=7` to require
-releases to be at least seven days old when resolving dependencies.
+uses `save-exact=true` for future additions.
 
 ### Installing Dependencies
 
