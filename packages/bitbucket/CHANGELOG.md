@@ -3,6 +3,24 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [0.41.0](https://github.com/b1ff/atlassian-dc-mcp/compare/v0.40.0...v0.41.0) (2026-11-01)
+
+
+### Bug Fixes
+
+* **bitbucket:** drop the inert secondaryLimit search parameter ([679f069](https://github.com/b1ff/atlassian-dc-mcp/commit/679f069db2d56e05082e88b5ac510c850380d34f))
+* **bitbucket:** fail clearly on invalid/substituted query ([a11585f](https://github.com/b1ff/atlassian-dc-mcp/commit/a11585f11ed07f7e5ee9e8aa98606b978b60aea8))
+* **bitbucket:** return search snippets as plain source text ([57a7c2b](https://github.com/b1ff/atlassian-dc-mcp/commit/57a7c2beff113ef46546859689ca27f7d1089d8b)), closes [#x2](https://github.com/b1ff/atlassian-dc-mcp/issues/x2)
+
+
+### Features
+
+* **bitbucket:** add pagination to bitbucket_searchCode ([c770931](https://github.com/b1ff/atlassian-dc-mcp/commit/c770931b1bc51d4abff3de1ab28695ab1997b026))
+
+
+
+
+
 # [0.40.0](https://github.com/b1ff/atlassian-dc-mcp/compare/v0.39.0...v0.40.0) (2026-10-31)
 
 **Note:** Version bump only for package @atlassian-dc-mcp/bitbucket
