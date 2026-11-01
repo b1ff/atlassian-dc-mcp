@@ -1,6 +1,6 @@
 {
   "name": "@atlassian-dc-mcp/bitbucket",
-  "version": "0.43.1",
+  "version": "0.43.2",
   "main": "build/index.js",
   "type": "module",
   "bin": "./bin/run.js",
@@ -31,7 +31,7 @@
     "test": "jest"
   },
   "dependencies": {
-    "@atlassian-dc-mcp/common": "0.43.1",
+    "@atlassian-dc-mcp/common": "0.43.2",
     "dotenv": "18.0.9",
     "zod": "4.6.7",
     "@modelcontextprotocol/server": "2.4.0"

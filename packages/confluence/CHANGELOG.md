@@ -3,6 +3,13 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.43.2](https://github.com/b1ff/atlassian-dc-mcp/compare/v0.43.1...v0.43.2) (2026-11-01)
+
+### Bug Fixes
+
+* preserve existing Node.js runtime compatibility ([b26f15d](https://github.com/b1ff/atlassian-dc-mcp/commit/b26f15d4ce8057b28d666f9893f0b2b56870d727))
+
+
 ## [0.43.1](https://github.com/b1ff/atlassian-dc-mcp/compare/v0.43.0...v0.43.1) (2026-11-01)
 
 **Note:** Version bump only for package @atlassian-dc-mcp/confluence
