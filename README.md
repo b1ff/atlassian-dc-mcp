@@ -338,10 +338,24 @@ The Atlassian DC MCP allows AI assistants to interact with Atlassian products th
 
 ## Prerequisites
 
-- Node.js 18 or higher
-- npm 7 or higher (for workspaces support)
+- Node.js 22.22.2 or higher
+- npm 11.10.0 or higher within npm 11
 - Atlassian Data Center instance or Cloud instance
 - API tokens for the Atlassian products you want to use
+
+## Breaking change in the next major release
+
+All servers now use MCP TypeScript SDK v2. Upgrade Node.js to 22.22.2 or
+higher and use npm 11.10.0 or higher within npm 11 before updating. Node.js
+18 and 20 and npm 7 through 10 are no longer supported.
+
+Consumers of `@atlassian-dc-mcp/common` now receive v2 `McpServer` instances.
+Use `registerTool` with a full Zod object schema when registering tools and
+import SDK types from `@modelcontextprotocol/server`. Existing stdio client
+configuration, tool names, arguments, and responses remain compatible.
+
+The release command promotes the current 0.x packages to 1.0.0. Subsequent
+releases use the existing conventional-commit version selection.
 
 ## Installation
 
@@ -356,12 +370,18 @@ cd atlassian-dc-mcp
 
 This project is structured as an npm monorepo using workspaces. The workspaces are organized in the `packages/` directory, with separate packages for each Atlassian product integration.
 
-CI uses Node.js 22 for development tooling. Builds use TypeScript 7 and check
+CI builds and tests on the minimum supported Node.js version, 22.22.2, with npm 11.21.1. Builds use TypeScript 7 and check
 both source files and tests. Jest uses SWC to transform TypeScript tests.
 Development and inspector commands use `tsx` to run TypeScript.
 
 Dependency versions are pinned in every `package.json`. The project `.npmrc`
-uses `save-exact=true` for future additions.
+uses `save-exact=true` for future additions and `min-release-age=7` to require
+third-party releases to be at least seven days old. Install npm 11 before
+installing dependencies:
+
+```bash
+npm install --global npm@11.21.1
+```
 
 ### Installing Dependencies
 

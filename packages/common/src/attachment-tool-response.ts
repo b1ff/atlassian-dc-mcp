@@ -1,4 +1,4 @@
-import type { CallToolResult, ImageContent, TextContent } from '@modelcontextprotocol/sdk/types.js';
+import type { CallToolResult, ImageContent, TextContent } from '@modelcontextprotocol/server';
 import type { ApiErrorResponse } from './api-error-handler.js';
 import type { AttachmentContentEncoding, AttachmentDownloadResult } from './attachment-download.js';
 import { formatToolResponse } from './tool-response.js';
