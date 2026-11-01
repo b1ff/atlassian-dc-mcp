@@ -23,21 +23,19 @@
   "scripts": {
     "build": "tsc",
     "test": "jest --passWithNoTests",
-    "dev": "nodemon --exec ts-node --esm src/index.ts"
+    "dev": "nodemon --exec tsx src/index.ts"
   },
   "dependencies": {
     "@inquirer/prompts": "7.10.1",
-    "@modelcontextprotocol/sdk": "^1.27.1",
-    "dotenv": "16.4.7",
-    "zod": "3.25.76"
-  },
-  "devDependencies": {
-    "@types/node": "^22.13.5",
-    "nodemon": "^3.1.0",
-    "ts-node": "^10.9.2"
+    "@modelcontextprotocol/sdk": "1.32.2",
+    "dotenv": "18.0.9",
+    "zod": "4.6.7"
   },
   "publishConfig": {
     "access": "public"
   },
-  "gitHead": "21ea555d7c02461cde3bab32a4b75c6c6a94e927"
+  "gitHead": "21ea555d7c02461cde3bab32a4b75c6c6a94e927",
+  "engines": {
+    "node": ">=22.22.2"
+  }
 }

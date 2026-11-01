@@ -15,26 +15,38 @@
     "packages/*"
   ],
   "scripts": {
-    "build": "npm run build --workspace=@atlassian-dc-mcp/common && npm run build --workspaces",
+    "build": "tsc --build",
     "test": "npm run test --workspaces",
     "dev:jira": "npm run dev --workspace=@atlassian-dc-mcp/jira",
     "dev:confluence": "npm run dev --workspace=@atlassian-dc-mcp/confluence",
     "dev:bitbucket": "npm run dev --workspace=@atlassian-dc-mcp/bitbucket",
     "debug": "node mcp-live-debug.js",
     "debug:verbose": "node mcp-live-debug.js --verbose",
-    "debug:ts": "nodemon --exec ts-node --esm",
+    "debug:ts": "nodemon --exec tsx",
     "publish:ci": "lerna version --conventional-commits --yes --no-push && lerna publish from-package --yes",
     "lerna": "lerna"
   },
   "overrides": {
-    "tar": "^7.5.11"
+    "tar": "7.5.22",
+    "nx": {
+      "undici": "7.30.1"
+    }
   },
   "devDependencies": {
-    "@types/node": "^22.13.5",
-    "jest": "^30.1.3",
-    "lerna": "^9.0.5",
-    "nodemon": "^3.1.10",
-    "ts-node": "^10.9.2",
-    "typescript": "^5.9.2"
-  }
+    "@modelcontextprotocol/inspector": "2.12.0",
+    "@swc/core": "1.16.20",
+    "@swc/jest": "0.2.39",
+    "@types/jest": "30.0.0",
+    "@types/node": "22.20.5",
+    "jest": "30.5.2",
+    "lerna": "10.1.1",
+    "nodemon": "3.1.14",
+    "tsx": "4.23.15",
+    "typescript": "7.0.2"
+  },
+  "engines": {
+    "node": "^22.22.2 || ^24.15.0 || >=26.0.0",
+    "npm": ">=11.10.0"
+  },
+  "packageManager": "npm@11.21.1"
 }

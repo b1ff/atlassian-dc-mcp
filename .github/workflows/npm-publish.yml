@@ -23,6 +23,8 @@ jobs:
         uses: actions/setup-node@v7
         with:
           node-version: '22'
+      - name: Set up npm
+        run: npm install --global npm@11.21.1
       - name: Install dependencies
         run: npm ci
       - name: Build
@@ -47,6 +49,9 @@ jobs:
         with:
           node-version: '22'
           registry-url: https://registry.npmjs.org/
+
+      - name: Set up npm
+        run: npm install --global npm@11.21.1
 
       - name: Configure npm
         run: npm config set package-lock false

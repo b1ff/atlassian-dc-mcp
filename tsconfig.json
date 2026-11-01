@@ -11,15 +11,17 @@
     "composite": true,
     "declarationMap": true,
     "sourceMap": true,
-    "baseUrl": ".",
     "paths": {
-      "@atlassian-dc-mcp/*": ["packages/*/src"]
-    }
+      "@atlassian-dc-mcp/*": ["./packages/*/src"]
+    },
+    "isolatedModules": true,
+    "types": ["node", "jest"]
   },
   "references": [
     { "path": "packages/common" },
     { "path": "packages/jira" },
     { "path": "packages/confluence" },
     { "path": "packages/bitbucket" }
-  ]
+  ],
+  "files": []
 }

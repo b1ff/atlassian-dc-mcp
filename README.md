@@ -1,7 +1,5 @@
 [![MSeeP.ai Security Assessment Badge](https://mseep.net/pr/b1ff-atlassian-dc-mcp-badge.png)](https://mseep.ai/app/b1ff-atlassian-dc-mcp)
 
-[![Verified on MseeP](https://mseep.ai/badge.svg)](https://mseep.ai/app/2a87ecc6-e53a-4a21-b63e-ede9b6a2bc4a)
-
 # Atlassian Data Center MCP
 
 > **Note:** This is a community-maintained project and is **not affiliated with, endorsed by, or supported by Atlassian**.
@@ -340,8 +338,8 @@ The Atlassian DC MCP allows AI assistants to interact with Atlassian products th
 
 ## Prerequisites
 
-- Node.js 18 or higher
-- npm 7 or higher (for workspaces support)
+- Node.js 22.22.2 or higher
+- npm 11.10.0 or higher (11.21.1 is used in CI)
 - Atlassian Data Center instance or Cloud instance
 - API tokens for the Atlassian products you want to use
 
@@ -357,6 +355,14 @@ cd atlassian-dc-mcp
 ## Development
 
 This project is structured as an npm monorepo using workspaces. The workspaces are organized in the `packages/` directory, with separate packages for each Atlassian product integration.
+
+Development tooling supports Node.js 22.22.2+, 24.15.0+, and 26+. Builds use
+TypeScript 7 and check both source files and tests. Jest uses SWC to transform
+TypeScript tests. Development and inspector commands use `tsx` to run TypeScript.
+
+Dependency versions are pinned in every `package.json`. The project `.npmrc`
+uses `save-exact=true` for future additions and `min-release-age=7` to require
+releases to be at least seven days old when resolving dependencies.
 
 ### Installing Dependencies
 

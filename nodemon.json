@@ -2,5 +2,5 @@
   "watch": ["packages/*/src"],
   "ext": "ts,json",
   "ignore": ["node_modules", "build"],
-  "exec": "ts-node --esm"
+  "exec": "tsx"
 }
