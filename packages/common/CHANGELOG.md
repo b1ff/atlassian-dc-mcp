@@ -3,6 +3,17 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.43.1](https://github.com/b1ff/atlassian-dc-mcp/compare/v0.43.0...v0.43.1) (2026-11-01)
+
+
+### Bug Fixes
+
+* **common:** enforce native attachment path canonicalization ([4f1772d](https://github.com/b1ff/atlassian-dc-mcp/commit/4f1772dcd99902a3a21893bd2a5e29949a0a0f39))
+
+
+
+
+
 # [0.43.0](https://github.com/b1ff/atlassian-dc-mcp/compare/v0.42.0...v0.43.0) (2026-11-01)
 
 

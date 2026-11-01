@@ -3,6 +3,18 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.43.1](https://github.com/b1ff/atlassian-dc-mcp/compare/v0.43.0...v0.43.1) (2026-11-01)
+
+
+### Bug Fixes
+
+* **bitbucket:** forward includeResolved to comments service ([#92](https://github.com/b1ff/atlassian-dc-mcp/issues/92)) ([325c5d2](https://github.com/b1ff/atlassian-dc-mcp/commit/325c5d24edb0306c60c9992344ff43174989259f))
+* **bitbucket:** resolve omitted required reviewer repository IDs ([#94](https://github.com/b1ff/atlassian-dc-mcp/issues/94)) ([7a76376](https://github.com/b1ff/atlassian-dc-mcp/commit/7a763765d2b5012d6c8fa1898d9c47ec15888002))
+
+
+
+
+
 # [0.43.0](https://github.com/b1ff/atlassian-dc-mcp/compare/v0.42.0...v0.43.0) (2026-11-01)
 
 **Note:** Version bump only for package @atlassian-dc-mcp/bitbucket
