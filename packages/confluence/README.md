@@ -240,6 +240,7 @@ Parameters:
 - `contentId` (string, required): ID of the content to update
 - `title` (string, optional): New title of the content
 - `content` (string, optional): New content body in Confluence Data Center's storage format (XML-based)
+- `edits` (array of `{ oldStr, newStr }`, optional): Exact find/replace edits applied in order to the current storage body, so a small change doesn't need the whole body resent. Each `oldStr` must occur exactly once; if any edit doesn't match, nothing is saved. `version` must be the current version + 1. Can't be combined with `content`.
 - `version` (number, required): New version number (must be incremented from current version)
 - `versionComment` (string, optional): Comment for this version
 - `parentId` (string, optional): ID of the new parent page (moves the page under this parent; must be different from `contentId`; uses Confluence `ancestors`, same as `createContent` `parentId`)
@@ -269,6 +270,7 @@ Parameters:
 - `hidden` (boolean, optional): If true, no notification email or activity stream entry is generated
 - `allowDuplicated` (boolean, optional): Allow upload even if an attachment with the same filename already exists
 - `versionIfExists` (boolean, optional): If true and an attachment with the same filename already exists, upload as a new version instead of failing
+- `contentType` (string, optional): MIME type recorded as the attachment media type, e.g. `application/vnd.jgraph.mxfile` for a draw.io diagram or `image/png`. If omitted, the file is sent as `application/octet-stream`.
 
 #### 7. confluence_downloadAttachment
 

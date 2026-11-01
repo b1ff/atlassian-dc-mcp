@@ -25,6 +25,33 @@ export function escapeSearchTextForCql(searchText: string): string {
   return searchText.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
 }
 
+export interface StorageEdit {
+  oldStr: string;
+  newStr: string;
+}
+
+/**
+ * Applies exact-match edits to a storage-format body, in order. Each oldStr must occur exactly once
+ * in the body as it stands after the previous edits; otherwise nothing is applied and an error is thrown.
+ * Splicing by index (not String.replace) keeps `$` sequences in newStr literal.
+ */
+export function applyStorageEdits(body: string, edits: StorageEdit[]): string {
+  return edits.reduce((current, edit, index) => {
+    if (!edit.oldStr) {
+      throw new Error(`edits[${index}].oldStr must not be empty`);
+    }
+    const count = current.split(edit.oldStr).length - 1;
+    if (count !== 1) {
+      const hint = count === 0
+        ? ' Copy it from the storage body exactly: storage keeps non-breaking spaces (U+00A0) and XML entities such as &amp;.'
+        : ' Include more surrounding text to make it unique.';
+      throw new Error(`edits[${index}].oldStr must occur exactly once in the page body, found ${count}.${hint}`);
+    }
+    const at = current.indexOf(edit.oldStr);
+    return current.slice(0, at) + edit.newStr + current.slice(at + edit.oldStr.length);
+  }, body);
+}
+
 export interface ConfluenceContent {
   id?: string;
   type: string;
@@ -171,6 +198,8 @@ export class ConfluenceService {
    * @param minorEdit If true, no notification email will be generated
    * @param hidden If true, no notification email or activity stream entry will be generated
    * @param allowDuplicated Allow upload even if an attachment with the same filename exists
+   * @param versionIfExists Upload as a new version when an attachment with the same filename exists
+   * @param contentType MIME type sent with the file part; Confluence records it as the attachment media type
    */
   async uploadAttachment(
     contentId: string,
@@ -182,12 +211,13 @@ export class ConfluenceService {
     hidden?: boolean,
     allowDuplicated?: boolean,
     versionIfExists?: boolean,
+    contentType?: string,
   ) {
     return handleApiOperation(async () => {
       const { absolutePath } = await resolveUploadSource({ requestedPath: sourcePath, side: uploadSide });
       const buffer = await readFile(absolutePath);
       const name = filename || basename(absolutePath);
-      const file = new File([buffer], name);
+      const file = new File([buffer], name, { type: contentType });
       // X-Atlassian-Token: nocheck is required for multipart attachment POSTs (XSRF bypass).
       // Set it only for the duration of this call; restore afterwards.
       const prevHeaders = OpenAPI.HEADERS;
@@ -198,7 +228,7 @@ export class ConfluenceService {
           const existingId = (existing as any)?.results?.[0]?.id;
           if (existingId) {
             // MockAttachmentRequest types file as string, but getFormData handles Blob/File via isBlob()
-            return await AttachmentsService.updateData(existingId, contentId, { file } as any);
+            return await AttachmentsService.updateData(existingId, contentId, { file, comment, minorEdit } as any);
           }
         }
         // MockAttachmentRequest types file as string, but getFormData in request.ts handles Blob/File via isBlob()
@@ -353,6 +383,10 @@ export const confluenceToolSchemas = {
     contentId: z.string().describe("ID of the content to update"),
     title: z.string().optional().describe("New title of the content"),
     content: z.string().optional().describe("New content body in Confluence Data Center storage format (XML-based)"),
+    edits: z.array(z.object({
+      oldStr: z.string().describe("Text copied exactly from the current storage body; must occur exactly once"),
+      newStr: z.string().describe("Replacement text; empty deletes oldStr"),
+    })).min(1).optional().describe("Exact find/replace edits applied in order to the current storage body, instead of sending the whole body in content. All or none: if any oldStr is missing or not unique, nothing is saved. Requires version to be the current version + 1. Cannot be combined with content."),
     version: z.number().describe("New version number (must be incremented)"),
     versionComment: z.string().optional().describe("Comment for this version"),
     parentId: z.string().optional().describe("ID of the new parent page (moves the page under this parent; must be different from contentId; same mechanism as createContent parentId)"),
@@ -373,7 +407,8 @@ export const confluenceToolSchemas = {
     minorEdit: z.boolean().optional().describe("If true, no notification email is sent to watchers"),
     hidden: z.boolean().optional().describe("If true, no notification email or activity stream entry is generated"),
     allowDuplicated: z.boolean().optional().describe("Allow upload even if an attachment with the same filename already exists"),
-    versionIfExists: z.boolean().optional().describe("If true and an attachment with the same filename already exists, upload as a new version instead of failing")
+    versionIfExists: z.boolean().optional().describe("If true and an attachment with the same filename already exists, upload as a new version instead of failing"),
+    contentType: z.string().optional().describe("MIME type recorded as the attachment media type, e.g. 'application/vnd.jgraph.mxfile' for a draw.io diagram or 'image/png'. If omitted, the file is sent as application/octet-stream.")
   },
   downloadAttachment: {
     contentId: z.string().describe("ID of the Confluence content (page) whose attachment(s) to download"),

@@ -16,6 +16,18 @@ import { AttachmentService, IssueLinkService, IssueLinkTypeService, IssueService
 import { request as __request } from './jira-client/core/request.js';
 import type { StringList } from './jira-client/models/StringList.js';
 import { getDefaultPageSize, getMissingConfig, JIRA_PRODUCT } from './config.js';
+import {
+  createVersion,
+  deleteVersion,
+  getProjectVersions,
+  getVersion,
+  updateVersion,
+  versionToolSchemas,
+  type CreateVersionParams,
+  type DeleteVersionParams,
+  type GetProjectVersionsParams,
+  type UpdateVersionParams,
+} from './jira-versions.js';
 
 const DEFAULT_SEARCH_FIELDS = ['summary', 'description', 'status', 'assignee', 'reporter', 'priority', 'issuetype', 'labels', 'updated'];
 const DEFAULT_ISSUE_FIELDS = [...DEFAULT_SEARCH_FIELDS, 'parent', 'subtasks'];
@@ -327,6 +339,42 @@ export class JiraService {
     );
   }
 
+  // Only the calling user can be (un)watched — the API supports an arbitrary userName,
+  // but exposing that would let the tool subscribe/unsubscribe other users.
+  async watchIssue(issueKey: string) {
+    return handleApiOperation(() => IssueService.addWatcher1(issueKey), 'Error watching issue');
+  }
+
+  async unwatchIssue(issueKey: string) {
+    return handleApiOperation(async () => {
+      const { name } = await MyselfService.getUser();
+      if (!name) {
+        throw new Error('Could not resolve current user name');
+      }
+      return IssueService.removeWatcher1(issueKey, name);
+    }, 'Error unwatching issue');
+  }
+
+  async getProjectVersions(params: Omit<GetProjectVersionsParams, 'maxResults'> & { maxResults?: number }) {
+    return getProjectVersions({ ...params, maxResults: params.maxResults ?? this.getPageSize() });
+  }
+
+  async getVersion(versionId: string) {
+    return getVersion(versionId);
+  }
+
+  async createVersion(params: CreateVersionParams) {
+    return createVersion(params);
+  }
+
+  async updateVersion(params: UpdateVersionParams) {
+    return updateVersion(params);
+  }
+
+  async deleteVersion(params: DeleteVersionParams) {
+    return deleteVersion(params);
+  }
+
   async validateSetup(): Promise<void> {
     await MyselfService.getUser();
   }
@@ -417,5 +465,12 @@ export const jiraToolSchemas = {
   },
   unlinkIssues: {
     linkId: z.string().describe("The id of the issue link to delete. Link ids can be found in the 'issuelinks' field of an issue (retrieve it via jira_getIssue with the 'issuelinks' field).")
-  }
+  },
+  watchIssue: {
+    issueKey: z.string().describe("JIRA issue key (e.g., PROJ-123)")
+  },
+  unwatchIssue: {
+    issueKey: z.string().describe("JIRA issue key (e.g., PROJ-123)")
+  },
+  ...versionToolSchemas
 };

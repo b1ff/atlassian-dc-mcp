@@ -3,6 +3,100 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [0.42.0](https://github.com/b1ff/atlassian-dc-mcp/compare/v0.41.0...v0.42.0) (2026-11-01)
+
+
+### Features
+
+* **jira:** add project version tools ([c3b76d9](https://github.com/b1ff/atlassian-dc-mcp/commit/c3b76d90f1c87338eb5516937d591bbbc8bc37ca))
+
+
+
+
+
+# [0.41.0](https://github.com/b1ff/atlassian-dc-mcp/compare/v0.40.0...v0.41.0) (2026-11-01)
+
+**Note:** Version bump only for package @atlassian-dc-mcp/jira
+
+
+
+
+
+# [0.40.0](https://github.com/b1ff/atlassian-dc-mcp/compare/v0.39.0...v0.40.0) (2026-10-31)
+
+**Note:** Version bump only for package @atlassian-dc-mcp/jira
+
+
+
+
+
+# [0.39.0](https://github.com/b1ff/atlassian-dc-mcp/compare/v0.38.0...v0.39.0) (2026-10-30)
+
+**Note:** Version bump only for package @atlassian-dc-mcp/jira
+
+
+
+
+
+# [0.38.0](https://github.com/b1ff/atlassian-dc-mcp/compare/v0.37.0...v0.38.0) (2026-10-12)
+
+
+### Features
+
+* declare read-only tools with readOnlyHint ([5f2125b](https://github.com/b1ff/atlassian-dc-mcp/commit/5f2125b253ae6de111924875cadeac95952d3756))
+
+
+
+
+
+# [0.37.0](https://github.com/b1ff/atlassian-dc-mcp/compare/v0.36.2...v0.37.0) (2026-10-09)
+
+**Note:** Version bump only for package @atlassian-dc-mcp/jira
+
+
+
+
+
+## [0.36.2](https://github.com/b1ff/atlassian-dc-mcp/compare/v0.36.1...v0.36.2) (2026-10-09)
+
+**Note:** Version bump only for package @atlassian-dc-mcp/jira
+
+
+
+
+
+## [0.36.1](https://github.com/b1ff/atlassian-dc-mcp/compare/v0.36.0...v0.36.1) (2026-10-09)
+
+**Note:** Version bump only for package @atlassian-dc-mcp/jira
+
+
+
+
+
+# [0.36.0](https://github.com/b1ff/atlassian-dc-mcp/compare/v0.35.0...v0.36.0) (2026-10-09)
+
+**Note:** Version bump only for package @atlassian-dc-mcp/jira
+
+
+
+
+
+# [0.35.0](https://github.com/b1ff/atlassian-dc-mcp/compare/v0.34.0...v0.35.0) (2026-09-22)
+
+
+### Bug Fixes
+
+* **common:** match root canonicalization to promises.realpath on Windows ([9418742](https://github.com/b1ff/atlassian-dc-mcp/commit/94187426d6cc37daa5f81338e8f50253589cf073))
+
+
+### Features
+
+* **jira:** add watch/unwatch issue tools ([e3c72f9](https://github.com/b1ff/atlassian-dc-mcp/commit/e3c72f9fa7763598233c88f73ac712361c9b72f4))
+
+
+
+
+
 # [0.34.0](https://github.com/b1ff/atlassian-dc-mcp/compare/v0.33.0...v0.34.0) (2026-09-02)
 
 **Note:** Version bump only for package @atlassian-dc-mcp/jira

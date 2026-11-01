@@ -1,4 +1,4 @@
-import { connectServer, createMcpServer, formatToolResponse, initializeRuntimeConfig } from '@atlassian-dc-mcp/common';
+import { connectServer, createMcpServer, formatToolResponse, initializeRuntimeConfig, readOnlyToolAnnotations } from '@atlassian-dc-mcp/common';
 import { BitbucketService, bitbucketToolSchemas } from './bitbucket-service.js';
 import { getBitbucketRuntimeConfig, getDefaultPageSize } from './config.js';
 import { resolveDeclineGateway, resolveMergeGateway } from './repo-gateway.js';
@@ -32,6 +32,7 @@ server.tool(
   "bitbucket_getProjects",
   "Get a list of Bitbucket projects",
   bitbucketToolSchemas.getProjects,
+  readOnlyToolAnnotations,
   async ({ name, permission, start, limit }) => {
     const result = await bitbucketService.getProjects(name, permission, start, limit);
     return formatToolResponse(result);
@@ -42,6 +43,7 @@ server.tool(
   "bitbucket_getProject",
   "Get a specific Bitbucket project by key",
   bitbucketToolSchemas.getProject,
+  readOnlyToolAnnotations,
   async ({ projectKey }) => {
     const result = await bitbucketService.getProject(projectKey);
     return formatToolResponse(result);
@@ -52,6 +54,7 @@ server.tool(
   "bitbucket_getRepositories",
   "Get repositories for a Bitbucket project",
   bitbucketToolSchemas.getRepositories,
+  readOnlyToolAnnotations,
   async ({ projectKey, start, limit }) => {
     const result = await bitbucketService.getRepositories(projectKey, start, limit);
     return formatToolResponse(result);
@@ -62,6 +65,7 @@ server.tool(
   "bitbucket_getRepository",
   "Get a specific Bitbucket repository",
   bitbucketToolSchemas.getRepository,
+  readOnlyToolAnnotations,
   async ({ projectKey, repositorySlug }) => {
     const result = await bitbucketService.getRepository(projectKey, repositorySlug);
     return formatToolResponse(result);
@@ -70,10 +74,22 @@ server.tool(
 
 server.tool(
   "bitbucket_getFileContent",
-  "Get the raw content of a file in a Bitbucket repository, at a branch, tag or commit. Use this to read a source file without cloning the repository. 'at' defaults to the repository's default branch. Pointing 'path' at a directory returns that directory's git tree listing instead of file content.",
+  "Get the raw content of a file in a Bitbucket repository, at a branch, tag or commit. Use this to read a complete source file without cloning the repository. 'at' defaults to the repository's default branch. Pointing 'path' at a directory returns that directory's unpaginated git tree listing. For structured, paginated directory listings or file reads, use bitbucket_browseRepository.",
   bitbucketToolSchemas.getFileContent,
+  readOnlyToolAnnotations,
   async ({ projectKey, repositorySlug, path, at }) => {
     const result = await bitbucketService.getFileContent(projectKey, repositorySlug, path, at);
+    return formatToolResponse(result);
+  }
+);
+
+server.tool(
+  "bitbucket_browseRepository",
+  "Browse a Bitbucket repository at a branch, tag or commit using structured, paginated responses. Omit 'path' to list the repository root. Directory pagination is under 'children'; file pagination is at the response root. Continue with the corresponding 'nextPageStart' when 'isLastPage' is false. For a complete raw file or compact unpaginated git tree listing, use bitbucket_getFileContent.",
+  bitbucketToolSchemas.browseRepository,
+  readOnlyToolAnnotations,
+  async ({ projectKey, repositorySlug, path, at, start, limit }) => {
+    const result = await bitbucketService.browseRepository(projectKey, repositorySlug, path, at, start, limit);
     return formatToolResponse(result);
   }
 );
@@ -92,6 +108,7 @@ server.tool(
   "bitbucket_getCommits",
   "Get commits for a Bitbucket repository",
   bitbucketToolSchemas.getCommits,
+  readOnlyToolAnnotations,
   async ({ projectKey, repositorySlug, path, since, until, limit }) => {
     const result = await bitbucketService.getCommits(projectKey, repositorySlug, path, since, until, limit);
     return formatToolResponse(result);
@@ -102,6 +119,7 @@ server.tool(
   "bitbucket_getPullRequests",
   "Get pull requests for a Bitbucket repository",
   bitbucketToolSchemas.getPullRequests,
+  readOnlyToolAnnotations,
   async ({ projectKey, repositorySlug, withAttributes, at, withProperties, draft, filterText, state, order, direction, start, limit }) => {
     const result = await bitbucketService.getPullRequests(projectKey, repositorySlug, withAttributes, at, withProperties, draft, filterText, state, order, direction, start, limit);
     return formatToolResponse(result);
@@ -112,6 +130,7 @@ server.tool(
   "bitbucket_getPullRequest",
   "Get a specific pull request by ID. Returns full details including title, description, reviewers, participants, author, source/target branches, current state, and version (needed for bitbucket_updatePullRequest).",
   bitbucketToolSchemas.getPullRequest,
+  readOnlyToolAnnotations,
   async ({ projectKey, repositorySlug, pullRequestId }) => {
     const result = await bitbucketService.getPullRequest(projectKey, repositorySlug, pullRequestId);
     return formatToolResponse(result);
@@ -122,6 +141,7 @@ server.tool(
   "bitbucket_getPR_CommentsAndAction",
   "Get comments for a Bitbucket pull request and other actions, like approvals",
   bitbucketToolSchemas.getPullRequestComments,
+  readOnlyToolAnnotations,
   async ({ projectKey, repositorySlug, pullRequestId, start, limit, output }) => {
     const result = await bitbucketService.getPullRequestCommentsAndActions(projectKey, repositorySlug, pullRequestId, start, limit, output);
     return formatToolResponse(result);
@@ -132,6 +152,7 @@ server.tool(
   "bitbucket_getPullRequestChanges",
   "Get the changes for a Bitbucket pull request",
   bitbucketToolSchemas.getPullRequestChanges,
+  readOnlyToolAnnotations,
   async ({ projectKey, repositorySlug, pullRequestId, sinceId, changeScope, untilId, withComments, start, limit, output }) => {
     const result = await bitbucketService.getPullRequestChanges(projectKey, repositorySlug, pullRequestId, sinceId, changeScope, untilId, withComments, start, limit, output);
     return formatToolResponse(result);
@@ -142,6 +163,7 @@ server.tool(
   "bitbucket_getUser",
   "Get a Bitbucket user by their slug, or search for users by name/email to discover their slug. Use this to resolve userSlug for bitbucket_submitPullRequestReview when it is not already known from a comment response or PR participant list.",
   bitbucketToolSchemas.getUser,
+  readOnlyToolAnnotations,
   async ({ userSlug, filter }) => {
     const result = await bitbucketService.getUser(userSlug, filter);
     return formatToolResponse(result);
@@ -183,6 +205,7 @@ server.tool(
   "bitbucket_getPullRequestDiff",
   "Get text diff for a specific file in a Bitbucket pull request. Returns plain text diff format. Note: Before getting diff, use getPullRequestChanges to understand what files were changed in the PR",
   bitbucketToolSchemas.getPullRequestDiff,
+  readOnlyToolAnnotations,
   async ({ projectKey, repositorySlug, pullRequestId, path, contextLines, sinceId, srcPath, diffType, untilId, whitespace }) => {
     const result = await bitbucketService.getPullRequestDiff(projectKey, repositorySlug, pullRequestId, path, contextLines, sinceId, srcPath, diffType, untilId, whitespace);
     return formatToolResponse(result);
@@ -193,6 +216,7 @@ server.tool(
   "bitbucket_getBranchDiff",
   "Get the diff between two branches, tags or commits — including branches that have no pull request yet. Returns the same comparison as the Bitbucket 'compare' view: changes reachable from sourceBranch but not from targetBranch, rendered as a unified diff. targetBranch defaults to the repository's default branch. Use this to review work in progress before a PR exists; once a PR exists, prefer bitbucket_getPullRequestChanges + bitbucket_getPullRequestDiff.",
   bitbucketToolSchemas.getBranchDiff,
+  readOnlyToolAnnotations,
   async ({ projectKey, repositorySlug, sourceBranch, targetBranch, path, contextLines, srcPath, whitespace, output }) => {
     const result = await bitbucketService.getBranchDiff(projectKey, repositorySlug, sourceBranch, targetBranch, path, contextLines, srcPath, whitespace, output);
     return formatToolResponse(result);
@@ -211,7 +235,7 @@ server.tool(
 
 server.tool(
   "bitbucket_updatePullRequest",
-  "Update the title, description, reviewers, destination branch or draft status of an existing pull request. IMPORTANT: You MUST first call bitbucket_getPullRequest to get the current 'version' number — this is required for optimistic locking and the call will fail without it. The reviewers parameter replaces ALL existing reviewers. If you want to preserve existing reviewers, include those from the current PR details along with any new ones you want to add.",
+  "Update the title, description, reviewers, destination branch or draft status of an existing pull request. IMPORTANT: You MUST first call bitbucket_getPullRequest to get the current 'version' number — this is required for optimistic locking and the call will fail without it. Omit reviewers to keep the current ones. When passed, reviewers replaces ALL existing reviewers: to add someone, include the current reviewers from the PR details along with the new ones.",
   bitbucketToolSchemas.updatePullRequest,
   async ({ projectKey, repositorySlug, pullRequestId, version, title, description, reviewers, draft, output }) => {
     const result = await bitbucketService.updatePullRequest(projectKey, repositorySlug, pullRequestId, version, title, description, reviewers, draft, output);
@@ -223,8 +247,20 @@ server.tool(
   "bitbucket_canMergePullRequest",
   "Check whether a pull request can be merged. Read-only: returns canMerge, whether the pull request is conflicted, and any merge-check vetoes (e.g. missing approvals, unresolved tasks, failed builds). Use this before bitbucket_mergePullRequest to see what is blocking a merge.",
   bitbucketToolSchemas.canMergePullRequest,
+  readOnlyToolAnnotations,
   async ({ projectKey, repositorySlug, pullRequestId }) => {
     const result = await bitbucketService.getPullRequestMergeability(projectKey, repositorySlug, pullRequestId);
+    return formatToolResponse(result);
+  }
+);
+
+server.tool(
+  "bitbucket_getPullRequestBuilds",
+  "Get the CI/CD build statuses of a pull request — the builds, jobs or pipelines that any CI server integrated with Bitbucket (Jenkins, Bamboo, TeamCity or any other tool posting build statuses) reported on the latest commit of its source branch, as shown in the pull request's Builds panel. Use it to check whether a pull request's checks passed, failed or are still running, e.g. after a push. Read-only. Returns the commit id, counts per state, and for each build its state (SUCCESSFUL, FAILED, INPROGRESS, CANCELLED, UNKNOWN), name, url of the run in the CI server and description.",
+  bitbucketToolSchemas.getPullRequestBuilds,
+  readOnlyToolAnnotations,
+  async ({ projectKey, repositorySlug, pullRequestId }) => {
+    const result = await bitbucketService.getPullRequestBuilds(projectKey, repositorySlug, pullRequestId);
     return formatToolResponse(result);
   }
 );
@@ -302,6 +338,7 @@ server.tool(
   "bitbucket_getRequiredReviewers",
   "Get required reviewers for pull request creation. Returns a set of users who are required reviewers for pull requests created from the given source repository and ref to the given target ref in this repository.",
   bitbucketToolSchemas.getRequiredReviewers,
+  readOnlyToolAnnotations,
   async ({ projectKey, repositorySlug, sourceRefId, targetRefId, sourceRepoId, targetRepoId }) => {
     const result = await bitbucketService.getRequiredReviewers(projectKey, repositorySlug, sourceRefId, targetRefId, sourceRepoId, targetRepoId);
     return formatToolResponse(result);
@@ -312,6 +349,7 @@ server.tool(
   "bitbucket_getInboxPullRequests",
   "Get pull requests from the authenticated user's inbox that need their review. Returns PRs across all repositories where the user is a reviewer.",
   bitbucketToolSchemas.getInboxPullRequests,
+  readOnlyToolAnnotations,
   async ({ start, limit }) => {
     const result = await bitbucketService.getInboxPullRequests(start, limit);
     return formatToolResponse(result);
@@ -322,6 +360,7 @@ server.tool(
   "bitbucket_getDashboardPullRequests",
   "Get pull requests from the Bitbucket dashboard across all repositories. Useful for finding all PRs where you are the author, reviewer, or participant without specifying a project or repository.",
   bitbucketToolSchemas.getDashboardPullRequests,
+  readOnlyToolAnnotations,
   async ({ role, state, closedSince, order, start, limit }) => {
     const result = await bitbucketService.getDashboardPullRequests(role, state, closedSince, order, start, limit);
     return formatToolResponse(result);
@@ -330,10 +369,11 @@ server.tool(
 
 server.tool(
   "bitbucket_searchCode",
-  "Search code across Bitbucket. The query supports search modifiers like 'project:<key>', 'repo:<key>/<slug>', and 'ext:<extension>' to scope or filter results (e.g. 'project:TEST authenticate', 'repo:TEST/demo ext:js TODO'). NOTE: the 'repo:' modifier requires the project key — 'repo:projectkey/repositoryslug', not a bare slug. Returns matching files with hit contexts (snippets).",
+  "Search code across Bitbucket. Scope and filter inside the query text with modifiers like 'project:<key>', 'repo:<key>/<slug>', 'path:<glob>', 'lang:<language>' and 'ext:<extension>', separated from the search term by a space (e.g. 'authenticate project:TEST', 'TODO repo:TEST/demo ext:js'). NOTE: the 'repo:' modifier requires the project key — 'repo:projectkey/repositoryslug', not a bare slug. Returns matching files with hit contexts (snippets), plus 'code.count', 'code.isLastPage' and 'code.nextStart' for paging via the 'start' parameter. Fails with an explanatory error when Bitbucket cannot parse the query as written, rather than returning results for a query you did not ask for.",
   bitbucketToolSchemas.searchCode,
-  async ({ query, limit, secondaryLimit }) => {
-    const result = await bitbucketService.searchCode(query, limit, secondaryLimit);
+  readOnlyToolAnnotations,
+  async ({ query, limit, start }) => {
+    const result = await bitbucketService.searchCode(query, limit, start);
     return formatToolResponse(result);
   }
 );

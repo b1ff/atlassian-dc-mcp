@@ -72,7 +72,8 @@ function canonicalizeRoots(rawRoots: string[], warn: Warn): string[] {
       continue;
     }
     try {
-      const real = realpathSync(root);
+      // .native matches fs/promises.realpath; plain realpathSync yields 8.3 short paths on Windows.
+      const real = realpathSync.native(root);
       if (!canonical.includes(real)) {
         canonical.push(real);
       }

@@ -16,8 +16,9 @@ describe('Confluence config', () => {
   });
 
   afterEach(() => {
-    fs.rmSync(tempDir, { recursive: true, force: true });
+    // Windows refuses to remove a directory that is still the process cwd.
     process.chdir(originalCwd);
+    fs.rmSync(tempDir, { recursive: true, force: true });
   });
 
   afterAll(() => {

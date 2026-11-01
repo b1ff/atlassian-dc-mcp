@@ -1,5 +1,5 @@
-import { connectServer, createMcpServer, formatAttachmentToolResponse, formatToolResponse, initializeRuntimeConfig, resolveAttachmentGateway } from '@atlassian-dc-mcp/common';
-import { ConfluenceService, ConfluenceContent, confluenceToolSchemas } from './confluence-service.js';
+import { connectServer, createMcpServer, formatAttachmentToolResponse, formatToolResponse, initializeRuntimeConfig, readOnlyToolAnnotations, resolveAttachmentGateway } from '@atlassian-dc-mcp/common';
+import { ConfluenceService, ConfluenceContent, applyStorageEdits, confluenceToolSchemas } from './confluence-service.js';
 import { shapeConfluenceMutationAck } from './confluence-response-mapper.js';
 import { CONFLUENCE_PRODUCT, getConfluenceRuntimeConfig, getDefaultPageSize } from './config.js';
 import { createRequire } from 'node:module';
@@ -38,6 +38,7 @@ server.tool(
   "confluence_getContent",
   `Get Confluence content by ID from the ${confluenceInstanceType}`,
   confluenceToolSchemas.getContent,
+  readOnlyToolAnnotations,
   async ({ contentId, expand, bodyMode, maxBodyChars, bodyStart }) => {
     const result = await confluenceService.getContent(contentId, expand, bodyMode, maxBodyChars, bodyStart);
     return formatToolResponse(result);
@@ -48,6 +49,7 @@ server.tool(
   "confluence_searchContent",
   `Search for content in ${confluenceInstanceType} using CQL`,
   confluenceToolSchemas.searchContent,
+  readOnlyToolAnnotations,
   async ({ cql, limit, start, expand, excerpt }) => {
     const result = await confluenceService.searchContent(cql, limit, start, expand, excerpt);
     return formatToolResponse(result);
@@ -91,7 +93,7 @@ server.tool(
   "confluence_updateContent",
   `Update existing content in ${confluenceInstanceType}. Optionally move the page by setting parentId.`,
   confluenceToolSchemas.updateContent,
-  async ({ contentId, title, content, version, versionComment, parentId, output }) => {
+  async ({ contentId, title, content, edits, version, versionComment, parentId, output }) => {
     // Fail fast on a self-referential move before any API round trip.
     if (parentId && parentId === contentId) {
       return formatToolResponse({
@@ -100,8 +102,15 @@ server.tool(
       });
     }
 
+    if (content && edits) {
+      return formatToolResponse({
+        success: false,
+        error: 'Pass either content (the whole new body) or edits, not both'
+      });
+    }
+
     // First get the current content to build upon
-    const currentContent = await confluenceService.getContentRaw(contentId);
+    const currentContent = await confluenceService.getContentRaw(contentId, 'version');
 
     if (!currentContent.success || !currentContent.data) {
       return formatToolResponse({
@@ -115,7 +124,36 @@ server.tool(
       type: string;
       title: string;
       space: { key: string };
+      version?: { number: number };
+      body?: { storage?: { value?: string } };
     };
+
+    let newBody = content;
+    if (edits) {
+      // Edits are applied to the live body, so they must have been prepared against the live version.
+      const currentVersion = contentData.version?.number;
+      if (currentVersion !== undefined && version !== currentVersion + 1) {
+        return formatToolResponse({
+          success: false,
+          error: `Page ${contentId} is at version ${currentVersion}, so version must be ${currentVersion + 1}. Re-read the page if it changed since you prepared the edits.`
+        });
+      }
+      const currentBody = contentData.body?.storage?.value;
+      if (currentBody === undefined) {
+        return formatToolResponse({
+          success: false,
+          error: `Content ${contentId} has no storage body to edit`
+        });
+      }
+      try {
+        newBody = applyStorageEdits(currentBody, edits);
+      } catch (error) {
+        return formatToolResponse({
+          success: false,
+          error: error instanceof Error ? error.message : String(error)
+        });
+      }
+    }
 
     const updateObj: ConfluenceContent = {
       id: contentId,
@@ -128,11 +166,11 @@ server.tool(
       }
     };
 
-    // Only update body if content is provided
-    if (content) {
+    // Only update body if content or edits are provided
+    if (newBody !== undefined && (content || edits)) {
       updateObj.body = {
         storage: {
-          value: content,
+          value: newBody,
           representation: 'storage'
         }
       };
@@ -162,7 +200,7 @@ if (attachmentGateway.upload.enabled) {
     "confluence_uploadAttachment",
     `Upload a local file as an attachment to a Confluence content (page) in the ${confluenceInstanceType}. The file must live under the server-configured upload directory; the path is given relative to that directory.`,
     confluenceToolSchemas.uploadAttachment,
-    async ({ contentId, sourcePath, filename, comment, minorEdit, hidden, allowDuplicated, versionIfExists }) => {
+    async ({ contentId, sourcePath, filename, comment, minorEdit, hidden, allowDuplicated, versionIfExists, contentType }) => {
       const result = await confluenceService.uploadAttachment(
         contentId,
         sourcePath,
@@ -173,6 +211,7 @@ if (attachmentGateway.upload.enabled) {
         hidden,
         allowDuplicated,
         versionIfExists,
+        contentType,
       );
       return formatToolResponse(result);
     }
@@ -210,6 +249,7 @@ server.tool(
 server.tool('confluence_searchSpace',
   `Search for spaces in ${confluenceInstanceType}`,
   confluenceToolSchemas.searchSpaces,
+  readOnlyToolAnnotations,
   async ({
            searchText,
            limit,

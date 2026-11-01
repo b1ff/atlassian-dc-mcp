@@ -1,10 +1,12 @@
 import { z } from 'zod';
 import { OpenAPI, ProjectService, PullRequestsService, RepositoryService } from './bitbucket-client/index.js';
 import { request as __request } from './bitbucket-client/core/request.js';
-import { handleApiOperation, resolveOpenApiBase } from '@atlassian-dc-mcp/common';
+import { type ApiErrorResponse, handleApiOperation, resolveOpenApiBase } from '@atlassian-dc-mcp/common';
 import { simplifyInboxPullRequests } from './inbox-pr-mapper.js';
+import { cleanCodeSearchSnippets, describeUnhonoredQuery } from './code-search-mapper.js';
 import { CompareDiffResponse, formatCompareDiffAsUnified } from './compare-diff-mapper.js';
 import { BITBUCKET_PRODUCT, getDefaultPageSize, getMissingConfig } from './config.js';
+import { fetchPullRequestBuilds } from './pr-builds.js';
 import { fetchMergeability, mergePullRequest, type MergePullRequestParams } from './pr-merge.js';
 import {
   declinePullRequest,
@@ -240,6 +242,35 @@ export class BitbucketService {
     return handleApiOperation(
       () => RepositoryService.streamRaw(filePath, projectKey, repositorySlug, at),
       'Error fetching file content'
+    );
+  }
+
+  async browseRepository(
+    projectKey: string,
+    repositorySlug: string,
+    path = '',
+    at?: string,
+    start?: number,
+    limit?: number
+  ) {
+    projectKey = projectKey.toUpperCase();
+    repositorySlug = repositorySlug.toLowerCase();
+    const browsePath = path.replace(/^\/+/, '');
+    const encodedBrowsePath = browsePath.split('/').map(encodeURIComponent).join('/');
+    return handleApiOperation(
+      () => __request(OpenAPI, {
+        method: 'GET',
+        url: browsePath
+          ? `/api/latest/projects/{projectKey}/repos/{repositorySlug}/browse/${encodedBrowsePath}`
+          : '/api/latest/projects/{projectKey}/repos/{repositorySlug}/browse',
+        path: { projectKey, repositorySlug },
+        query: { at, start, limit: limit ?? this.getPageSize() },
+        errors: {
+          401: 'The currently authenticated user has insufficient permissions to view the repository.',
+          404: 'The repository or requested path does not exist.',
+        },
+      }),
+      'Error browsing repository content'
     );
   }
 
@@ -588,6 +619,17 @@ export class BitbucketService {
   }
 
   /**
+   * Get the CI build statuses reported on a pull request's latest source commit. Read-only.
+   * @param projectKey The project key
+   * @param repositorySlug The repository slug
+   * @param pullRequestId The pull request ID
+   * @returns Promise with the commit id, per-state counts and the build statuses
+   */
+  async getPullRequestBuilds(projectKey: string, repositorySlug: string, pullRequestId: string) {
+    return fetchPullRequestBuilds(projectKey.toUpperCase(), repositorySlug.toLowerCase(), pullRequestId);
+  }
+
+  /**
    * Merge a pull request. Only permitted for repositories (and target branches) the operator
    * allowed through the merge gateway; see merge-gateway.ts. A conflicted or vetoed pull
    * request is refused before the merge request is sent.
@@ -909,7 +951,8 @@ export class BitbucketService {
    * @param version The version of the pull request (required for optimistic locking)
    * @param title Optional new title for the pull request
    * @param description Optional new description for the pull request
-   * @param reviewers Optional array of reviewer usernames to set
+   * @param reviewers Optional array of reviewer usernames to set; replaces the current list (an empty array removes all).
+   *                  When omitted, the current reviewers are kept.
    * @param draft Optional flag to mark the pull request as a draft or ready for review
    * @param output Return a compact acknowledgement or the full API response. Defaults to 'ack'.
    * @returns Promise with updated pull request data
@@ -939,13 +982,15 @@ export class BitbucketService {
       pullRequestData.description = description;
     }
 
-    if (reviewers && reviewers.length > 0) {
-      pullRequestData.reviewers = reviewers.map(username => ({
-        user: {
-          name: username
-        }
-      }));
+    const reviewerNames = await this.resolveReviewersForUpdate(projectKey, repositorySlug, pullRequestId, reviewers);
+    if (!reviewerNames.success) {
+      return reviewerNames;
     }
+    pullRequestData.reviewers = reviewerNames.data!.map(username => ({
+      user: {
+        name: username
+      }
+    }));
 
     if (draft !== undefined) {
       pullRequestData.draft = draft;
@@ -964,6 +1009,31 @@ export class BitbucketService {
     }
 
     return result;
+  }
+
+  /**
+   * Bitbucket DC treats an update body without `reviewers` as an empty list and removes every
+   * reviewer, so a title or description edit would drop them. When the caller passes no
+   * reviewers, re-send the ones the pull request has now.
+   */
+  private async resolveReviewersForUpdate(
+    projectKey: string,
+    repositorySlug: string,
+    pullRequestId: string,
+    reviewers?: string[]
+  ): Promise<ApiErrorResponse<string[]>> {
+    if (reviewers !== undefined) {
+      return { success: true, data: reviewers };
+    }
+    const current = await this.getPullRequest(projectKey, repositorySlug, pullRequestId);
+    if (!current.success) {
+      return { success: false, error: `Could not read the current reviewers: ${current.error}`, details: current.details };
+    }
+    const currentReviewers = (current.data as { reviewers?: Array<{ user?: { name?: string } }> } | undefined)?.reviewers ?? [];
+    return {
+      success: true,
+      data: currentReviewers.map(reviewer => reviewer.user?.name).filter((name): name is string => Boolean(name))
+    };
   }
 
   /**
@@ -1084,21 +1154,22 @@ export class BitbucketService {
    * the dashboard/inbox endpoints).
    *
    * @param query The search query (may include modifiers like `repo:`, `project:`, `ext:`)
-   * @param limit Optional primary result limit (defaults to the package page size)
-   * @param secondaryLimit Optional secondary limit (number of hit contexts per match)
+   * @param limit Optional maximum number of matching files to return (defaults to the package page size)
+   * @param start Optional pagination offset, taken from `code.nextStart` of a previous response
    * @returns Promise with the code search results
    */
-  async searchCode(query: string, limit?: number, secondaryLimit?: number) {
-    return handleApiOperation(
+  async searchCode(query: string, limit?: number, start?: number) {
+    const result = await handleApiOperation(
       () => __request(OpenAPI, {
         method: 'POST',
         url: '/search/latest/search',
         body: {
           query,
-          entities: { code: {} },
-          limits: {
-            primary: limit ?? this.getPageSize(),
-            ...(secondaryLimit !== undefined ? { secondary: secondaryLimit } : {}),
+          entities: {
+            code: {
+              limit: limit ?? this.getPageSize(),
+              ...(start !== undefined ? { start } : {}),
+            },
           },
         },
         mediaType: 'application/json',
@@ -1109,6 +1180,20 @@ export class BitbucketService {
       }),
       'Error searching code'
     );
+
+    if (result.success && result.data) {
+      const unhonoredQuery = describeUnhonoredQuery(result.data);
+      if (unhonoredQuery) {
+        return { success: false, error: unhonoredQuery };
+      }
+
+      return {
+        success: true,
+        data: cleanCodeSearchSnippets(result.data),
+      };
+    }
+
+    return result;
   }
 
   async validateSetup(): Promise<void> {
@@ -1167,6 +1252,14 @@ export const bitbucketToolSchemas = {
     repositorySlug: z.string().describe("The repository slug"),
     path: z.string().describe("Path to the file in the repository (e.g. 'src/index.ts')"),
     at: z.string().optional().describe("A branch, tag or commit to read the file at (e.g. 'refs/heads/main', 'feature/x', or a commit id). Defaults to the repository's default branch")
+  },
+  browseRepository: {
+    projectKey: z.string().describe("The project key"),
+    repositorySlug: z.string().describe("The repository slug"),
+    path: z.string().optional().describe("Directory or file path to browse. Omit for the repository root."),
+    at: z.string().optional().describe("A branch, tag or commit to browse at. Defaults to the repository's default branch."),
+    start: z.number().optional().describe("Pagination start value. Use the corresponding nextPageStart from the previous response."),
+    limit: z.number().optional().describe("Maximum directory entries or file lines to return. Defaults to the package page size.")
   },
   createBranch: {
     projectKey: z.string().describe("The project key"),
@@ -1286,10 +1379,15 @@ export const bitbucketToolSchemas = {
     title: z.string().optional().describe("The new title for the pull request"),
     description: z.string().optional().describe("The new description for the pull request"),
     draft: z.boolean().optional().describe("If provided, sets the draft (work-in-progress) status of the pull request. Pass true to mark as draft, false to mark as ready for review."),
-    reviewers: z.array(z.string()).optional().describe("Optional array of reviewer usernames to set (use the 'name' field from Bitbucket user objects, not 'slug')"),
+    reviewers: z.array(z.string()).optional().describe("Optional array of reviewer usernames to set (use the 'name' field from Bitbucket user objects, not 'slug'). Replaces the current reviewers; an empty array removes all of them. Omit it to keep the current reviewers."),
     output: z.enum(['ack', 'full']).optional().describe("Return a compact acknowledgement or the full API response. Defaults to ack.")
   },
   canMergePullRequest: {
+    projectKey: z.string().describe("The project key"),
+    repositorySlug: z.string().describe("The repository slug"),
+    pullRequestId: z.string().describe("The pull request ID")
+  },
+  getPullRequestBuilds: {
     projectKey: z.string().describe("The project key"),
     repositorySlug: z.string().describe("The repository slug"),
     pullRequestId: z.string().describe("The pull request ID")
@@ -1339,8 +1437,8 @@ export const bitbucketToolSchemas = {
     limit: z.number().optional().describe("Number of items to return. If not passed, the package default page size is used.")
   },
   searchCode: {
-    query: z.string().describe("The search query. Supports Bitbucket search modifiers, e.g. 'project:TEST authenticate', 'repo:TEST/demo TODO' (the repo modifier must be 'repo:projectkey/repositoryslug'), 'ext:ts useState'. Scope to a project or repository inside the query text."),
+    query: z.string().describe("Bitbucket search expression. Combine a search term with modifiers using a SPACE (implicit AND), e.g. 'authenticate project:TEST'. Do NOT write 'authenticate AND project:TEST' — an explicit AND between a term and a modifier makes Bitbucket silently run a different query, which this tool rejects. Reserve AND, OR, NOT and parentheses for combining search terms. Modifiers: project:<key>, repo:<projectkey>/<repositoryslug> (the project key is required), path:<glob>, lang:<language>, ext:<file-extension>, archived:<true|false|*>, fork:<true|false>. Quote multi-word phrases. Max 250 characters and 9 expressions. Only the default branch of each repository is indexed."),
     limit: z.number().optional().describe("Maximum number of matching files to return. If not passed, the package default page size is used."),
-    secondaryLimit: z.number().optional().describe("Maximum number of hit contexts (matching code snippets) to return per file")
+    start: z.number().optional().describe("Pagination offset. Omit for the first page, then pass the 'code.nextStart' value from the previous response to fetch the next one. The response reports 'code.isLastPage' and the total match count in 'code.count'. Prefer narrowing the query with modifiers over paging deep into a large result set.")
   }
 };

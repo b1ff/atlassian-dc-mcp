@@ -3,7 +3,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { initializeRuntimeConfig } from '@atlassian-dc-mcp/common';
 import { BitbucketService } from '../bitbucket-service.js';
-import { PullRequestsService, RepositoryService } from '../bitbucket-client/index.js';
+import { DeprecatedService, PullRequestsService, RepositoryService } from '../bitbucket-client/index.js';
 import { DECLINE_POLICY, type RepoGateway } from '../repo-gateway.js';
 import { request as mockRequest } from '../bitbucket-client/core/request.js';
 
@@ -31,6 +31,9 @@ jest.mock('../bitbucket-client/index.js', () => ({
   RepositoryService: {
     streamRaw: jest.fn(),
     createBranch: jest.fn()
+  },
+  DeprecatedService: {
+    getBuildStatus: jest.fn()
   },
   OpenAPI: {
     BASE: '',
@@ -1450,6 +1453,71 @@ describe('BitbucketService', () => {
     });
   });
 
+  describe('browseRepository', () => {
+    it('should browse the normalized repository root with the default page size', async () => {
+      const mockBrowse = { children: { values: [], isLastPage: true } };
+      (mockRequest as jest.Mock).mockResolvedValue(mockBrowse);
+
+      const result = await bitbucketService.browseRepository('test', 'TEST-REPO');
+
+      expect(result).toEqual({ success: true, data: mockBrowse });
+      expect(mockRequest).toHaveBeenCalledWith(expect.anything(), {
+        method: 'GET',
+        url: '/api/latest/projects/{projectKey}/repos/{repositorySlug}/browse',
+        path: { projectKey: 'TEST', repositorySlug: 'test-repo' },
+        query: { at: undefined, start: undefined, limit: 25 },
+        errors: expect.any(Object),
+      });
+    });
+
+    it('should pass a normalized path, ref and pagination parameters', async () => {
+      (mockRequest as jest.Mock).mockResolvedValue({ lines: [], isLastPage: false, nextPageStart: 40 });
+
+      await bitbucketService.browseRepository(
+        mockProjectKey,
+        mockRepositorySlug,
+        '/src/index.ts',
+        'refs/heads/main',
+        20,
+        20
+      );
+
+      expect(mockRequest).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({
+        url: '/api/latest/projects/{projectKey}/repos/{repositorySlug}/browse/src/index.ts',
+        path: { projectKey: mockProjectKey, repositorySlug: mockRepositorySlug },
+        query: { at: 'refs/heads/main', start: 20, limit: 20 },
+      }));
+    });
+
+    it('should encode reserved characters in each path segment', async () => {
+      (mockRequest as jest.Mock).mockResolvedValue({ lines: [], isLastPage: true });
+
+      await bitbucketService.browseRepository(
+        mockProjectKey,
+        mockRepositorySlug,
+        '/docs/design #1?.md'
+      );
+
+      expect(mockRequest).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({
+        url: '/api/latest/projects/{projectKey}/repos/{repositorySlug}/browse/docs/design%20%231%3F.md',
+        path: { projectKey: mockProjectKey, repositorySlug: mockRepositorySlug },
+      }));
+    });
+
+    it('should handle API errors gracefully', async () => {
+      (mockRequest as jest.Mock).mockRejectedValue(new Error('API Error'));
+
+      const result = await bitbucketService.browseRepository(
+        mockProjectKey,
+        mockRepositorySlug,
+        'missing'
+      );
+
+      expect(result.success).toBe(false);
+      expect(result.error).toBe('API Error');
+    });
+  });
+
   describe('createBranch', () => {
     const mockBranch = {
       id: 'refs/heads/feature/my-branch',
@@ -1752,6 +1820,22 @@ describe('BitbucketService', () => {
   });
 
   describe('updatePullRequest', () => {
+    const currentReviewers = [
+      { user: { name: 'keeper1' } },
+      { user: { name: 'keeper2' } }
+    ];
+
+    beforeEach(() => {
+      (PullRequestsService.get3 as jest.Mock).mockResolvedValue({
+        id: 1,
+        version: 0,
+        reviewers: [
+          { user: { name: 'keeper1', slug: 'keeper1' }, role: 'REVIEWER', approved: true },
+          { user: { name: 'keeper2', slug: 'keeper2' }, role: 'REVIEWER', approved: false }
+        ]
+      });
+    });
+
     it('should successfully update PR with only title', async () => {
       const mockUpdatedPR = {
         id: 1,
@@ -1784,7 +1868,8 @@ describe('BitbucketService', () => {
         mockRepositorySlug,
         {
           version: 0,
-          title: 'Updated Title'
+          title: 'Updated Title',
+          reviewers: currentReviewers
         }
       );
     });
@@ -1822,7 +1907,8 @@ describe('BitbucketService', () => {
         mockRepositorySlug,
         {
           version: 0,
-          description: 'Updated description'
+          description: 'Updated description',
+          reviewers: currentReviewers
         }
       );
     });
@@ -1861,7 +1947,8 @@ describe('BitbucketService', () => {
         {
           version: 0,
           title: 'Updated Title',
-          description: 'Updated description'
+          description: 'Updated description',
+          reviewers: currentReviewers
         }
       );
     });
@@ -1992,12 +2079,66 @@ describe('BitbucketService', () => {
         mockPullRequestId,
         mockRepositorySlug,
         {
-          version: 0
+          version: 0,
+          reviewers: currentReviewers
         }
       );
     });
 
-    it('should successfully update PR with empty reviewers array', async () => {
+    it('should keep the current reviewers when reviewers are omitted', async () => {
+      (PullRequestsService.update as jest.Mock).mockResolvedValue({ id: 1, version: 1, state: 'OPEN' });
+
+      await bitbucketService.updatePullRequest(
+        mockProjectKey,
+        mockRepositorySlug,
+        mockPullRequestId,
+        0,
+        undefined,
+        'Updated description'
+      );
+
+      expect(PullRequestsService.get3).toHaveBeenCalledWith(mockProjectKey, mockPullRequestId, mockRepositorySlug);
+      expect(PullRequestsService.update).toHaveBeenCalledWith(
+        mockProjectKey,
+        mockPullRequestId,
+        mockRepositorySlug,
+        expect.objectContaining({ reviewers: currentReviewers })
+      );
+    });
+
+    it('should not read the PR when reviewers are passed', async () => {
+      (PullRequestsService.update as jest.Mock).mockResolvedValue({ id: 1, version: 1, state: 'OPEN' });
+
+      await bitbucketService.updatePullRequest(
+        mockProjectKey,
+        mockRepositorySlug,
+        mockPullRequestId,
+        0,
+        undefined,
+        undefined,
+        ['reviewer1']
+      );
+
+      expect(PullRequestsService.get3).not.toHaveBeenCalled();
+    });
+
+    it('should not update the PR when its current reviewers cannot be read', async () => {
+      (PullRequestsService.get3 as jest.Mock).mockRejectedValue(new Error('PR not readable'));
+
+      const result = await bitbucketService.updatePullRequest(
+        mockProjectKey,
+        mockRepositorySlug,
+        mockPullRequestId,
+        0,
+        'Updated Title'
+      );
+
+      expect(result.success).toBe(false);
+      expect(result.error).toBe('Could not read the current reviewers: PR not readable');
+      expect(PullRequestsService.update).not.toHaveBeenCalled();
+    });
+
+    it('should remove all reviewers with an empty reviewers array', async () => {
       const mockUpdatedPR = {
         id: 1,
         version: 1,
@@ -2023,10 +2164,12 @@ describe('BitbucketService', () => {
         mockProjectKey,
         mockPullRequestId,
         mockRepositorySlug,
-        expect.not.objectContaining({
-          reviewers: expect.anything()
-        })
+        {
+          version: 0,
+          reviewers: []
+        }
       );
+      expect(PullRequestsService.get3).not.toHaveBeenCalled();
     });
 
     it('should handle API errors gracefully', async () => {
@@ -3007,6 +3150,15 @@ describe('BitbucketService', () => {
 
       expect(PullRequestsService.reopen).toHaveBeenCalledWith('TEST', '1', 'test-repo', '2', { version: 2 });
     });
+
+    it('should uppercase projectKey and lowercase repositorySlug for getPullRequestBuilds', async () => {
+      (PullRequestsService.get3 as jest.Mock).mockResolvedValue({ id: 1, fromRef: { latestCommit: 'abc123' } });
+      (DeprecatedService.getBuildStatus as jest.Mock).mockResolvedValue({ values: [] });
+
+      await bitbucketService.getPullRequestBuilds('test', 'Test-Repo', '1');
+
+      expect(PullRequestsService.get3).toHaveBeenCalledWith('TEST', '1', 'test-repo');
+    });
   });
 
   describe('searchCode', () => {
@@ -3019,7 +3171,7 @@ describe('BitbucketService', () => {
       const result = await bitbucketService.searchCode('app');
 
       expect(result.success).toBe(true);
-      expect(result.data).toBe(mockData);
+      expect(result.data).toEqual(mockData);
       expect(mockRequest).toHaveBeenCalledWith(
         expect.any(Object),
         {
@@ -3027,8 +3179,7 @@ describe('BitbucketService', () => {
           url: '/search/latest/search',
           body: {
             query: 'app',
-            entities: { code: {} },
-            limits: { primary: 25 }
+            entities: { code: { limit: 25 } }
           },
           mediaType: 'application/json',
           errors: {
@@ -3039,10 +3190,10 @@ describe('BitbucketService', () => {
       );
     });
 
-    it('should pass explicit primary and secondary limits', async () => {
+    it('should pass an explicit limit', async () => {
       mockRequest.mockResolvedValue({ code: { count: 0, values: [] } });
 
-      await bitbucketService.searchCode('repo:demo TODO', 10, 5);
+      await bitbucketService.searchCode('repo:demo TODO', 10);
 
       expect(mockRequest).toHaveBeenCalledWith(
         expect.any(Object),
@@ -3051,9 +3202,39 @@ describe('BitbucketService', () => {
           url: '/search/latest/search',
           body: {
             query: 'repo:demo TODO',
-            entities: { code: {} },
-            limits: { primary: 10, secondary: 5 }
+            entities: { code: { limit: 10 } }
           },
+        })
+      );
+    });
+
+    it('should send the pagination offset when start is given', async () => {
+      mockRequest.mockResolvedValue({ code: { count: 0, values: [] } });
+
+      await bitbucketService.searchCode('TODO', 10, 30);
+
+      expect(mockRequest).toHaveBeenCalledWith(
+        expect.any(Object),
+        expect.objectContaining({
+          body: {
+            query: 'TODO',
+            entities: { code: { limit: 10, start: 30 } }
+          },
+        })
+      );
+    });
+
+    it('should send start=0 rather than omitting it', async () => {
+      mockRequest.mockResolvedValue({ code: { count: 0, values: [] } });
+
+      await bitbucketService.searchCode('TODO', 10, 0);
+
+      expect(mockRequest).toHaveBeenCalledWith(
+        expect.any(Object),
+        expect.objectContaining({
+          body: expect.objectContaining({
+            entities: { code: { limit: 10, start: 0 } }
+          }),
         })
       );
     });
@@ -3065,6 +3246,48 @@ describe('BitbucketService', () => {
 
       expect(result.success).toBe(false);
       expect(result.error).toBeDefined();
+    });
+
+    it('should return snippets as plain source text', async () => {
+      mockRequest.mockResolvedValue({
+        code: {
+          count: 1,
+          values: [
+            {
+              file: 'a.cs',
+              hitContexts: [[{ line: 3, text: 'a &lt; b &amp;&amp; c&#x2F;<em>d</em>' }]],
+            },
+          ],
+        },
+      });
+
+      const result = await bitbucketService.searchCode('d');
+
+      expect(result.success).toBe(true);
+      expect((result.data as any).code.values[0].hitContexts[0][0].text).toBe('a < b && c/d');
+    });
+
+    it('should fail when Bitbucket substituted the query', async () => {
+      mockRequest.mockResolvedValue({
+        query: { substituted: true },
+        code: { count: 10000, values: [{ file: 'a.cs', hitContexts: [] }] },
+      });
+
+      const result = await bitbucketService.searchCode('TODO AND project:EAS');
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('silently ran a different');
+      expect(result.data).toBeUndefined();
+    });
+
+    it('should fail when Bitbucket could not interpret the query', async () => {
+      mockRequest.mockResolvedValue({ query: null, code: { count: 0, values: [] } });
+
+      const result = await bitbucketService.searchCode('TODO project:NOSUCHPROJECT');
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('could not interpret');
+      expect(result.data).toBeUndefined();
     });
   });
 });

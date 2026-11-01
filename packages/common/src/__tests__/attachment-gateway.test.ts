@@ -22,7 +22,7 @@ describe('resolveAttachmentGateway', () => {
 
   beforeEach(() => {
     root = fs.mkdtempSync(path.join(os.tmpdir(), 'dc-mcp-gw-'));
-    realRoot = fs.realpathSync(root);
+    realRoot = fs.realpathSync.native(root);
   });
 
   afterEach(() => {
@@ -71,7 +71,7 @@ describe('resolveAttachmentGateway', () => {
 
 describe('resolveUploadSource', () => {
   let root: string;
-  const side = () => ({ enabled: true, roots: [fs.realpathSync(root)], maxBytes: 100 });
+  const side = () => ({ enabled: true, roots: [fs.realpathSync.native(root)], maxBytes: 100 });
 
   beforeEach(() => {
     root = fs.mkdtempSync(path.join(os.tmpdir(), 'dc-mcp-up-'));
@@ -83,7 +83,7 @@ describe('resolveUploadSource', () => {
   it('resolves a regular file inside the root', async () => {
     fs.writeFileSync(path.join(root, 'a.txt'), 'hi');
     const { absolutePath, size } = await resolveUploadSource({ requestedPath: 'a.txt', side: side() });
-    expect(absolutePath).toBe(path.join(fs.realpathSync(root), 'a.txt'));
+    expect(absolutePath).toBe(path.join(fs.realpathSync.native(root), 'a.txt'));
     expect(size).toBe(2);
   });
 
@@ -129,7 +129,7 @@ describe('resolveUploadSource', () => {
 
 describe('resolveDownloadDestination', () => {
   let root: string;
-  const side = () => ({ enabled: true, roots: [fs.realpathSync(root)], maxBytes: 100 });
+  const side = () => ({ enabled: true, roots: [fs.realpathSync.native(root)], maxBytes: 100 });
 
   beforeEach(() => {
     root = fs.mkdtempSync(path.join(os.tmpdir(), 'dc-mcp-dd-'));
@@ -140,12 +140,12 @@ describe('resolveDownloadDestination', () => {
 
   it('resolves a basename into the download root', async () => {
     const dest = await resolveDownloadDestination({ requestedName: 'out.bin', side: side() });
-    expect(dest).toBe(path.join(fs.realpathSync(root), 'out.bin'));
+    expect(dest).toBe(path.join(fs.realpathSync.native(root), 'out.bin'));
   });
 
   it('strips directory components from the requested name', async () => {
     const dest = await resolveDownloadDestination({ requestedName: '../../etc/passwd', side: side() });
-    expect(dest).toBe(path.join(fs.realpathSync(root), 'passwd'));
+    expect(dest).toBe(path.join(fs.realpathSync.native(root), 'passwd'));
   });
 
   it('throws when saving is disabled', async () => {

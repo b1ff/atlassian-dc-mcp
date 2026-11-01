@@ -3,6 +3,108 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [0.42.0](https://github.com/b1ff/atlassian-dc-mcp/compare/v0.41.0...v0.42.0) (2026-11-01)
+
+**Note:** Version bump only for package @atlassian-dc-mcp/bitbucket
+
+
+
+
+
+# [0.41.0](https://github.com/b1ff/atlassian-dc-mcp/compare/v0.40.0...v0.41.0) (2026-11-01)
+
+
+### Bug Fixes
+
+* **bitbucket:** drop the inert secondaryLimit search parameter ([679f069](https://github.com/b1ff/atlassian-dc-mcp/commit/679f069db2d56e05082e88b5ac510c850380d34f))
+* **bitbucket:** fail clearly on invalid/substituted query ([a11585f](https://github.com/b1ff/atlassian-dc-mcp/commit/a11585f11ed07f7e5ee9e8aa98606b978b60aea8))
+* **bitbucket:** return search snippets as plain source text ([57a7c2b](https://github.com/b1ff/atlassian-dc-mcp/commit/57a7c2beff113ef46546859689ca27f7d1089d8b)), closes [#x2](https://github.com/b1ff/atlassian-dc-mcp/issues/x2)
+
+
+### Features
+
+* **bitbucket:** add pagination to bitbucket_searchCode ([c770931](https://github.com/b1ff/atlassian-dc-mcp/commit/c770931b1bc51d4abff3de1ab28695ab1997b026))
+
+
+
+
+
+# [0.40.0](https://github.com/b1ff/atlassian-dc-mcp/compare/v0.39.0...v0.40.0) (2026-10-31)
+
+**Note:** Version bump only for package @atlassian-dc-mcp/bitbucket
+
+
+
+
+
+# [0.39.0](https://github.com/b1ff/atlassian-dc-mcp/compare/v0.38.0...v0.39.0) (2026-10-30)
+
+**Note:** Version bump only for package @atlassian-dc-mcp/bitbucket
+
+
+
+
+
+# [0.38.0](https://github.com/b1ff/atlassian-dc-mcp/compare/v0.37.0...v0.38.0) (2026-10-12)
+
+
+### Features
+
+* declare read-only tools with readOnlyHint ([5f2125b](https://github.com/b1ff/atlassian-dc-mcp/commit/5f2125b253ae6de111924875cadeac95952d3756))
+
+
+
+
+
+# [0.37.0](https://github.com/b1ff/atlassian-dc-mcp/compare/v0.36.2...v0.37.0) (2026-10-09)
+
+
+### Features
+
+* **bitbucket:** add repository browsing tool ([c849a8b](https://github.com/b1ff/atlassian-dc-mcp/commit/c849a8b84b60433e3d32b3bd339cd66db20561dd))
+
+
+
+
+
+## [0.36.2](https://github.com/b1ff/atlassian-dc-mcp/compare/v0.36.1...v0.36.2) (2026-10-09)
+
+**Note:** Version bump only for package @atlassian-dc-mcp/bitbucket
+
+
+
+
+
+## [0.36.1](https://github.com/b1ff/atlassian-dc-mcp/compare/v0.36.0...v0.36.1) (2026-10-09)
+
+
+### Bug Fixes
+
+* **bitbucket:** keep reviewers when updatePullRequest omits them ([58b9869](https://github.com/b1ff/atlassian-dc-mcp/commit/58b9869ed11468922948bf5950b0e8865e7c18e9))
+
+
+
+
+
+# [0.36.0](https://github.com/b1ff/atlassian-dc-mcp/compare/v0.35.0...v0.36.0) (2026-10-09)
+
+
+### Features
+
+* **bitbucket:** add bitbucket_getPullRequestBuilds tool ([0381a83](https://github.com/b1ff/atlassian-dc-mcp/commit/0381a83091054b4bc3fcc338432660772695792e))
+
+
+
+
+
+# [0.35.0](https://github.com/b1ff/atlassian-dc-mcp/compare/v0.34.0...v0.35.0) (2026-09-22)
+
+**Note:** Version bump only for package @atlassian-dc-mcp/bitbucket
+
+
+
+
+
 # [0.34.0](https://github.com/b1ff/atlassian-dc-mcp/compare/v0.33.0...v0.34.0) (2026-09-02)
 
 

@@ -1,6 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { SSEServerTransport } from "@modelcontextprotocol/sdk/server/sse.js";
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
+import type { ToolAnnotations } from '@modelcontextprotocol/sdk/types.js';
 export * from './api-error-handler.js'
 export * from './attachment-download.js'
 export * from './attachment-gateway.js'
@@ -10,6 +11,8 @@ export * from './tool-response.js'
 export { runSetup, runSetupCli } from './setup-cli.js';
 export { describeValidationError } from './setup/describe-error.js';
 export { parseSetupArgs, printSetupHelp, SetupArgsError, type ParsedSetupArgs } from './setup/args.js';
+
+export const readOnlyToolAnnotations: ToolAnnotations = { readOnlyHint: true };
 
 // Error handler helper
 export const handleError = (error: Error) => {

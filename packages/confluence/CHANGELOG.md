@@ -3,6 +3,98 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [0.42.0](https://github.com/b1ff/atlassian-dc-mcp/compare/v0.41.0...v0.42.0) (2026-11-01)
+
+**Note:** Version bump only for package @atlassian-dc-mcp/confluence
+
+
+
+
+
+# [0.41.0](https://github.com/b1ff/atlassian-dc-mcp/compare/v0.40.0...v0.41.0) (2026-11-01)
+
+**Note:** Version bump only for package @atlassian-dc-mcp/confluence
+
+
+
+
+
+# [0.40.0](https://github.com/b1ff/atlassian-dc-mcp/compare/v0.39.0...v0.40.0) (2026-10-31)
+
+
+### Features
+
+* **confluence:** add contentType to confluence_uploadAttachment ([f7e7874](https://github.com/b1ff/atlassian-dc-mcp/commit/f7e7874e3821d038a334360d74061a8cc7277365))
+
+
+
+
+
+# [0.39.0](https://github.com/b1ff/atlassian-dc-mcp/compare/v0.38.0...v0.39.0) (2026-10-30)
+
+
+### Features
+
+* **confluence:** add exact find/replace edits to confluence_updateContent ([5608277](https://github.com/b1ff/atlassian-dc-mcp/commit/5608277b6d2bcaee837ef284003d17e9578f6406)), closes [#102](https://github.com/b1ff/atlassian-dc-mcp/issues/102)
+
+
+
+
+
+# [0.38.0](https://github.com/b1ff/atlassian-dc-mcp/compare/v0.37.0...v0.38.0) (2026-10-12)
+
+
+### Features
+
+* declare read-only tools with readOnlyHint ([5f2125b](https://github.com/b1ff/atlassian-dc-mcp/commit/5f2125b253ae6de111924875cadeac95952d3756))
+
+
+
+
+
+# [0.37.0](https://github.com/b1ff/atlassian-dc-mcp/compare/v0.36.2...v0.37.0) (2026-10-09)
+
+**Note:** Version bump only for package @atlassian-dc-mcp/confluence
+
+
+
+
+
+## [0.36.2](https://github.com/b1ff/atlassian-dc-mcp/compare/v0.36.1...v0.36.2) (2026-10-09)
+
+**Note:** Version bump only for package @atlassian-dc-mcp/confluence
+
+
+
+
+
+## [0.36.1](https://github.com/b1ff/atlassian-dc-mcp/compare/v0.36.0...v0.36.1) (2026-10-09)
+
+**Note:** Version bump only for package @atlassian-dc-mcp/confluence
+
+
+
+
+
+# [0.36.0](https://github.com/b1ff/atlassian-dc-mcp/compare/v0.35.0...v0.36.0) (2026-10-09)
+
+**Note:** Version bump only for package @atlassian-dc-mcp/confluence
+
+
+
+
+
+# [0.35.0](https://github.com/b1ff/atlassian-dc-mcp/compare/v0.34.0...v0.35.0) (2026-09-22)
+
+
+### Bug Fixes
+
+* **common:** match root canonicalization to promises.realpath on Windows ([9418742](https://github.com/b1ff/atlassian-dc-mcp/commit/94187426d6cc37daa5f81338e8f50253589cf073))
+
+
+
+
+
 # [0.34.0](https://github.com/b1ff/atlassian-dc-mcp/compare/v0.33.0...v0.34.0) (2026-09-02)
 
 **Note:** Version bump only for package @atlassian-dc-mcp/confluence
