@@ -1,5 +1,7 @@
 import type { AttachmentGatewaySide } from '@atlassian-dc-mcp/common';
-import { ConfluenceService } from '../confluence-service.js';
+import { z } from 'zod';
+import { DEFAULT_MAX_ATTACHMENT_BYTES } from '@atlassian-dc-mcp/common';
+import { ConfluenceService, confluenceToolSchemas } from '../confluence-service.js';
 import { AttachmentsService } from '../confluence-client/index.js';
 
 const DISABLED_DOWNLOAD: AttachmentGatewaySide = { enabled: false, roots: [], maxBytes: 25 * 1024 * 1024 };
@@ -85,5 +87,27 @@ describe('ConfluenceService.downloadAttachmentFromContent', () => {
     expect(result.success).toBe(false);
     expect(result.error).toContain('disabled');
     expect(global.fetch).not.toHaveBeenCalled();
+  });
+});
+
+describe('confluence_downloadAttachment tool schema', () => {
+  const schema = z.object(confluenceToolSchemas.downloadAttachment);
+
+  it("offers 'image' alongside the data modes", () => {
+    for (const mode of ['none', 'base64', 'text', 'image']) {
+      expect(schema.safeParse({ contentId: '123', returnContent: mode }).success).toBe(true);
+    }
+    expect(schema.safeParse({ contentId: '123', returnContent: 'jpeg' }).success).toBe(false);
+  });
+
+  it('bounds maxInlineBytes by what can be downloaded at all', () => {
+    // A model told "exceeds inline cap" retries with a bigger number; past the
+    // download ceiling there are no bytes to have, so the ask is rejected rather
+    // than silently promising a payload nothing can deliver.
+    expect(schema.safeParse({ contentId: '123', maxInlineBytes: DEFAULT_MAX_ATTACHMENT_BYTES }).success).toBe(true);
+    expect(schema.safeParse({ contentId: '123', maxInlineBytes: DEFAULT_MAX_ATTACHMENT_BYTES + 1 }).success).toBe(false);
+    expect(schema.safeParse({ contentId: '123', maxInlineBytes: 0 }).success).toBe(false);
+    expect(schema.safeParse({ contentId: '123', maxInlineBytes: 1.5 }).success).toBe(false);
+    expect(schema.safeParse({ contentId: '123', maxInlineBytes: Number.POSITIVE_INFINITY }).success).toBe(false);
   });
 });
