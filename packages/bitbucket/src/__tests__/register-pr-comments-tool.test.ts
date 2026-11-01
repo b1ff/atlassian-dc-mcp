@@ -1,15 +1,14 @@
-import { z } from 'zod';
 import { registerPullRequestCommentsTool } from '../register-pr-comments-tool.js';
 
 describe('pull request comments tool', () => {
   it.each([true, false, undefined])('forwards includeResolved=%s to the service', async (includeResolved) => {
-    const server = { tool: jest.fn() };
+    const server = { registerTool: jest.fn() };
     const service = {
       getPullRequestCommentsAndActions: jest.fn().mockResolvedValue({ success: true, data: { values: [] } }),
     };
     registerPullRequestCommentsTool(server, service);
-    const [name, , schema, , handler] = server.tool.mock.calls[0];
-    const args = z.object(schema).parse({
+    const [name, { inputSchema }, handler] = server.registerTool.mock.calls[0];
+    const args = inputSchema.parse({
       projectKey: 'TEST',
       repositorySlug: 'repo',
       pullRequestId: '123',
