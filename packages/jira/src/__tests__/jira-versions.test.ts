@@ -1,5 +1,4 @@
 import { z } from 'zod';
-import { toJsonSchemaCompat } from '@modelcontextprotocol/sdk/server/zod-json-schema-compat.js';
 import { ProjectService, VersionService } from '../jira-client/index.js';
 import {
   createVersion,
@@ -199,7 +198,7 @@ describe('updateVersion', () => {
 describe('versionToolSchemas', () => {
   it.each(Object.entries(versionToolSchemas))('%s converts to a JSON Schema without $ref', (_, shape) => {
     // Same conversion the MCP server applies when listing tools.
-    const jsonSchema = JSON.stringify(toJsonSchemaCompat(z.object(shape)));
+    const jsonSchema = JSON.stringify(z.toJSONSchema(z.object(shape)));
 
     expect(jsonSchema).not.toContain('$ref');
   });

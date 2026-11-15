@@ -27,12 +27,19 @@
   },
   "dependencies": {
     "@inquirer/prompts": "7.10.1",
-    "@modelcontextprotocol/sdk": "1.27.1",
     "dotenv": "18.0.9",
-    "zod": "4.6.7"
+    "zod": "4.6.7",
+    "@modelcontextprotocol/server": "2.4.0"
   },
   "publishConfig": {
     "access": "public"
   },
-  "gitHead": "21ea555d7c02461cde3bab32a4b75c6c6a94e927"
+  "gitHead": "21ea555d7c02461cde3bab32a4b75c6c6a94e927",
+  "engines": {
+    "node": ">=22.22.2",
+    "npm": ">=11.10.0 <12"
+  },
+  "devDependencies": {
+    "@modelcontextprotocol/core": "2.4.0"
+  }
 }

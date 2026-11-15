@@ -23,7 +23,7 @@
     "debug": "node mcp-live-debug.js",
     "debug:verbose": "node mcp-live-debug.js --verbose",
     "debug:ts": "nodemon --exec tsx",
-    "publish:ci": "lerna version --conventional-commits --yes --no-push && lerna publish from-package --yes",
+    "publish:ci": "node scripts/version-packages.js && lerna publish from-package --yes",
     "lerna": "lerna"
   },
   "overrides": {
@@ -43,5 +43,10 @@
     "nodemon": "3.1.14",
     "tsx": "4.23.15",
     "typescript": "7.0.2"
-  }
+  },
+  "engines": {
+    "node": ">=22.22.2",
+    "npm": ">=11.10.0 <12"
+  },
+  "packageManager": "npm@11.21.1"
 }

@@ -1,4 +1,4 @@
-import { CallToolResultSchema } from '@modelcontextprotocol/sdk/types.js';
+import { CallToolResultSchema } from '@modelcontextprotocol/core';
 import { formatAttachmentToolResponse, MAX_IMAGE_BYTES } from '../attachment-tool-response.js';
 import type { AttachmentDownloadResult } from '../attachment-download.js';
 import { formatToolResponse } from '../tool-response.js';
