@@ -1,0 +1,15 @@
+name: Set up npm
+description: Install the npm version pinned in package.json into a separate prefix
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      run: |
+        npm_package="$(node -p 'require("./package.json").packageManager')"
+        npm_prefix="$RUNNER_TEMP/npm-cli"
+        npm install --global --prefix "$npm_prefix" --no-audit --no-fund "$npm_package"
+        if [[ "$RUNNER_OS" == "Windows" ]]; then
+          echo "$npm_prefix" >> "$GITHUB_PATH"
+        else
+          echo "$npm_prefix/bin" >> "$GITHUB_PATH"
+        fi
