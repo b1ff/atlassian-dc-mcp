@@ -2,7 +2,7 @@ import { File } from 'node:buffer';
 import { readFile } from 'node:fs/promises';
 import { basename } from 'node:path';
 import { z } from 'zod';
-import { AttachmentsService, ContentResourceService, OpenAPI, SearchService, UserService } from './confluence-client/index.js';
+import { AttachmentsService, ChildContentService, ContentResourceService, OpenAPI, SearchService, UserService } from './confluence-client/index.js';
 import {
   DEFAULT_MAX_ATTACHMENT_BYTES,
   downloadAttachment,
@@ -14,7 +14,7 @@ import {
   type AttachmentGatewaySide,
 } from '@atlassian-dc-mcp/common';
 import { CONFLUENCE_PRODUCT, getDefaultPageSize, getMissingConfig } from './config.js';
-import { ConfluenceBodyMode, shapeConfluenceContent } from './confluence-response-mapper.js';
+import { ConfluenceBodyMode, shapeConfluenceComments, shapeConfluenceContent } from './confluence-response-mapper.js';
 
 /**
  * Escapes user input for safe use inside a CQL quoted string.
@@ -71,6 +71,27 @@ export interface ConfluenceContent {
   };
   ancestors?: Array<{ id: string }>;
 }
+
+export type ConfluenceCommentContainerType = 'page' | 'blogpost';
+export type ConfluenceCommentDepth = 'root' | 'all';
+export type ConfluenceCommentLocation = 'footer' | 'inline' | 'resolved';
+
+export interface ConfluenceComment {
+  type: 'comment';
+  container: {
+    id: string;
+    type: ConfluenceCommentContainerType;
+  };
+  ancestors?: Array<{ id: string }>;
+  body: {
+    storage: {
+      value: string;
+      representation: 'storage';
+    };
+  };
+}
+
+const COMMENT_EXPAND = 'body.storage,ancestors,history';
 
 function resolveToken(token: string | (() => string | undefined), missingTokenMessage: string) {
   return async () => {
@@ -186,6 +207,65 @@ export class ConfluenceService {
    */
   async updateContent(contentId: string, content: ConfluenceContent) {
     return handleApiOperation(() => ContentResourceService.update2(contentId, content), 'Error updating content');
+  }
+
+  /**
+   * Add a comment to a page or blog post, or reply to an existing comment on it
+   * @param containerId The ID of the page or blog post to comment on
+   * @param body Comment body in storage format
+   * @param parentCommentId ID of the comment to reply to; omit for a top-level comment
+   * @param containerType Content type of the container
+   */
+  async createComment(
+    containerId: string,
+    body: string,
+    parentCommentId?: string,
+    containerType: ConfluenceCommentContainerType = 'page',
+  ) {
+    // Confluence rejects a comment without a container; a reply names its parent comment as the ancestor.
+    const comment: ConfluenceComment = {
+      type: 'comment',
+      container: { id: containerId, type: containerType },
+      body: { storage: { value: body, representation: 'storage' } },
+    };
+    if (parentCommentId) {
+      comment.ancestors = [{ id: parentCommentId }];
+    }
+    return handleApiOperation(() => ContentResourceService.createContent(comment), 'Error creating comment');
+  }
+
+  /**
+   * List the comments of a page or blog post, with the id of the comment each reply answers
+   * @param params.contentId The ID of the page or blog post
+   * @param params.depth 'all' (default) includes replies, 'root' returns top-level comments only
+   * @param params.location Only return comments at this location
+   * @param params.limit Maximum number of comments to return
+   * @param params.start Start index for pagination
+   * @param params.bodyMode How to return each comment body
+   */
+  async getComments(params: {
+    contentId: string;
+    depth?: ConfluenceCommentDepth;
+    location?: ConfluenceCommentLocation;
+    limit?: number;
+    start?: number;
+    bodyMode?: ConfluenceBodyMode;
+  }) {
+    const result = await handleApiOperation(
+      () => ChildContentService.commentsOfContent(
+        params.contentId,
+        COMMENT_EXPAND,
+        params.depth === 'root' ? undefined : 'all',
+        (params.limit ?? this.getPageSize()).toString(),
+        params.start?.toString(),
+        params.location,
+      ),
+      'Error getting comments'
+    );
+    if (result.success && result.data) {
+      return { ...result, data: shapeConfluenceComments(result.data, params.bodyMode) };
+    }
+    return result;
   }
 
   /**
@@ -378,6 +458,21 @@ export const confluenceToolSchemas = {
     content: z.string().describe("Content body in Confluence Data Center \"storage\" format (confluence XML)"),
     parentId: z.string().optional().describe("ID of the parent page (if creating a child page)"),
     output: z.enum(['ack', 'full']).optional().describe("Return a compact acknowledgement or the full API response. Defaults to ack.")
+  },
+  createComment: {
+    contentId: z.string().describe("ID of the page (or blog post) to comment on"),
+    content: z.string().describe("Comment body in Confluence Data Center \"storage\" format (confluence XML), e.g. <p>Looks good</p>"),
+    parentCommentId: z.string().optional().describe("ID of the comment to reply to. It must be a comment on the same page; use confluence_getComments to find it. Omit for a top-level comment."),
+    containerType: z.enum(['page', 'blogpost']).optional().describe("Content type of contentId. Defaults to page."),
+    output: z.enum(['ack', 'full']).optional().describe("Return a compact acknowledgement or the full API response. Defaults to ack.")
+  },
+  getComments: {
+    contentId: z.string().describe("ID of the page (or blog post) whose comments to list"),
+    depth: z.enum(['all', 'root']).optional().describe("'all' (default) returns every comment including replies, each with the parentId of the comment it answers; 'root' returns top-level comments only"),
+    location: z.enum(['footer', 'inline', 'resolved']).optional().describe("Only return comments at this location. Defaults to all locations."),
+    limit: z.number().optional().describe("Maximum number of comments to return"),
+    start: z.number().optional().describe("Start index for pagination"),
+    bodyMode: z.enum(['storage', 'text', 'none']).optional().describe("How to return each comment body. Defaults to storage.")
   },
   updateContent: {
     contentId: z.string().describe("ID of the content to update"),
