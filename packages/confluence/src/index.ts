@@ -90,6 +90,33 @@ server.tool(
 );
 
 server.tool(
+  "confluence_getComments",
+  `List the comments of a page in ${confluenceInstanceType}, including replies. Each reply carries the parentId of the comment it answers.`,
+  confluenceToolSchemas.getComments,
+  readOnlyToolAnnotations,
+  async ({ contentId, depth, location, limit, start, bodyMode }) => {
+    const result = await confluenceService.getComments({ contentId, depth, location, limit, start, bodyMode });
+    return formatToolResponse(result);
+  }
+);
+
+server.tool(
+  "confluence_createComment",
+  `Add a comment to a page in ${confluenceInstanceType}, or reply to an existing comment by passing parentCommentId.`,
+  confluenceToolSchemas.createComment,
+  async ({ contentId, content, parentCommentId, containerType, output }) => {
+    const result = await confluenceService.createComment(contentId, content, parentCommentId, containerType);
+    if (result.success && result.data && output !== 'full') {
+      return formatToolResponse({
+        ...result,
+        data: shapeConfluenceMutationAck(result.data),
+      });
+    }
+    return formatToolResponse(result);
+  }
+);
+
+server.tool(
   "confluence_updateContent",
   `Update existing content in ${confluenceInstanceType}. Optionally move the page by setting parentId.`,
   confluenceToolSchemas.updateContent,

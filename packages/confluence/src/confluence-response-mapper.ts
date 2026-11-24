@@ -114,6 +114,42 @@ export function shapeConfluenceContent(content: any, bodyMode: ConfluenceBodyMod
   };
 }
 
+function shapeCommentBody(comment: any, bodyMode: ConfluenceBodyMode) {
+  const storageValue = comment?.body?.storage?.value;
+  if (bodyMode === 'none' || typeof storageValue !== 'string') {
+    return {};
+  }
+  return { body: bodyMode === 'text' ? confluenceStorageToText(storageValue) : storageValue };
+}
+
+export function shapeConfluenceComment(comment: any, bodyMode: ConfluenceBodyMode = 'storage') {
+  // A comment's ancestors are its parent comments, nearest first (unlike a page's, which start at the root).
+  const parentId = comment?.ancestors?.[0]?.id;
+  const location = comment?.extensions?.location;
+  const author = comment?.history?.createdBy;
+
+  return {
+    id: comment?.id,
+    ...(parentId !== undefined ? { parentId } : {}),
+    ...(typeof location === 'string' ? { location } : {}),
+    ...(author ? { author: author.displayName ?? author.username } : {}),
+    ...(typeof comment?.history?.createdDate === 'string' ? { created: comment.history.createdDate } : {}),
+    ...shapeCommentBody(comment, bodyMode),
+  };
+}
+
+export function shapeConfluenceComments(response: any, bodyMode: ConfluenceBodyMode = 'storage') {
+  const comments = Array.isArray(response?.results) ? response.results : [];
+  const start = typeof response?.start === 'number' ? response.start : 0;
+
+  return {
+    comments: comments.map((comment: any) => shapeConfluenceComment(comment, bodyMode)),
+    start,
+    size: comments.length,
+    ...(response?._links?.next ? { nextStart: start + comments.length } : {}),
+  };
+}
+
 export function shapeConfluenceMutationAck(content: any) {
   const url = getContentUrl(content);
 

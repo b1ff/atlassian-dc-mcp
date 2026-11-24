@@ -49,6 +49,7 @@ Available flags: `--host`/`-H`, `--api-base-path`/`-b`, `--token`/`-t`, `--defau
 - Search for content using CQL (Confluence Query Language)
 - Create new content (pages, blog posts)
 - Update existing content
+- List page comments and add comments or replies
 
 ## Setup
 
@@ -283,3 +284,26 @@ Parameters:
 - `maxInlineBytes` (number, optional): Maximum bytes to embed inline when `returnContent` is `base64`/`text`/`image`. Larger files are omitted from the inline content and the entry carries a `contentOmittedReason` instead, so a retry with a higher value gets them. Defaults to 1 MiB and may not exceed 25 MiB, the ceiling on what can be downloaded at all — past that there are no bytes to have, so the request is rejected rather than promising a payload nothing can deliver. Applies to all three modes alike. Rendering has its own separate limit (below), so raising this never renders an image larger than 3,750,000 bytes; re-request that one with `base64` if you need its bytes.
 - `save` (boolean, optional): Save the attachment(s) into the server-configured download directory. Requires filesystem downloads to be enabled; existing files are never overwritten. *(Only available when downloads are enabled.)*
 - `saveName` (string, optional): File name (no directories) to use when saving a single attachment; defaults to the attachment's own name. *(Only available when downloads are enabled.)*
+
+#### 8. confluence_getComments
+
+List the comments of a page (or blog post), including replies. Each comment comes back as `{ id, parentId?, location?, author?, created?, body? }`, where `parentId` is the id of the comment a reply answers (absent on top-level comments). When more comments are available, the result carries `nextStart` to pass as `start`.
+
+Parameters:
+- `contentId` (string, required): ID of the page (or blog post) whose comments to list
+- `depth` (`all` | `root`, optional): `all` (default) returns every comment including replies; `root` returns top-level comments only
+- `location` (`footer` | `inline` | `resolved`, optional): Only return comments at this location. Defaults to all locations.
+- `limit` (number, optional): Maximum number of comments to return. Defaults to `CONFLUENCE_DEFAULT_PAGE_SIZE` or `25`.
+- `start` (number, optional): Start index for pagination
+- `bodyMode` (`storage` | `text` | `none`, optional): How to return each comment body. Defaults to `storage`.
+
+#### 9. confluence_createComment
+
+Add a comment to a page (or blog post), or reply to an existing comment on it.
+
+Parameters:
+- `contentId` (string, required): ID of the page (or blog post) to comment on
+- `content` (string, required): Comment body in Confluence Data Center's storage format, e.g. `<p>Looks good</p>`
+- `parentCommentId` (string, optional): ID of the comment to reply to. It must be a comment on the same page; `confluence_getComments` lists the ids. Omit for a top-level comment.
+- `containerType` (`page` | `blogpost`, optional): Content type of `contentId`. Defaults to `page`.
+- `output` (`ack` | `full`, optional): Return a compact acknowledgement or the full API response. Defaults to `ack`.
