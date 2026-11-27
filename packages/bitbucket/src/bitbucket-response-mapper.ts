@@ -46,6 +46,7 @@ export function shapePullRequestCommentsResponse(
 
   return {
     isLastPage: hasSummary(compact) ? compact.isLastPage ?? true : filteredResponse.isLastPage ?? true,
+    nextPageStart: filteredResponse?.nextPageStart ?? null,
     summary: hasSummary(compact)
       ? compact.summary
       : {
@@ -74,6 +75,7 @@ export function shapePullRequestChangesResponse(response: any, output: Bitbucket
     ...(typeof response?.toHash === 'string' ? { toHash: response.toHash } : {}),
     ...(typeof response?.properties?.changeScope === 'string' ? { changeScope: response.properties.changeScope } : {}),
     isLastPage: hasSummary(compact) ? compact.isLastPage ?? true : response?.isLastPage ?? true,
+    nextPageStart: response?.nextPageStart ?? null,
     summary: hasSummary(compact)
       ? compact.summary
       : {

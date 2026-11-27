@@ -115,6 +115,9 @@ describe('PR Comment Mapper', () => {
 
       const expectedResult = {
         isLastPage: true,
+        start: 0,
+        limit: 100,
+        nextPageStart: null,
         activities: [
           {
             id: 1001,
@@ -541,6 +544,7 @@ describe('PR Comment Mapper', () => {
 
       const expectedResult = {
         isLastPage: true,
+        nextPageStart: null,
         activities: [],
         summary: {
           totalActivities: 0,
@@ -567,6 +571,9 @@ describe('PR Comment Mapper', () => {
 
       const expectedResult = {
         isLastPage: true,
+        start: 0,
+        limit: 100,
+        nextPageStart: null,
         activities: [],
         summary: {
           totalActivities: 0,
