@@ -257,7 +257,10 @@ describe('PR Changes Mapper', () => {
           moves: 1,
           filesWithComments: 1
         },
-        isLastPage: true
+        isLastPage: true,
+        start: 0,
+        limit: 25,
+        nextPageStart: null
       };
 
       expect(result).toEqual(expectedResult);
@@ -301,10 +304,31 @@ describe('PR Changes Mapper', () => {
           moves: 0,
           filesWithComments: 0
         },
-        isLastPage: true
+        isLastPage: true,
+        start: 0,
+        limit: 25,
+        nextPageStart: null
       };
 
       expect(result).toEqual(expectedResult);
+    });
+
+    it('should preserve pagination fields for mid-page responses', () => {
+      const midPageResponse = {
+        ...validPRChangesResponse,
+        size: 25,
+        isLastPage: false,
+        start: 25,
+        limit: 25,
+        nextPageStart: 50
+      };
+
+      const result = simplifyBitbucketPRChanges(midPageResponse);
+
+      expect(result.isLastPage).toBe(false);
+      expect(result.start).toBe(25);
+      expect(result.limit).toBe(25);
+      expect(result.nextPageStart).toBe(50);
     });
 
     it('should reduce response size significantly', () => {
@@ -369,7 +393,10 @@ describe('PR Changes Mapper', () => {
           moves: 0,
           filesWithComments: 0
         },
-        isLastPage: true
+        isLastPage: true,
+        start: 0,
+        limit: 25,
+        nextPageStart: null
       };
 
       expect(result).toEqual(expectedResult);

@@ -119,6 +119,7 @@ describe('BitbucketService token optimization paths', () => {
       expect(result.success).toBe(true);
       expect(result.data).toEqual({
         isLastPage: false,
+        nextPageStart: null,
         activities: [
           {
             id: 1,
@@ -193,6 +194,7 @@ describe('BitbucketService token optimization paths', () => {
       expect(defaultResult.success).toBe(true);
       expect(defaultResult.data).toEqual({
         isLastPage: true,
+        nextPageStart: null,
         activities: [
           {
             id: 1,
@@ -213,6 +215,7 @@ describe('BitbucketService token optimization paths', () => {
       expect(includeResolvedResult.success).toBe(true);
       expect(includeResolvedResult.data).toEqual({
         isLastPage: true,
+        nextPageStart: null,
         activities: [
           {
             id: 1,
@@ -272,6 +275,7 @@ describe('BitbucketService token optimization paths', () => {
       expect(result.success).toBe(true);
       expect(result.data).toEqual({
         isLastPage: false,
+        nextPageStart: null,
         summary: {
           totalActivities: 2,
           prAuthor: { name: 'author', displayName: 'Author' },
@@ -357,6 +361,9 @@ describe('BitbucketService token optimization paths', () => {
           filesWithComments: 1,
         },
         isLastPage: true,
+        start: 0,
+        limit: 25,
+        nextPageStart: null,
       });
     });
 
@@ -371,6 +378,7 @@ describe('BitbucketService token optimization paths', () => {
         toHash: 'def',
         changeScope: 'ALL',
         isLastPage: true,
+        nextPageStart: null,
         summary: {
           totalChanges: 1,
           additions: 0,

@@ -76,6 +76,9 @@ interface SimplifiedPRChangesResponse {
     filesWithComments: number;
   };
   isLastPage: boolean;
+  start?: number;
+  limit?: number;
+  nextPageStart?: number | null;
 }
 
 // Type guards
@@ -183,7 +186,13 @@ export function simplifyBitbucketPRChanges(response: any): SimplifiedPRChangesRe
       moves,
       filesWithComments
     },
-    isLastPage: response.isLastPage
+    isLastPage: response.isLastPage,
+    // Preserve pagination fields so callers can fetch the next page
+    // (nextPageStart is the offset to pass as `start`; Bitbucket returns
+    // null on the last page)
+    start: response.start,
+    limit: response.limit,
+    nextPageStart: response.nextPageStart ?? null
   };
 }
 

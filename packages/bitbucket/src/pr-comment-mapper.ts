@@ -162,6 +162,9 @@ interface SimplifiedActivity {
 
 export interface SimplifiedPRResponse {
   isLastPage: boolean;
+  start?: number;
+  limit?: number;
+  nextPageStart?: number | null;
   activities: SimplifiedActivity[];
   summary: {
     totalActivities: number;
@@ -373,6 +376,12 @@ export function simplifyBitbucketPRComments(
 
   return {
     isLastPage: filteredResponse.isLastPage ?? true,
+    // Preserve pagination fields so callers can fetch the next page
+    // (nextPageStart is the offset to pass as `start`; Bitbucket returns
+    // null on the last page)
+    start: filteredResponse.start,
+    limit: filteredResponse.limit,
+    nextPageStart: filteredResponse.nextPageStart ?? null,
     activities,
     summary: {
       totalActivities: activities.length,
